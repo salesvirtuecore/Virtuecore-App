@@ -1,8 +1,8 @@
 // ─── DEMO PROFILES ────────────────────────────────────────────────────────────
 export const DEMO_PROFILES = {
-  'admin@virtuecore.com': {
+  'sales@virtuecore.co.uk': {
     id: 'admin-001',
-    email: 'admin@virtuecore.com',
+    email: 'sales@virtuecore.co.uk',
     full_name: 'Samuel Oyedeji',
     role: 'admin',
     avatar_url: null,

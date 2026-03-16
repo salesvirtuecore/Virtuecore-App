@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
 
 const DEMO_ACCOUNTS = [
-  { label: 'Admin (Samuel)', email: 'admin@virtuecore.com', pw: 'demo1234' },
+  { label: 'Admin (Samuel)', email: 'sales@virtuecore.co.uk', pw: 'demo1234' },
   { label: 'Client', email: 'client@virtuecore.com', pw: 'demo1234' },
   { label: 'VA', email: 'va@virtuecore.com', pw: 'demo1234' },
 ]
