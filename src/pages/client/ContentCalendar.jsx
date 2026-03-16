@@ -1,0 +1,231 @@
+import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Check, MessageSquare } from 'lucide-react'
+import Badge from '../../components/ui/Badge'
+import { DEMO_CONTENT_CALENDAR } from '../../data/placeholder'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay } from 'date-fns'
+import { supabase, isDemoMode } from '../../lib/supabase'
+
+const STATUS_BADGE = { scheduled: 'blue', published: 'green', draft: 'default' }
+const PLATFORM_COLOR = { Instagram: '#E1306C', Facebook: '#1877F2', TikTok: '#000000', LinkedIn: '#0A66C2' }
+
+export default function ContentCalendar() {
+  const [current, setCurrent] = useState(new Date(2026, 2, 1)) // March 2026
+  const [selected, setSelected] = useState(null)
+  const [posts, setPosts] = useState(DEMO_CONTENT_CALENDAR)
+  const [approvedIds, setApprovedIds] = useState(new Set())
+  const [feedbackOpen, setFeedbackOpen] = useState({})
+  const [feedbackText, setFeedbackText] = useState({})
+  const [submittedFeedback, setSubmittedFeedback] = useState(new Set())
+
+  const monthStart = startOfMonth(current)
+  const monthEnd = endOfMonth(current)
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+
+  const days = []
+  let d = calStart
+  while (d <= calEnd) {
+    days.push(d)
+    d = addDays(d, 1)
+  }
+
+  const postsMap = {}
+  posts.forEach((post) => {
+    const key = post.post_date
+    if (!postsMap[key]) postsMap[key] = []
+    postsMap[key].push(post)
+  })
+
+  const selectedPosts = selected ? (postsMap[format(selected, 'yyyy-MM-dd')] ?? []) : []
+
+  async function handleApprove(postId) {
+    if (isDemoMode) {
+      setPosts((prev) =>
+        prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
+      )
+      setApprovedIds((prev) => new Set([...prev, postId]))
+    } else {
+      await supabase
+        .from('content_calendar')
+        .update({ status: 'published' })
+        .eq('id', postId)
+      setPosts((prev) =>
+        prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
+      )
+      setApprovedIds((prev) => new Set([...prev, postId]))
+    }
+  }
+
+  async function handleSubmitFeedback(post) {
+    const text = feedbackText[post.id]
+    if (!text?.trim()) return
+
+    if (isDemoMode) {
+      console.log('Feedback submitted (demo):', { post_id: post.id, platform: post.platform, feedback: text })
+    } else {
+      // Send as a message to the client thread
+      await supabase.from('messages').insert({
+        client_id: post.client_id,
+        sender_id: null,
+        content: `Changes requested for ${post.platform} post on ${post.post_date}: ${text}`,
+      })
+    }
+    setSubmittedFeedback((prev) => new Set([...prev, post.id]))
+    setFeedbackOpen((prev) => ({ ...prev, [post.id]: false }))
+    setFeedbackText((prev) => ({ ...prev, [post.id]: '' }))
+  }
+
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-vc-text">Content Calendar</h1>
+          <p className="text-sm text-vc-muted mt-0.5">{DEMO_CONTENT_CALENDAR.length} posts this month</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCurrent(subMonths(current, 1))} className="p-1.5 border border-vc-border hover:bg-vc-secondary transition-colors">
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-sm font-medium text-vc-text px-2">{format(current, 'MMMM yyyy')}</span>
+          <button onClick={() => setCurrent(addMonths(current, 1))} className="p-1.5 border border-vc-border hover:bg-vc-secondary transition-colors">
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="border border-vc-border">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 border-b border-vc-border">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+            <div key={day} className="px-3 py-2 text-xs font-medium text-vc-muted text-center border-r border-vc-border last:border-0">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7">
+          {days.map((day, idx) => {
+            const key = format(day, 'yyyy-MM-dd')
+            const posts = postsMap[key] ?? []
+            const isCurrentMonth = isSameMonth(day, current)
+            const isSelected = selected && isSameDay(day, selected)
+            const isToday = isSameDay(day, new Date(2026, 2, 16))
+
+            return (
+              <div
+                key={idx}
+                onClick={() => setSelected(posts.length > 0 ? day : null)}
+                className={`min-h-20 p-2 border-b border-r border-vc-border last-of-type:border-r-0 transition-colors ${
+                  isCurrentMonth ? 'bg-white' : 'bg-vc-secondary'
+                } ${posts.length > 0 ? 'cursor-pointer hover:bg-vc-secondary' : ''} ${
+                  isSelected ? 'ring-1 ring-inset ring-gold' : ''
+                }`}
+              >
+                <div className={`text-xs mb-1.5 font-medium w-5 h-5 flex items-center justify-center ${
+                  isToday ? 'bg-vc-text text-white rounded-full' :
+                  isCurrentMonth ? 'text-vc-text' : 'text-vc-muted/50'
+                }`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-0.5">
+                  {posts.slice(0, 2).map((post) => (
+                    <div
+                      key={post.id}
+                      className="text-xs px-1.5 py-0.5 truncate"
+                      style={{ backgroundColor: `${PLATFORM_COLOR[post.platform]}15`, color: PLATFORM_COLOR[post.platform] }}
+                    >
+                      {post.platform}
+                    </div>
+                  ))}
+                  {posts.length > 2 && (
+                    <p className="text-xs text-vc-muted pl-1">+{posts.length - 2} more</p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Post detail */}
+      {selected && selectedPosts.length > 0 && (
+        <div className="border border-vc-border p-5 space-y-3">
+          <h2 className="text-sm font-medium text-vc-text">{format(selected, 'EEEE, d MMMM yyyy')}</h2>
+          {selectedPosts.map((post) => {
+            const currentStatus = posts.find((p) => p.id === post.id)?.status ?? post.status
+            const isApproved = approvedIds.has(post.id) || currentStatus === 'published'
+            const feedbackSent = submittedFeedback.has(post.id)
+
+            return (
+              <div key={post.id} className="py-3 border-t border-vc-border first:border-0">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                    style={{ backgroundColor: PLATFORM_COLOR[post.platform] ?? '#666' }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-vc-text">{post.platform}</span>
+                      <Badge variant={STATUS_BADGE[currentStatus]} size="xs">{currentStatus}</Badge>
+                    </div>
+                    <p className="text-sm text-vc-text mb-3">{post.content}</p>
+
+                    {/* Approval actions — only when status is 'scheduled' */}
+                    {currentStatus === 'scheduled' && !isApproved && !feedbackSent && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleApprove(post.id)}
+                          className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 text-white text-xs px-3 py-1.5 transition-colors"
+                        >
+                          <Check size={12} />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => setFeedbackOpen((p) => ({ ...p, [post.id]: !p[post.id] }))}
+                          className="flex items-center gap-1.5 border border-vc-border text-vc-muted hover:text-vc-text text-xs px-3 py-1.5 transition-colors hover:bg-vc-secondary"
+                        >
+                          <MessageSquare size={12} />
+                          Request changes
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Success states */}
+                    {isApproved && (
+                      <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                        <Check size={12} /> Approved — marked as published
+                      </p>
+                    )}
+                    {feedbackSent && (
+                      <p className="text-xs text-vc-muted">Changes requested — team notified.</p>
+                    )}
+
+                    {/* Feedback input */}
+                    {feedbackOpen[post.id] && (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={feedbackText[post.id] ?? ''}
+                          onChange={(e) => setFeedbackText((p) => ({ ...p, [post.id]: e.target.value }))}
+                          placeholder="Describe the changes you'd like…"
+                          rows={3}
+                          className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-vc-text resize-none"
+                        />
+                        <button
+                          onClick={() => handleSubmitFeedback(post)}
+                          className="text-xs px-3 py-1.5 bg-vc-text text-white hover:bg-vc-muted transition-colors"
+                        >
+                          Submit feedback
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
