@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const resendKey = process.env.RESEND_API_KEY
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey || !resendKey) {
     return res.status(500).json({ error: 'Server not configured' })
   }
 
@@ -24,11 +24,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    let client_id = null
-
-    // Step 1: Create client record first (for client role)
+    // Step 1: Create client record in database (for client role)
     if (role === 'client') {
-      const { data: clientData, error: clientError } = await supabase
+      const { error: clientError } = await supabase
         .from('clients')
         .insert({
           company_name: company_name || full_name,
@@ -39,51 +37,14 @@ export default async function handler(req, res) {
           revenue_share_percentage: revenue_share_percentage || 0,
           status: 'onboarding',
         })
-        .select('id')
-        .single()
 
       if (clientError) throw clientError
-      client_id = clientData.id
     }
 
-    // Step 2: Create the user (email confirmed, no password yet)
-    const { data: userData, error: createError } = await supabase.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name, role, client_id },
-    })
+    // Step 2: Send invite email via Resend with signup link
+    const signupUrl = 'https://virtuecore-app.vercel.app/signup'
+    const portalLabel = role === 'va' ? 'VA portal' : 'client portal'
 
-    if (createError) throw createError
-    const userId = userData.user.id
-
-    // Step 3: Insert profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
-        email,
-        full_name: full_name || '',
-        role,
-        client_id: client_id || null,
-      }, { onConflict: 'id' })
-
-    if (profileError) {
-      console.error('Profile upsert error (non-fatal):', profileError)
-    }
-
-    // Step 4: Generate a password reset link (this is how the user sets their password)
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: {
-        redirectTo: 'https://virtuecore-app.vercel.app/accept-invite',
-      },
-    })
-
-    if (linkError) throw linkError
-    const inviteLink = linkData.properties.action_link
-
-    // Step 5: Send email via Resend directly
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -95,20 +56,20 @@ export default async function handler(req, res) {
         to: [email],
         subject: `You've been invited to VirtueCore`,
         html: `
-          <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-            <h1 style="font-size: 24px; font-weight: 600; color: #1A1A1A; margin-bottom: 8px;">Welcome to VirtueCore</h1>
-            <p style="color: #666666; font-size: 15px; margin-bottom: 24px;">
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px; color: #1A1A1A;">
+            <h1 style="font-size: 22px; font-weight: 600; margin-bottom: 8px;">Welcome to VirtueCore</h1>
+            <p style="color: #666666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
               Hi ${full_name || 'there'},<br/><br/>
-              You've been invited to access the VirtueCore client portal. Click the button below to set your password and get started.
+              You've been given access to your VirtueCore ${portalLabel}. Click the button below to create your account and get started.
             </p>
-            <a href="${inviteLink}" style="display: inline-block; background: #D4A843; color: white; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 14px; font-weight: 500;">
-              Accept Invite & Set Password
+            <a href="${signupUrl}" style="display: inline-block; background-color: #D4A843; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 14px; font-weight: 500; margin-bottom: 24px;">
+              Create your account →
             </a>
-            <p style="color: #999999; font-size: 13px; margin-top: 24px;">
-              This link expires in 24 hours. If you didn't expect this invite, you can ignore this email.
+            <p style="color: #999999; font-size: 13px; margin-top: 8px;">
+              Or copy this link: ${signupUrl}
             </p>
-            <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 24px 0;" />
-            <p style="color: #999999; font-size: 12px;">VirtueCore · virtuecore.co.uk</p>
+            <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 28px 0;" />
+            <p style="color: #999999; font-size: 12px; margin: 0;">VirtueCore · virtuecore.co.uk</p>
           </div>
         `,
       }),
@@ -116,7 +77,7 @@ export default async function handler(req, res) {
 
     if (!emailRes.ok) {
       const emailErr = await emailRes.json()
-      throw new Error(`Email send failed: ${emailErr.message}`)
+      throw new Error(`Email failed: ${emailErr.message}`)
     }
 
     return res.status(200).json({ success: true, message: 'Invite sent successfully' })
