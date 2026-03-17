@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Sparkles, X, Pencil, Trash2, Plus, Send } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/ui/StatCard'
+import Modal from '../../components/ui/Modal'
+import FormField from '../../components/ui/FormField'
 import {
   DEMO_CLIENTS, DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS,
   DEMO_DELIVERABLES, DEMO_MESSAGES, DEMO_INVOICES,
 } from '../../data/placeholder'
-import { isDemoMode } from '../../lib/supabase'
+import { isDemoMode, supabase } from '../../lib/supabase'
+import { useToast } from '../../context/ToastContext'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -51,12 +54,53 @@ Hartley & Sons Roofing delivered its strongest month to date in March 2026, gene
 - **By 22 March**: Launch Google remarketing campaign (brief attached)
 - **1 April**: Review April budget allocation based on March final data`
 
+// ── Deliverable form defaults ────────────────────────────────────────────────
+const EMPTY_DELIVERABLE = { title: '', type: 'ad_creative', file_url: '', status: 'draft' }
+const EMPTY_INVOICE = { amount: '', type: 'retainer', due_date: '', status: 'draft', stripe_invoice_id: '' }
+const EMPTY_AD = {
+  platform: 'meta', date: '', spend: '', impressions: '', clicks: '',
+  leads: '', conversions: '', ctr: '', cpl: '', roas: '',
+}
+const EMPTY_MESSAGE = ''
+
 export default function ClientView() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { showToast } = useToast()
+
   const [reportLoading, setReportLoading] = useState(false)
-  const [reportModal, setReportModal] = useState(null) // { text, saved }
+  const [reportModal, setReportModal] = useState(null)
   const [reportToast, setReportToast] = useState(false)
+
+  // Local data state
+  const [deliverables, setDeliverables] = useState(
+    DEMO_DELIVERABLES.filter((d) => d.client_id === id)
+  )
+  const [invoices, setInvoices] = useState(
+    DEMO_INVOICES.filter((i) => i.client_id === id)
+  )
+  const [adEntries, setAdEntries] = useState([])
+  const [messages, setMessages] = useState(
+    DEMO_MESSAGES.filter((m) => m.client_id === id)
+  )
+
+  // Modal open states
+  const [showDeliverableModal, setShowDeliverableModal] = useState(false)
+  const [editDeliverable, setEditDeliverable] = useState(null)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [editInvoice, setEditInvoice] = useState(null)
+  const [showAdModal, setShowAdModal] = useState(false)
+
+  // Form state
+  const [deliverableForm, setDeliverableForm] = useState(EMPTY_DELIVERABLE)
+  const [deliverableErrors, setDeliverableErrors] = useState({})
+  const [invoiceForm, setInvoiceForm] = useState(EMPTY_INVOICE)
+  const [invoiceErrors, setInvoiceErrors] = useState({})
+  const [adForm, setAdForm] = useState(EMPTY_AD)
+  const [adErrors, setAdErrors] = useState({})
+  const [messageText, setMessageText] = useState(EMPTY_MESSAGE)
+  const [saving, setSaving] = useState(false)
+
   const client = DEMO_CLIENTS.find((c) => c.id === id)
 
   if (!client) {
@@ -71,15 +115,12 @@ export default function ClientView() {
   }
 
   const metrics = DEMO_CLIENT_METRICS
-  const deliverables = DEMO_DELIVERABLES.filter((d) => d.client_id === id)
-  const messages = DEMO_MESSAGES.filter((m) => m.client_id === id)
-  const invoices = DEMO_INVOICES.filter((i) => i.client_id === id)
 
+  // ── Generate Report ──────────────────────────────────────────────────────────
   async function handleGenerateReport() {
     setReportLoading(true)
     try {
       if (isDemoMode) {
-        // Simulate a short delay, then show a preview modal with sample report
         await new Promise((r) => setTimeout(r, 1800))
         setReportModal({ text: DEMO_REPORT_PREVIEW, saved: true })
       } else {
@@ -100,11 +141,237 @@ export default function ClientView() {
         setReportModal({ text: data.report, saved: true })
       }
     } catch (err) {
-      console.error('Generate report error:', err)
+      showToast(err.message ?? 'Report generation failed', 'error')
     } finally {
       setReportLoading(false)
     }
   }
+
+  // ── Deliverable CRUD ─────────────────────────────────────────────────────────
+  function openAddDeliverable() {
+    setEditDeliverable(null)
+    setDeliverableForm(EMPTY_DELIVERABLE)
+    setDeliverableErrors({})
+    setShowDeliverableModal(true)
+  }
+
+  function openEditDeliverable(d) {
+    setEditDeliverable(d)
+    setDeliverableForm({ title: d.title, type: d.type, file_url: d.file_url ?? '', status: d.status })
+    setDeliverableErrors({})
+    setShowDeliverableModal(true)
+  }
+
+  function validateDeliverable() {
+    const e = {}
+    if (!deliverableForm.title.trim()) e.title = 'Title is required'
+    return e
+  }
+
+  async function handleSaveDeliverable() {
+    const e = validateDeliverable()
+    if (Object.keys(e).length) { setDeliverableErrors(e); return }
+    setSaving(true)
+    try {
+      const payload = {
+        title: deliverableForm.title.trim(),
+        type: deliverableForm.type,
+        file_url: deliverableForm.file_url.trim() || null,
+        status: deliverableForm.status,
+        client_id: id,
+      }
+      if (isDemoMode) {
+        if (editDeliverable) {
+          setDeliverables((prev) =>
+            prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
+          )
+        } else {
+          setDeliverables((prev) => [
+            ...prev,
+            { ...payload, id: `d-${Date.now()}`, created_at: new Date().toISOString().split('T')[0], feedback: null },
+          ])
+        }
+      } else {
+        if (editDeliverable) {
+          const { error } = await supabase.from('deliverables').update(payload).eq('id', editDeliverable.id)
+          if (error) throw error
+          setDeliverables((prev) =>
+            prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
+          )
+        } else {
+          const { data, error } = await supabase.from('deliverables').insert(payload).select().single()
+          if (error) throw error
+          setDeliverables((prev) => [...prev, data])
+        }
+      }
+      showToast(editDeliverable ? 'Deliverable updated' : 'Deliverable created')
+      setShowDeliverableModal(false)
+    } catch (err) {
+      showToast(err.message ?? 'Failed to save deliverable', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteDeliverable(delId) {
+    if (!confirm('Delete this deliverable?')) return
+    try {
+      if (!isDemoMode) {
+        const { error } = await supabase.from('deliverables').delete().eq('id', delId)
+        if (error) throw error
+      }
+      setDeliverables((prev) => prev.filter((d) => d.id !== delId))
+      showToast('Deliverable deleted')
+    } catch (err) {
+      showToast(err.message ?? 'Failed to delete deliverable', 'error')
+    }
+  }
+
+  // ── Invoice CRUD ─────────────────────────────────────────────────────────────
+  function openAddInvoice() {
+    setEditInvoice(null)
+    setInvoiceForm(EMPTY_INVOICE)
+    setInvoiceErrors({})
+    setShowInvoiceModal(true)
+  }
+
+  function openEditInvoice(inv) {
+    setEditInvoice(inv)
+    setInvoiceForm({
+      amount: inv.amount,
+      type: inv.type,
+      due_date: inv.due_date,
+      status: inv.status,
+      stripe_invoice_id: inv.stripe_invoice_id ?? '',
+    })
+    setInvoiceErrors({})
+    setShowInvoiceModal(true)
+  }
+
+  function validateInvoice() {
+    const e = {}
+    if (!invoiceForm.amount || isNaN(Number(invoiceForm.amount))) e.amount = 'Valid amount required'
+    if (!invoiceForm.due_date) e.due_date = 'Due date is required'
+    return e
+  }
+
+  async function handleSaveInvoice() {
+    const e = validateInvoice()
+    if (Object.keys(e).length) { setInvoiceErrors(e); return }
+    setSaving(true)
+    try {
+      const payload = {
+        amount: Number(invoiceForm.amount),
+        type: invoiceForm.type,
+        due_date: invoiceForm.due_date,
+        status: invoiceForm.status,
+        stripe_invoice_id: invoiceForm.stripe_invoice_id.trim() || null,
+        client_id: id,
+        client_name: client.company_name,
+      }
+      if (isDemoMode) {
+        if (editInvoice) {
+          setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
+        } else {
+          setInvoices((prev) => [
+            ...prev,
+            { ...payload, id: `inv-${Date.now()}`, paid_date: null, created_at: new Date().toISOString().split('T')[0] },
+          ])
+        }
+      } else {
+        if (editInvoice) {
+          const { error } = await supabase.from('invoices').update(payload).eq('id', editInvoice.id)
+          if (error) throw error
+          setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
+        } else {
+          const { data, error } = await supabase.from('invoices').insert(payload).select().single()
+          if (error) throw error
+          setInvoices((prev) => [...prev, data])
+        }
+      }
+      showToast(editInvoice ? 'Invoice updated' : 'Invoice created')
+      setShowInvoiceModal(false)
+    } catch (err) {
+      showToast(err.message ?? 'Failed to save invoice', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Ad Performance ───────────────────────────────────────────────────────────
+  function validateAd() {
+    const e = {}
+    if (!adForm.date) e.date = 'Date is required'
+    if (!adForm.spend || isNaN(Number(adForm.spend))) e.spend = 'Valid spend required'
+    return e
+  }
+
+  async function handleSaveAd() {
+    const e = validateAd()
+    if (Object.keys(e).length) { setAdErrors(e); return }
+    setSaving(true)
+    try {
+      const payload = {
+        client_id: id,
+        platform: adForm.platform,
+        date: adForm.date,
+        spend: Number(adForm.spend) || 0,
+        impressions: Number(adForm.impressions) || 0,
+        clicks: Number(adForm.clicks) || 0,
+        leads: Number(adForm.leads) || 0,
+        conversions: Number(adForm.conversions) || 0,
+        ctr: Number(adForm.ctr) || 0,
+        cpl: Number(adForm.cpl) || 0,
+        roas: Number(adForm.roas) || 0,
+      }
+      if (isDemoMode) {
+        setAdEntries((prev) => [{ ...payload, id: `ad-${Date.now()}` }, ...prev].slice(0, 5))
+      } else {
+        const { data, error } = await supabase.from('ad_performance').insert(payload).select().single()
+        if (error) throw error
+        setAdEntries((prev) => [data, ...prev].slice(0, 5))
+      }
+      showToast('Ad performance entry saved')
+      setAdForm(EMPTY_AD)
+      setAdErrors({})
+      setShowAdModal(false)
+    } catch (err) {
+      showToast(err.message ?? 'Failed to save ad performance', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Messages ─────────────────────────────────────────────────────────────────
+  async function handleSendMessage() {
+    if (!messageText.trim()) return
+    setSaving(true)
+    try {
+      const payload = {
+        client_id: id,
+        sender_id: 'admin-001',
+        sender_name: 'Samuel — VirtueCore',
+        sender_role: 'admin',
+        content: messageText.trim(),
+        created_at: new Date().toISOString(),
+      }
+      if (!isDemoMode) {
+        const { data, error } = await supabase.from('messages').insert(payload).select().single()
+        if (error) throw error
+        setMessages((prev) => [...prev, data])
+      } else {
+        setMessages((prev) => [...prev, { ...payload, id: `m-${Date.now()}` }])
+      }
+      setMessageText('')
+    } catch (err) {
+      showToast(err.message ?? 'Failed to send message', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
+  const selectClass = inputClass
 
   return (
     <div className="p-6 space-y-6">
@@ -200,50 +467,96 @@ export default function ClientView() {
         </ResponsiveContainer>
       </div>
 
+      {/* Deliverables + Messages */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Deliverables */}
         <div className="border border-vc-border">
-          <div className="px-4 py-3 border-b border-vc-border">
+          <div className="px-4 py-3 border-b border-vc-border flex items-center justify-between">
             <h2 className="text-sm font-medium text-vc-text">Deliverables</h2>
+            <button
+              onClick={openAddDeliverable}
+              className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+            >
+              <Plus size={13} /> Add
+            </button>
           </div>
           <div className="divide-y divide-vc-border">
+            {deliverables.length === 0 && (
+              <p className="px-4 py-4 text-sm text-vc-muted">No deliverables yet.</p>
+            )}
             {deliverables.map((d) => (
-              <div key={d.id} className="px-4 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-vc-text">{d.title}</p>
-                  <p className="text-xs text-vc-muted capitalize">{d.type.replace('_', ' ')}</p>
+              <div key={d.id} className="px-4 py-3 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-vc-text truncate">{d.title}</p>
+                  <p className="text-xs text-vc-muted capitalize">{d.type.replace(/_/g, ' ')}</p>
                 </div>
-                <Badge variant={d.status === 'approved' ? 'green' : d.status === 'changes_requested' ? 'red' : d.status === 'pending_review' ? 'amber' : 'default'}>
-                  {d.status.replace('_', ' ')}
-                </Badge>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge variant={d.status === 'approved' ? 'green' : d.status === 'changes_requested' ? 'red' : d.status === 'pending_review' ? 'amber' : 'default'}>
+                    {d.status.replace(/_/g, ' ')}
+                  </Badge>
+                  <button onClick={() => openEditDeliverable(d)} className="text-vc-muted hover:text-vc-text">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => handleDeleteDeliverable(d.id)} className="text-vc-muted hover:text-red-500">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Messages */}
-        <div className="border border-vc-border">
+        <div className="border border-vc-border flex flex-col">
           <div className="px-4 py-3 border-b border-vc-border">
             <h2 className="text-sm font-medium text-vc-text">Messages</h2>
           </div>
-          <div className="divide-y divide-vc-border max-h-64 overflow-y-auto">
+          <div className="divide-y divide-vc-border max-h-64 overflow-y-auto flex-1">
+            {messages.length === 0 && (
+              <p className="px-4 py-4 text-sm text-vc-muted">No messages yet.</p>
+            )}
             {messages.map((msg) => (
-              <div key={msg.id} className="px-4 py-3">
+              <div key={msg.id} className={`px-4 py-3 ${msg.sender_role === 'admin' ? 'bg-vc-secondary' : ''}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-vc-text">{msg.sender_name}</span>
-                  <span className="text-xs text-vc-muted">{new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-xs text-vc-muted">
+                    {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <p className="text-sm text-vc-text">{msg.content}</p>
               </div>
             ))}
+          </div>
+          {/* Send message */}
+          <div className="px-4 py-3 border-t border-vc-border flex gap-2">
+            <input
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
+              placeholder="Write a message…"
+              className="flex-1 border border-vc-border rounded px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-gold"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!messageText.trim() || saving}
+              className="bg-gold hover:bg-gold-dark text-white text-sm px-3 py-2 rounded disabled:opacity-50 flex items-center gap-1"
+            >
+              <Send size={13} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Invoices */}
       <div className="border border-vc-border">
-        <div className="px-5 py-3 border-b border-vc-border">
+        <div className="px-5 py-3 border-b border-vc-border flex items-center justify-between">
           <h2 className="text-sm font-medium text-vc-text">Invoices</h2>
+          <button
+            onClick={openAddInvoice}
+            className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+          >
+            <Plus size={13} /> Add Invoice
+          </button>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -252,9 +565,15 @@ export default function ClientView() {
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Amount</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Due</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
+              <th className="px-5 py-2.5" />
             </tr>
           </thead>
           <tbody>
+            {invoices.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-5 py-4 text-sm text-vc-muted">No invoices yet.</td>
+              </tr>
+            )}
             {invoices.map((inv) => (
               <tr key={inv.id} className="border-b border-vc-border last:border-0">
                 <td className="px-5 py-3 capitalize text-vc-text">{inv.type}</td>
@@ -265,11 +584,276 @@ export default function ClientView() {
                     {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                   </Badge>
                 </td>
+                <td className="px-5 py-3">
+                  <button onClick={() => openEditInvoice(inv)} className="text-vc-muted hover:text-vc-text">
+                    <Pencil size={13} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Ad Performance */}
+      <div className="border border-vc-border">
+        <div className="px-5 py-3 border-b border-vc-border flex items-center justify-between">
+          <h2 className="text-sm font-medium text-vc-text">Ad Performance — Manual Entry</h2>
+          <button
+            onClick={() => { setAdForm(EMPTY_AD); setAdErrors({}); setShowAdModal(true) }}
+            className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+          >
+            <Plus size={13} /> Log Entry
+          </button>
+        </div>
+        {adEntries.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-vc-muted">No manual entries yet. Click Log Entry to add performance data.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-vc-border bg-vc-secondary">
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Platform</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Date</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Spend</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Leads</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">CPL</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">ROAS</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">CTR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adEntries.map((a) => (
+                  <tr key={a.id} className="border-b border-vc-border last:border-0">
+                    <td className="px-5 py-3 capitalize text-vc-text">{a.platform}</td>
+                    <td className="px-5 py-3 text-vc-muted">{a.date}</td>
+                    <td className="px-5 py-3 text-vc-text">£{Number(a.spend).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-vc-text">{a.leads}</td>
+                    <td className="px-5 py-3 text-vc-text">{a.cpl ? `£${a.cpl}` : '—'}</td>
+                    <td className="px-5 py-3 text-vc-text">{a.roas ? `${a.roas}x` : '—'}</td>
+                    <td className="px-5 py-3 text-vc-text">{a.ctr ? `${a.ctr}%` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Deliverable Modal ──────────────────────────────────────────────── */}
+      <Modal
+        isOpen={showDeliverableModal}
+        onClose={() => setShowDeliverableModal(false)}
+        title={editDeliverable ? 'Edit Deliverable' : 'Add Deliverable'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <FormField label="Title" required error={deliverableErrors.title}>
+            <input
+              className={inputClass}
+              value={deliverableForm.title}
+              onChange={(e) => setDeliverableForm({ ...deliverableForm, title: e.target.value })}
+              placeholder="e.g. March Ad Creatives Pack"
+            />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Type" required>
+              <select
+                className={selectClass}
+                value={deliverableForm.type}
+                onChange={(e) => setDeliverableForm({ ...deliverableForm, type: e.target.value })}
+              >
+                <option value="ad_creative">Ad Creative</option>
+                <option value="content_calendar">Content Calendar</option>
+                <option value="report">Report</option>
+                <option value="website">Website</option>
+                <option value="lead_magnet">Lead Magnet</option>
+                <option value="other">Other</option>
+              </select>
+            </FormField>
+
+            <FormField label="Status" required>
+              <select
+                className={selectClass}
+                value={deliverableForm.status}
+                onChange={(e) => setDeliverableForm({ ...deliverableForm, status: e.target.value })}
+              >
+                <option value="draft">Draft</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="approved">Approved</option>
+              </select>
+            </FormField>
+          </div>
+
+          <FormField label="File URL">
+            <input
+              className={inputClass}
+              value={deliverableForm.file_url}
+              onChange={(e) => setDeliverableForm({ ...deliverableForm, file_url: e.target.value })}
+              placeholder="https://..."
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setShowDeliverableModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+              Cancel
+            </button>
+            <button onClick={handleSaveDeliverable} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+              {saving ? 'Saving…' : editDeliverable ? 'Save Changes' : 'Add Deliverable'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Invoice Modal ──────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        title={editInvoice ? 'Edit Invoice' : 'Add Invoice'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Amount (£)" required error={invoiceErrors.amount}>
+              <input
+                type="number"
+                className={inputClass}
+                value={invoiceForm.amount}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: e.target.value })}
+                min="0"
+              />
+            </FormField>
+
+            <FormField label="Type" required>
+              <select
+                className={selectClass}
+                value={invoiceForm.type}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, type: e.target.value })}
+              >
+                <option value="retainer">Retainer</option>
+                <option value="commission">Commission</option>
+              </select>
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Due Date" required error={invoiceErrors.due_date}>
+              <input
+                type="date"
+                className={inputClass}
+                value={invoiceForm.due_date}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, due_date: e.target.value })}
+              />
+            </FormField>
+
+            <FormField label="Status" required>
+              <select
+                className={selectClass}
+                value={invoiceForm.status}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, status: e.target.value })}
+              >
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </FormField>
+          </div>
+
+          <FormField label="Stripe Invoice ID (optional)">
+            <input
+              className={inputClass}
+              value={invoiceForm.stripe_invoice_id}
+              onChange={(e) => setInvoiceForm({ ...invoiceForm, stripe_invoice_id: e.target.value })}
+              placeholder="in_..."
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setShowInvoiceModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+              Cancel
+            </button>
+            <button onClick={handleSaveInvoice} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+              {saving ? 'Saving…' : editInvoice ? 'Save Changes' : 'Add Invoice'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Ad Performance Modal ───────────────────────────────────────────── */}
+      <Modal
+        isOpen={showAdModal}
+        onClose={() => setShowAdModal(false)}
+        title="Log Ad Performance"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Platform" required>
+              <select
+                className={selectClass}
+                value={adForm.platform}
+                onChange={(e) => setAdForm({ ...adForm, platform: e.target.value })}
+              >
+                <option value="meta">Meta</option>
+                <option value="google">Google</option>
+              </select>
+            </FormField>
+
+            <FormField label="Date" required error={adErrors.date}>
+              <input
+                type="date"
+                className={inputClass}
+                value={adForm.date}
+                onChange={(e) => setAdForm({ ...adForm, date: e.target.value })}
+              />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormField label="Spend (£)" required error={adErrors.spend}>
+              <input type="number" className={inputClass} value={adForm.spend} onChange={(e) => setAdForm({ ...adForm, spend: e.target.value })} min="0" />
+            </FormField>
+            <FormField label="Impressions">
+              <input type="number" className={inputClass} value={adForm.impressions} onChange={(e) => setAdForm({ ...adForm, impressions: e.target.value })} min="0" />
+            </FormField>
+            <FormField label="Clicks">
+              <input type="number" className={inputClass} value={adForm.clicks} onChange={(e) => setAdForm({ ...adForm, clicks: e.target.value })} min="0" />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <FormField label="Leads">
+              <input type="number" className={inputClass} value={adForm.leads} onChange={(e) => setAdForm({ ...adForm, leads: e.target.value })} min="0" />
+            </FormField>
+            <FormField label="Conversions">
+              <input type="number" className={inputClass} value={adForm.conversions} onChange={(e) => setAdForm({ ...adForm, conversions: e.target.value })} min="0" />
+            </FormField>
+            <FormField label="CTR (%)">
+              <input type="number" className={inputClass} value={adForm.ctr} onChange={(e) => setAdForm({ ...adForm, ctr: e.target.value })} min="0" step="0.01" />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="CPL (£)">
+              <input type="number" className={inputClass} value={adForm.cpl} onChange={(e) => setAdForm({ ...adForm, cpl: e.target.value })} min="0" step="0.01" />
+            </FormField>
+            <FormField label="ROAS">
+              <input type="number" className={inputClass} value={adForm.roas} onChange={(e) => setAdForm({ ...adForm, roas: e.target.value })} min="0" step="0.01" />
+            </FormField>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setShowAdModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+              Cancel
+            </button>
+            <button onClick={handleSaveAd} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+              {saving ? 'Saving…' : 'Save Entry'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
