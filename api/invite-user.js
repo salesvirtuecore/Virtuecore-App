@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     // Step 2: Send invite — this creates the auth.users record
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: { full_name, role, client_id },
-      redirectTo: 'https://virtuecore-app.vercel.app/login',
+      redirectTo: 'https://virtuecore-app.vercel.app/accept-invite',
     })
 
     if (inviteError) throw inviteError

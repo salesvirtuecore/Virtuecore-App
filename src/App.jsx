@@ -10,6 +10,7 @@ import VALayout from './components/layouts/VALayout'
 // Auth
 import Login from './pages/auth/Login'
 import ForgotPassword from './pages/auth/ForgotPassword'
+import AcceptInvite from './pages/auth/AcceptInvite'
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard'
@@ -86,6 +87,7 @@ function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
 
       {/* Admin */}
       <Route path="/admin" element={<RoleGate allowedRole="admin"><AdminLayout /></RoleGate>}>
