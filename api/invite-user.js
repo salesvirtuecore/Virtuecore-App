@@ -7,9 +7,9 @@ export default async function handler(req, res) {
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const resendKey = process.env.RESEND_API_KEY
+  const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'https://virtualcore.app.n8n.cloud/webhook/virtuecore-invite'
 
-  if (!supabaseUrl || !serviceRoleKey || !resendKey) {
+  if (!supabaseUrl || !serviceRoleKey || !n8nWebhookUrl) {
     return res.status(500).json({ error: 'Server not configured' })
   }
 
@@ -41,46 +41,31 @@ export default async function handler(req, res) {
       if (clientError) throw clientError
     }
 
-    // Step 2: Send invite email via Resend with signup link
-    const signupUrl = 'https://virtuecore-app.vercel.app/signup'
+    // Step 2: Send invite via n8n workflow (supabase resource already updated)
     const portalLabel = role === 'va' ? 'VA portal' : 'client portal'
-
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'VirtueCore <noreply@virtuecore.co.uk>',
-        to: [email],
-        subject: `You've been invited to VirtueCore`,
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px; color: #1A1A1A;">
-            <h1 style="font-size: 22px; font-weight: 600; margin-bottom: 8px;">Welcome to VirtueCore</h1>
-            <p style="color: #666666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
-              Hi ${full_name || 'there'},<br/><br/>
-              You've been given access to your VirtueCore ${portalLabel}. Click the button below to create your account and get started.
-            </p>
-            <a href="${signupUrl}" style="display: inline-block; background-color: #D4A843; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 4px; font-size: 14px; font-weight: 500; margin-bottom: 24px;">
-              Create your account →
-            </a>
-            <p style="color: #999999; font-size: 13px; margin-top: 8px;">
-              Or copy this link: ${signupUrl}
-            </p>
-            <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 28px 0;" />
-            <p style="color: #999999; font-size: 12px; margin: 0;">VirtueCore · virtuecore.co.uk</p>
-          </div>
-        `,
-      }),
-    })
-
-    if (!emailRes.ok) {
-      const emailErr = await emailRes.json()
-      throw new Error(`Email failed: ${emailErr.message}`)
+    const n8nPayload = {
+      to: email,
+      from: 'sales@virtuecore.co.uk',
+      subject: `You've been invited to VirtueCore`,
+      full_name,
+      company_name,
+      role,
+      portalLabel,
+      signupUrl: 'https://virtuecore-app.vercel.app/signup',
     }
 
-    return res.status(200).json({ success: true, message: 'Invite sent successfully' })
+    const n8nRes = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(n8nPayload),
+    })
+
+    if (!n8nRes.ok) {
+      const n8nBody = await n8nRes.text()
+      throw new Error(`n8n workflow invocation failed: ${n8nRes.status} ${n8nBody}`)
+    }
+
+    return res.status(200).json({ success: true, message: 'Invite flow triggered via n8n' })
   } catch (error) {
     console.error('Invite error:', error)
     return res.status(500).json({ error: error.message })
