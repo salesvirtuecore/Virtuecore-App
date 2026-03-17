@@ -1,64 +1,8 @@
 import { useState } from 'react'
-import { Copy, Check, Zap, CreditCard, AlertCircle } from 'lucide-react'
+import { Copy, Check, CreditCard, AlertCircle } from 'lucide-react'
 import { isDemoMode } from '../../lib/supabase'
 
 const BASE_URL = 'https://your-app.vercel.app'
-
-const ZAPIER_ENDPOINTS = [
-  {
-    id: 'new-lead',
-    label: 'New Lead',
-    path: '/api/zapier/new-lead',
-    method: 'POST',
-    description: 'Triggered when a new lead is captured in Zapier. Inserts into pipeline.',
-    payload: `{
-  "name": "Gary Ellis",
-  "email": "gary@example.co.uk",
-  "company": "Ellis Electrical",
-  "source": "Facebook Ad",
-  "score": 72,
-  "notes": "Interested in Meta ads. £2k/mo budget."
-}`,
-  },
-  {
-    id: 'task-update',
-    label: 'Task Update',
-    path: '/api/zapier/task-update',
-    method: 'POST',
-    description: 'Updates the status of a task in the VA task board.',
-    payload: `{
-  "task_id": "uuid-of-task",
-  "status": "complete",
-  "notes": "Optional update notes"
-}`,
-  },
-  {
-    id: 'invoice-paid',
-    label: 'Invoice Paid',
-    path: '/api/zapier/invoice-paid',
-    method: 'POST',
-    description: 'Marks an invoice as paid when triggered from Zapier.',
-    payload: `{
-  "invoice_id": "uuid-of-invoice",
-  "amount": 2500.00,
-  "paid_date": "2026-03-16"
-}`,
-  },
-  {
-    id: 'ad-alert',
-    label: 'Ad Performance Alert',
-    path: '/api/zapier/ad-alert',
-    method: 'POST',
-    description: 'Sends a system alert message to a client when an ad metric crosses a threshold.',
-    payload: `{
-  "client_id": "uuid-of-client",
-  "platform": "Meta",
-  "metric": "CPL",
-  "value": "£187",
-  "message": "CPL has risen above £180 threshold."
-}`,
-  },
-]
 
 const STRIPE_EVENTS = [
   'invoice.paid',
@@ -114,64 +58,9 @@ export default function Webhooks() {
       <div>
         <h1 className="text-xl font-semibold text-vc-text">Integrations & Webhooks</h1>
         <p className="text-sm text-vc-muted mt-0.5">
-          Configure external integrations. All webhook endpoints require an{' '}
-          <code className="text-xs bg-vc-secondary border border-vc-border px-1 py-0.5">
-            Authorization: Bearer &lt;ZAPIER_WEBHOOK_SECRET&gt;
-          </code>{' '}
-          header.
+          Configure external integrations and webhook endpoints across the platform.
         </p>
       </div>
-
-      {/* Zapier section */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Zap size={16} className="text-gold" />
-          <h2 className="text-base font-semibold text-vc-text">Zapier Webhooks</h2>
-          <StatusBadge />
-        </div>
-
-        <div className="space-y-4">
-          {ZAPIER_ENDPOINTS.map((ep) => {
-            const fullUrl = `${BASE_URL}${ep.path}`
-            return (
-              <div key={ep.id} className="border border-vc-border">
-                <div className="px-5 py-4 border-b border-vc-border bg-vc-secondary flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono bg-vc-text text-white px-1.5 py-0.5">
-                        {ep.method}
-                      </span>
-                      <span className="text-sm font-medium text-vc-text">{ep.label}</span>
-                    </div>
-                    <p className="text-xs text-vc-muted">{ep.description}</p>
-                  </div>
-                </div>
-
-                <div className="px-5 py-4 space-y-3">
-                  {/* URL row */}
-                  <div>
-                    <p className="text-xs text-vc-muted mb-1.5 font-medium uppercase tracking-wide">Endpoint URL</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-vc-secondary border border-vc-border px-3 py-2 text-vc-text font-mono truncate">
-                        {fullUrl}
-                      </code>
-                      <CopyButton text={fullUrl} />
-                    </div>
-                  </div>
-
-                  {/* Payload */}
-                  <div>
-                    <p className="text-xs text-vc-muted mb-1.5 font-medium uppercase tracking-wide">Expected Payload</p>
-                    <pre className="text-xs bg-vc-secondary border border-vc-border px-4 py-3 text-vc-text overflow-x-auto font-mono leading-relaxed">
-                      {ep.payload}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
 
       {/* Stripe section */}
       <section>

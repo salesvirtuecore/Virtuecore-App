@@ -115,6 +115,41 @@ export default function Clients() {
     }
   }
 
+  async function handleStripeConnect(client) {
+    if (isDemoMode) {
+      showToast('Stripe connect not available in demo mode', 'info')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const response = await fetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: client.id, contact_email: client.contact_email }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Stripe connect failed')
+
+      if (data.stripeAccountId) {
+        setClients((prev) =>
+          prev.map((c) => (c.id === client.id ? { ...c, stripe_account_id: data.stripeAccountId } : c))
+        )
+      }
+
+      if (data.connectUrl) {
+        window.open(data.connectUrl, '_blank', 'noreferrer')
+        showToast('Stripe onboarding window opened', 'success')
+      } else {
+        showToast('Stripe account created, return to client list to confirm', 'success')
+      }
+    } catch (err) {
+      showToast(err.message || 'Stripe connection failed', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
   const selectClass = inputClass
 
@@ -173,6 +208,7 @@ export default function Clients() {
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Package</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">MRR</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Ad Spend</th>
+              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Stripe</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Health</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Payment</th>
@@ -190,6 +226,19 @@ export default function Clients() {
                 <td className="px-5 py-3 text-vc-text font-medium">£{c.monthly_retainer.toLocaleString()}</td>
                 <td className="px-5 py-3 text-vc-text">
                   {c.ad_spend_managed > 0 ? `£${c.ad_spend_managed.toLocaleString()}` : '—'}
+                </td>
+                <td className="px-5 py-3">
+                  {c.stripe_account_id ? (
+                    <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded">Connected</span>
+                  ) : (
+                    <button
+                      onClick={() => handleStripeConnect(c)}
+                      className="text-vc-muted hover:text-vc-text text-xs"
+                      disabled={saving}
+                    >
+                      Connect Stripe
+                    </button>
+                  )}
                 </td>
                 <td className="px-5 py-3">
                   <Badge variant={STATUS_BADGE[c.status]}>{STATUS_LABELS[c.status]}</Badge>

@@ -40,6 +40,7 @@ create table clients (
   package_tier text check (package_tier in ('Starter', 'Growth', 'Premium')),
   monthly_retainer numeric(10,2) default 0,
   revenue_share_percentage numeric(5,2) default 0,
+  stripe_account_id text,
   status text default 'onboarding' check (status in ('active', 'onboarding', 'churned')),
   health_score text default 'green' check (health_score in ('green', 'amber', 'red')),
   onboarding_started_at timestamptz,
