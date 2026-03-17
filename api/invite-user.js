@@ -25,6 +25,7 @@ export default async function handler(req, res) {
   try {
     let client_id = null
 
+    // Step 1: Create client record first (for client role)
     if (role === 'client') {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
@@ -44,15 +45,31 @@ export default async function handler(req, res) {
       client_id = clientData.id
     }
 
-    const inviteData = { full_name, role }
-    if (client_id) inviteData.client_id = client_id
-
-    const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: inviteData,
-      redirectTo: `${process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'}/login`,
+    // Step 2: Send invite — this creates the auth.users record
+    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: { full_name, role, client_id },
+      redirectTo: 'https://virtuecore-app.vercel.app/login',
     })
 
     if (inviteError) throw inviteError
+
+    // Step 3: Manually insert profile — bypasses trigger entirely
+    const userId = inviteData?.user?.id
+    if (userId) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email,
+          full_name: full_name || '',
+          role,
+          client_id: client_id || null,
+        }, { onConflict: 'id' })
+
+      if (profileError) {
+        console.error('Profile upsert error (non-fatal):', profileError)
+      }
+    }
 
     return res.status(200).json({ success: true, message: 'Invite sent successfully' })
   } catch (error) {
