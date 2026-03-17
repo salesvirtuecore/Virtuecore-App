@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, ExternalLink } from 'lucide-react'
+import { Search, ExternalLink, UserPlus } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
+import InviteModal from '../../components/ui/InviteModal'
 import { DEMO_CLIENTS } from '../../data/placeholder'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
@@ -11,6 +12,7 @@ const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 export default function Clients() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [showInvite, setShowInvite] = useState(false)
   const navigate = useNavigate()
 
   const filtered = DEMO_CLIENTS.filter((c) => {
@@ -27,7 +29,16 @@ export default function Clients() {
           <h1 className="text-xl font-semibold text-vc-text">Clients</h1>
           <p className="text-sm text-vc-muted mt-0.5">{DEMO_CLIENTS.filter(c => c.status === 'active').length} active clients</p>
         </div>
+        <button
+          onClick={() => setShowInvite(true)}
+          className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded flex items-center gap-2"
+        >
+          <UserPlus size={14} />
+          Invite Client
+        </button>
       </div>
+
+      <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} role="client" />
 
       {/* Filters */}
       <div className="flex items-center gap-3">
