@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ExternalLink, UserPlus, Pencil } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
@@ -29,6 +29,7 @@ export default function Clients() {
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
   const [clients, setClients] = useState(DEMO_CLIENTS)
+  const [loadingClients, setLoadingClients] = useState(!isDemoMode)
   const [editClient, setEditClient] = useState(null) // the client being edited
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -36,10 +37,33 @@ export default function Clients() {
   const navigate = useNavigate()
   const { showToast } = useToast()
 
+  async function loadClients() {
+    if (isDemoMode || !supabase) return
+
+    setLoadingClients(true)
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setClients(data || [])
+    } catch (err) {
+      showToast(err.message ?? 'Failed to load clients', 'error')
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
+  useEffect(() => {
+    loadClients()
+  }, [])
+
   const filtered = clients.filter((c) => {
     const matchSearch =
-      c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.contact_name.toLowerCase().includes(search.toLowerCase())
+      (c.company_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.contact_name || '').toLowerCase().includes(search.toLowerCase())
     const matchFilter = filter === 'all' || c.status === filter
     return matchSearch && matchFilter
   })
@@ -171,7 +195,7 @@ export default function Clients() {
         </button>
       </div>
 
-      <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} role="client" />
+      <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} role="client" onSuccess={loadClients} />
 
       {/* Filters */}
       <div className="flex items-center gap-3">
@@ -216,6 +240,13 @@ export default function Clients() {
             </tr>
           </thead>
           <tbody>
+            {loadingClients && filtered.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-5 py-8 text-center text-sm text-vc-muted">
+                  Loading clients...
+                </td>
+              </tr>
+            )}
             {filtered.map((c) => (
               <tr key={c.id} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
                 <td className="px-5 py-3">
@@ -223,9 +254,9 @@ export default function Clients() {
                   <p className="text-xs text-vc-muted">{c.contact_email}</p>
                 </td>
                 <td className="px-5 py-3 text-vc-muted">{c.package_tier}</td>
-                <td className="px-5 py-3 text-vc-text font-medium">£{c.monthly_retainer.toLocaleString()}</td>
+                <td className="px-5 py-3 text-vc-text font-medium">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-vc-text">
-                  {c.ad_spend_managed > 0 ? `£${c.ad_spend_managed.toLocaleString()}` : '—'}
+                  {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
                 </td>
                 <td className="px-5 py-3">
                   {c.stripe_account_id ? (
@@ -281,9 +312,9 @@ export default function Clients() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {!loadingClients && filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-vc-muted">
+                <td colSpan={9} className="px-5 py-8 text-center text-sm text-vc-muted">
                   No clients match your search.
                 </td>
               </tr>

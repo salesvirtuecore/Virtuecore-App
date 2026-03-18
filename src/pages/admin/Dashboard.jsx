@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import Badge from '../../components/ui/Badge'
 import { DEMO_BUSINESS_METRICS, DEMO_MRR_CHART, DEMO_CLIENTS } from '../../data/placeholder'
+import { isDemoMode, supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
@@ -14,7 +16,27 @@ function fmt(n) {
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const m = DEMO_BUSINESS_METRICS
-  const activeClients = DEMO_CLIENTS.filter((c) => c.status === 'active')
+  const [clients, setClients] = useState(DEMO_CLIENTS)
+
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+
+    async function loadClients() {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setClients(data)
+      }
+    }
+
+    loadClients()
+  }, [])
+
+  const activeClients = clients.filter((c) => c.status === 'active')
+  const onboardingClients = clients.filter((c) => c.status === 'onboarding')
 
   return (
     <div className="p-6 space-y-6">
@@ -36,8 +58,8 @@ export default function AdminDashboard() {
         />
         <StatCard
           label="Active Clients"
-          value={m.active_clients}
-          sub="1 onboarding"
+          value={activeClients.length}
+          sub={`${onboardingClients.length} onboarding`}
           icon={Users}
         />
         <StatCard
@@ -116,16 +138,16 @@ export default function AdminDashboard() {
             </tr>
           </thead>
           <tbody>
-            {DEMO_CLIENTS.filter((c) => c.status !== 'churned').map((c) => (
+            {clients.filter((c) => c.status !== 'churned').map((c) => (
               <tr key={c.id} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
                 <td className="px-5 py-3">
                   <p className="font-medium text-vc-text">{c.company_name}</p>
                   <p className="text-xs text-vc-muted">{c.contact_name}</p>
                 </td>
                 <td className="px-5 py-3 text-vc-muted">{c.package_tier}</td>
-                <td className="px-5 py-3 text-vc-text">£{c.monthly_retainer.toLocaleString()}</td>
+                <td className="px-5 py-3 text-vc-text">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-vc-text">
-                  {c.ad_spend_managed > 0 ? `£${c.ad_spend_managed.toLocaleString()}` : '—'}
+                  {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
                 </td>
                 <td className="px-5 py-3">
                   <Badge variant={HEALTH_BADGE[c.health_score]}>
@@ -134,7 +156,7 @@ export default function AdminDashboard() {
                 </td>
                 <td className="px-5 py-3">
                   <Badge variant={c.payment_status === 'paid' ? 'green' : c.payment_status === 'overdue' ? 'red' : 'amber'}>
-                    {c.payment_status.charAt(0).toUpperCase() + c.payment_status.slice(1)}
+                    {(c.payment_status || 'pending').charAt(0).toUpperCase() + (c.payment_status || 'pending').slice(1)}
                   </Badge>
                 </td>
               </tr>

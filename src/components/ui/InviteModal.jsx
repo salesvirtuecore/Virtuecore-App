@@ -4,7 +4,7 @@ import { isDemoMode } from '../../lib/supabase'
 
 const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
 
-export default function InviteModal({ isOpen, onClose, role }) {
+export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -75,6 +75,7 @@ export default function InviteModal({ isOpen, onClose, role }) {
 
       if (!res.ok) throw new Error(data.error || 'Something went wrong')
 
+      await onSuccess?.(data)
       setSuccess(true)
     } catch (err) {
       setError(err.message)

@@ -36,6 +36,7 @@ export default async function handler(req, res) {
           monthly_retainer: monthly_retainer || 0,
           revenue_share_percentage: revenue_share_percentage || 0,
           status: 'onboarding',
+          onboarding_started_at: new Date().toISOString(),
         })
 
       if (clientError) throw clientError

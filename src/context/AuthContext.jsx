@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user)
+        fetchProfile(session.user, session.access_token)
       } else {
         setLoading(false)
       }
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user)
+        fetchProfile(session.user, session.access_token)
       } else {
         setUser(null)
         setProfile(null)
@@ -46,31 +46,62 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(authUser) {
+  async function syncClientAccess(accessToken) {
+    if (!accessToken) return null
+
+    try {
+      const response = await fetch('/api/client/claim', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to sync client access')
+      }
+
+      return payload
+    } catch (error) {
+      console.warn('Client access sync failed:', error.message)
+      return null
+    }
+  }
+
+  async function fetchProfile(authUser, accessToken) {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', authUser.id)
       .maybeSingle()
 
-    if (data) {
-      setProfile(data)
-      setLoading(false)
-      return
+    let nextProfile = data
+
+    if (!nextProfile) {
+      // Fallback so users can continue into the portal even if profile row is delayed/missing.
+      if (error) {
+        console.warn('Profile lookup failed, using auth metadata fallback:', error.message)
+      }
+
+      const fallbackRole = authUser?.user_metadata?.role || 'client'
+      nextProfile = {
+        id: authUser.id,
+        email: authUser.email,
+        full_name: authUser?.user_metadata?.full_name || '',
+        role: fallbackRole,
+      }
     }
 
-    // Fallback so users can continue into the portal even if profile row is delayed/missing.
-    if (error) {
-      console.warn('Profile lookup failed, using auth metadata fallback:', error.message)
+    const effectiveRole = nextProfile?.role || authUser?.user_metadata?.role || 'client'
+    if (effectiveRole === 'client') {
+      const syncResult = await syncClientAccess(accessToken)
+      if (syncResult?.profile) {
+        nextProfile = { ...nextProfile, ...syncResult.profile }
+      }
     }
 
-    const fallbackRole = authUser?.user_metadata?.role || 'client'
-    setProfile({
-      id: authUser.id,
-      email: authUser.email,
-      full_name: authUser?.user_metadata?.full_name || '',
-      role: fallbackRole,
-    })
+    setProfile(nextProfile)
     setLoading(false)
   }
 
