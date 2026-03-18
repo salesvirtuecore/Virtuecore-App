@@ -1,11 +1,88 @@
+import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import { DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS } from '../../data/placeholder'
 import { useAuth } from '../../context/AuthContext'
+import { supabase, isDemoMode } from '../../lib/supabase'
 
 export default function ClientDashboard() {
   const { profile } = useAuth()
   const m = DEMO_CLIENT_METRICS
+  const [stripeStatus, setStripeStatus] = useState({ loading: !isDemoMode, connected: false, accountId: null })
+  const [stripeError, setStripeError] = useState('')
+  const [connecting, setConnecting] = useState(false)
+
+  useEffect(() => {
+    if (isDemoMode || !profile?.id) return
+
+    async function loadStripeStatus() {
+      setStripeError('')
+
+      let query = supabase
+        .from('clients')
+        .select('id, stripe_account_id')
+
+      if (profile.client_id) {
+        query = query.eq('id', profile.client_id)
+      } else {
+        query = query.eq('contact_email', profile.email)
+      }
+
+      const { data, error } = await query.maybeSingle()
+
+      if (error) {
+        setStripeStatus({ loading: false, connected: false, accountId: null })
+        setStripeError('Could not load Stripe status')
+        return
+      }
+
+      setStripeStatus({
+        loading: false,
+        connected: Boolean(data?.stripe_account_id),
+        accountId: data?.stripe_account_id || null,
+      })
+    }
+
+    loadStripeStatus()
+  }, [profile?.id, profile?.client_id, profile?.email])
+
+  async function connectStripe() {
+    if (isDemoMode) return
+
+    setStripeError('')
+    setConnecting(true)
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Session expired. Please sign in again.')
+      }
+
+      const response = await fetch('/api/stripe/client-connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Stripe connect failed')
+
+      setStripeStatus({ loading: false, connected: true, accountId: data.stripeAccountId || null })
+
+      if (data.connectUrl) {
+        window.open(data.connectUrl, '_blank', 'noreferrer')
+      }
+    } catch (err) {
+      setStripeError(err.message || 'Stripe connection failed')
+    } finally {
+      setConnecting(false)
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -38,6 +115,50 @@ export default function ClientDashboard() {
           <p className="text-xs text-vc-muted uppercase tracking-wide">CTR</p>
           <p className="text-2xl font-semibold text-vc-text mt-1">{m.ctr}%</p>
         </div>
+      </div>
+
+      {/* Stripe integration */}
+      <div className="border border-vc-border p-5 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-medium text-vc-text">Stripe Revenue Integration</h2>
+          <p className="text-sm text-vc-muted mt-1">
+            Connect your own Stripe account so VirtueCore can track your invoice revenue automatically.
+          </p>
+          {!isDemoMode && stripeStatus.connected && (
+            <p className="text-xs text-green-700 mt-2">
+              Connected{stripeStatus.accountId ? ` (${stripeStatus.accountId})` : ''}
+            </p>
+          )}
+          {!isDemoMode && stripeError && (
+            <p className="text-xs text-red-600 mt-2">{stripeError}</p>
+          )}
+        </div>
+
+        {isDemoMode ? (
+          <button className="text-xs px-3 py-2 border border-vc-border text-vc-muted" disabled>
+            Demo mode
+          </button>
+        ) : stripeStatus.loading ? (
+          <button className="text-xs px-3 py-2 border border-vc-border text-vc-muted" disabled>
+            Checking...
+          </button>
+        ) : stripeStatus.connected ? (
+          <button
+            onClick={connectStripe}
+            disabled={connecting}
+            className="text-xs px-3 py-2 border border-vc-border text-vc-text hover:bg-vc-secondary transition-colors"
+          >
+            {connecting ? 'Opening...' : 'Manage Stripe'}
+          </button>
+        ) : (
+          <button
+            onClick={connectStripe}
+            disabled={connecting}
+            className="text-xs px-3 py-2 bg-gold text-white hover:bg-gold-dark transition-colors"
+          >
+            {connecting ? 'Connecting...' : 'Connect Stripe'}
+          </button>
+        )}
       </div>
 
       {/* Platform split */}
