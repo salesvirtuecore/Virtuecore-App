@@ -104,6 +104,15 @@ export default async function handler(req, res) {
       client = data
     }
 
+    if (!client && user?.user_metadata?.full_name) {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, company_name, contact_email, stripe_account_id')
+        .ilike('contact_name', user.user_metadata.full_name)
+        .maybeSingle()
+      client = data
+    }
+
     if (!client) {
       const fallbackName =
         user?.user_metadata?.company_name ||
@@ -123,7 +132,11 @@ export default async function handler(req, res) {
         .single()
 
       if (createClientError || !createdClient) {
-        return res.status(404).json({ error: 'No client record found for this user' })
+        return res.status(500).json({
+          error:
+            createClientError?.message ||
+            'No client record found for this user and auto-create failed',
+        })
       }
 
       client = createdClient
