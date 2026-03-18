@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     }
 
     let client = null
-    if (profile.client_id) {
+    if (profile?.client_id) {
       const { data } = await supabase
         .from('clients')
         .select('id, company_name, contact_email, stripe_account_id')
