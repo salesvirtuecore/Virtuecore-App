@@ -45,7 +45,8 @@ export default async function handler(req, res) {
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!profile || profile.role !== 'client') {
+    const effectiveRole = profile?.role || user?.user_metadata?.role || null
+    if (effectiveRole && effectiveRole !== 'client') {
       return res.status(403).json({ error: 'Only client users can connect Stripe' })
     }
 
