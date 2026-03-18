@@ -13,9 +13,25 @@ export default async function handler(req, res) {
   const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || 'https://virtuecore-app.vercel.app/admin/clients'
   const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || 'https://virtuecore-app.vercel.app/admin/clients'
 
-  if (!supabaseUrl || !serviceRoleKey || !stripeSecret || !stripeClientId) {
-    return res.status(500).json({ error: 'Server not configured' })
+  // Detailed error logging for missing env vars
+  if (!supabaseUrl) {
+    console.error('[Admin Stripe Connect] Missing VITE_SUPABASE_URL or SUPABASE_URL')
+    return res.status(500).json({ error: 'Server not configured: missing Supabase URL' })
   }
+  if (!serviceRoleKey) {
+    console.error('[Admin Stripe Connect] Missing SUPABASE_SERVICE_ROLE_KEY')
+    return res.status(500).json({ error: 'Server not configured: missing Supabase service role key' })
+  }
+  if (!stripeSecret) {
+    console.error('[Admin Stripe Connect] Missing STRIPE_SECRET_KEY')
+    return res.status(500).json({ error: 'Server not configured: missing Stripe secret key' })
+  }
+  if (!stripeClientId) {
+    console.error('[Admin Stripe Connect] Missing STRIPE_CLIENT_ID')
+    return res.status(500).json({ error: 'Server not configured: missing Stripe client ID' })
+  }
+
+  console.log('[Admin Stripe Connect] Environment check passed.')
 
   const { client_id, contact_email } = req.body
   if (!client_id || !contact_email) {
@@ -27,6 +43,7 @@ export default async function handler(req, res) {
 
   try {
     // Create a Stripe Express account
+    console.log('[Admin Stripe Connect] Creating Express account for client:', client_id)
     const account = await stripe.accounts.create({
       type: 'express',
       country: 'GB',
@@ -42,6 +59,8 @@ export default async function handler(req, res) {
       throw new Error('Failed to create Stripe account')
     }
 
+    console.log('[Admin Stripe Connect] Account created:', account.id)
+
     // Save the connected account ID to client record
     const { error: updateError } = await supabase
       .from('clients')
@@ -49,6 +68,8 @@ export default async function handler(req, res) {
       .eq('id', client_id)
 
     if (updateError) throw updateError
+
+    console.log('[Admin Stripe Connect] Account ID saved to database')
 
     // Generate onboarding link
     const link = await stripe.accountLinks.create({
@@ -58,9 +79,10 @@ export default async function handler(req, res) {
       type: 'account_onboarding',
     })
 
+    console.log('[Admin Stripe Connect] Onboarding link created')
     return res.status(200).json({ connectUrl: link.url, stripeAccountId: account.id })
   } catch (err) {
-    console.error('Stripe connect error:', err)
+    console.error('[Admin Stripe Connect] Error:', err)
     return res.status(500).json({ error: err.message || 'Stripe connect failed' })
   }
 }

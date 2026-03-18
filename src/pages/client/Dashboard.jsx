@@ -8,7 +8,7 @@ import { supabase, isDemoMode } from '../../lib/supabase'
 export default function ClientDashboard() {
   const { profile } = useAuth()
   const m = DEMO_CLIENT_METRICS
-  const [stripeStatus, setStripeStatus] = useState({ loading: !isDemoMode, connected: false, accountId: null })
+  const [stripeStatus, setStripeStatus] = useState({ loading: !isDemoMode, connected: false, onboardingComplete: false, accountId: null })
   const [stripeError, setStripeError] = useState('')
   const [connecting, setConnecting] = useState(false)
 
@@ -23,35 +23,46 @@ export default function ClientDashboard() {
     return message
   }
 
+  async function getAccessToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      throw new Error('Session expired. Please sign in again.')
+    }
+
+    return session.access_token
+  }
+
   useEffect(() => {
     if (isDemoMode || !profile?.id) return
 
     async function loadStripeStatus() {
       setStripeError('')
 
-      let query = supabase
-        .from('clients')
-        .select('id, stripe_account_id')
+      try {
+        const accessToken = await getAccessToken()
+        const response = await fetch('/api/stripe/client-connect', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
 
-      if (profile.client_id) {
-        query = query.eq('id', profile.client_id)
-      } else {
-        query = query.eq('contact_email', profile.email)
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Could not load Stripe status')
+
+        setStripeStatus({
+          loading: false,
+          connected: Boolean(data?.stripeAccountId),
+          onboardingComplete: Boolean(data?.onboardingComplete),
+          accountId: data?.stripeAccountId || null,
+        })
+      } catch (error) {
+        setStripeStatus({ loading: false, connected: false, onboardingComplete: false, accountId: null })
+        setStripeError(formatStripeError(error.message))
       }
-
-      const { data, error } = await query.maybeSingle()
-
-      if (error) {
-        setStripeStatus({ loading: false, connected: false, accountId: null })
-        setStripeError('Could not load Stripe status')
-        return
-      }
-
-      setStripeStatus({
-        loading: false,
-        connected: Boolean(data?.stripe_account_id),
-        accountId: data?.stripe_account_id || null,
-      })
     }
 
     loadStripeStatus()
@@ -64,29 +75,28 @@ export default function ClientDashboard() {
     setConnecting(true)
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('Session expired. Please sign in again.')
-      }
+      const accessToken = await getAccessToken()
 
       const response = await fetch('/api/stripe/client-connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       })
 
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Stripe connect failed')
 
-      setStripeStatus({ loading: false, connected: true, accountId: data.stripeAccountId || null })
+      setStripeStatus({
+        loading: false,
+        connected: Boolean(data?.stripeAccountId),
+        onboardingComplete: Boolean(data?.onboardingComplete),
+        accountId: data?.stripeAccountId || null,
+      })
 
       if (data.connectUrl) {
-        window.open(data.connectUrl, '_blank', 'noreferrer')
+        window.location.assign(data.connectUrl)
       }
     } catch (err) {
       setStripeError(formatStripeError(err.message))
@@ -163,7 +173,7 @@ export default function ClientDashboard() {
             disabled={connecting}
             className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-white hover:bg-[#eef2ff] rounded transition-colors"
           >
-            {connecting ? 'Opening...' : 'Manage Stripe'}
+            {connecting ? 'Opening...' : stripeStatus.onboardingComplete ? 'Manage Stripe' : 'Continue Stripe Setup'}
           </button>
         ) : (
           <button

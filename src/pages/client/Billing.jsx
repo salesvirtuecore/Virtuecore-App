@@ -19,6 +19,9 @@ export default function Billing() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState({
     connected: false,
+    onboardingComplete: false,
+    chargesEnabled: false,
+    payoutsEnabled: false,
     stripeAccountId: null,
     clientId: null,
     companyName: null,
@@ -42,6 +45,18 @@ export default function Billing() {
     return message
   }
 
+  async function getAccessToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      throw new Error('Session expired. Please sign in again.')
+    }
+
+    return session.access_token
+  }
+
   async function refreshStatus() {
     if (isDemoMode || !profile?.id) return
 
@@ -49,24 +64,25 @@ export default function Billing() {
     setError('')
 
     try {
-      let query = supabase
-        .from('clients')
-        .select('id, company_name, stripe_account_id')
+      const accessToken = await getAccessToken()
+      const response = await fetch('/api/stripe/client-connect', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
 
-      if (profile.client_id) {
-        query = query.eq('id', profile.client_id)
-      } else {
-        query = query.eq('contact_email', profile.email)
-      }
-
-      const { data, error: queryError } = await query.maybeSingle()
-      if (queryError) throw queryError
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not load Stripe status')
 
       setStatus({
-        connected: Boolean(data?.stripe_account_id),
-        stripeAccountId: data?.stripe_account_id || null,
-        clientId: data?.id || null,
-        companyName: data?.company_name || null,
+        connected: Boolean(data?.stripeAccountId),
+        onboardingComplete: Boolean(data?.onboardingComplete),
+        chargesEnabled: Boolean(data?.chargesEnabled),
+        payoutsEnabled: Boolean(data?.payoutsEnabled),
+        stripeAccountId: data?.stripeAccountId || null,
+        clientId: data?.clientId || null,
+        companyName: data?.companyName || null,
         lastCheckedAt: new Date().toISOString(),
       })
     } catch (err) {
@@ -84,19 +100,13 @@ export default function Billing() {
     setError('')
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        throw new Error('Session expired. Please sign in again.')
-      }
+      const accessToken = await getAccessToken()
 
       const response = await fetch('/api/stripe/client-connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       })
 
@@ -105,14 +115,18 @@ export default function Billing() {
 
       setStatus((prev) => ({
         ...prev,
-        connected: true,
-        stripeAccountId: payload.stripeAccountId || prev.stripeAccountId,
-        clientId: payload.clientId || prev.clientId,
+        connected: Boolean(payload?.stripeAccountId),
+        onboardingComplete: Boolean(payload?.onboardingComplete),
+        chargesEnabled: Boolean(payload?.chargesEnabled),
+        payoutsEnabled: Boolean(payload?.payoutsEnabled),
+        stripeAccountId: payload?.stripeAccountId || prev.stripeAccountId,
+        clientId: payload?.clientId || prev.clientId,
+        companyName: payload?.companyName || prev.companyName,
         lastCheckedAt: new Date().toISOString(),
       }))
 
       if (payload.connectUrl) {
-        window.open(payload.connectUrl, '_blank', 'noreferrer')
+        window.location.assign(payload.connectUrl)
       }
     } catch (err) {
       setError(formatStripeError(err.message))
@@ -125,6 +139,16 @@ export default function Billing() {
     refreshStatus()
   }, [profile?.id, profile?.client_id, profile?.email])
 
+  // Auto-refresh status when returning from Stripe onboarding
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[Billing] Page regained focus - checking Stripe status')
+      refreshStatus()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
   return (
     <div className="p-6 space-y-5">
       <div>
@@ -147,7 +171,9 @@ export default function Billing() {
           {isDemoMode ? (
             <span className="text-xs font-medium text-vc-muted bg-vc-secondary px-2 py-1 rounded">Demo</span>
           ) : (
-            <span className={statusPillClass}>{status.connected ? 'Connected' : 'Not connected'}</span>
+            <span className={statusPillClass}>
+              {status.connected ? (status.onboardingComplete ? 'Connected' : 'Setup incomplete') : 'Not connected'}
+            </span>
           )}
         </div>
 
@@ -161,6 +187,18 @@ export default function Billing() {
           <div className="text-sm text-vc-text">
             <span className="text-[#4f46e5]">Stripe Account ID:</span> {status.stripeAccountId}
           </div>
+        )}
+
+        {!isDemoMode && status.connected && !status.onboardingComplete && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+            Your Stripe account exists, but onboarding is not finished yet. Use the button below to continue setup.
+          </p>
+        )}
+
+        {!isDemoMode && status.onboardingComplete && !status.chargesEnabled && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+            Stripe onboarding is submitted, but charges are not enabled yet. Stripe may still be reviewing the account.
+          </p>
         )}
 
         {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{error}</p>}
@@ -181,7 +219,7 @@ export default function Billing() {
             disabled={connecting || loading || isDemoMode}
             className="text-xs px-3 py-2 bg-[#635bff] text-white hover:bg-[#4f46e5] rounded transition-colors disabled:opacity-60"
           >
-            {connecting ? 'Opening Stripe...' : status.connected ? 'Manage Stripe' : 'Connect Stripe'}
+            {connecting ? 'Opening Stripe...' : status.onboardingComplete ? 'Manage Stripe' : status.connected ? 'Continue Stripe Setup' : 'Connect Stripe'}
           </button>
         </div>
       </div>
