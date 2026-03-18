@@ -28,8 +28,8 @@ const EMPTY_INVOICE_FORM = {
 
 export default function Revenue() {
   const { showToast } = useToast()
-  const [clients, setClients] = useState(DEMO_CLIENTS)
-  const [invoices, setInvoices] = useState(DEMO_INVOICES)
+  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
+  const [invoices, setInvoices] = useState(isDemoMode ? DEMO_INVOICES : [])
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceForm, setInvoiceForm] = useState(EMPTY_INVOICE_FORM)
   const [invoiceErrors, setInvoiceErrors] = useState({})

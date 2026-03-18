@@ -92,6 +92,9 @@ function AppRoutes() {
       <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/preview/client-dashboard" element={<ClientDashboard />} />
+      <Route path="/preview/admin-dashboard" element={<AdminDashboard />} />
+      <Route path="/preview/admin-clients" element={<Clients />} />
+      <Route path="/preview/admin-revenue" element={<Revenue />} />
 
       {/* Admin */}
       <Route path="/admin" element={<RoleGate allowedRole="admin"><AdminLayout /></RoleGate>}>

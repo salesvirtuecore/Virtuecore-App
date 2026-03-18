@@ -34,7 +34,7 @@ function fmt(n) {
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const m = DEMO_BUSINESS_METRICS
-  const [clients, setClients] = useState(DEMO_CLIENTS)
+  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
 
   useEffect(() => {
     if (isDemoMode || !supabase) return
@@ -51,7 +51,9 @@ export default function AdminDashboard() {
           .not('client_id', 'is', null),
       ])
 
-      if (!clientError && !profileError && clientRows) {
+      if (clientError || profileError) {
+        setClients([])
+      } else if (clientRows) {
         setClients(withPortalStatus(clientRows, profileRows || []))
       }
     }

@@ -50,7 +50,7 @@ export default function Clients() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
-  const [clients, setClients] = useState(DEMO_CLIENTS)
+  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
   const [loadingClients, setLoadingClients] = useState(!isDemoMode)
   const [editClient, setEditClient] = useState(null) // the client being edited
   const [form, setForm] = useState(EMPTY_FORM)
@@ -79,6 +79,7 @@ export default function Clients() {
       if (profileError) throw profileError
       setClients(withPortalStatus(clientRows || [], profileRows || []))
     } catch (err) {
+      setClients([])
       showToast(err.message ?? 'Failed to load clients', 'error')
     } finally {
       setLoadingClients(false)

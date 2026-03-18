@@ -235,8 +235,8 @@ export default function ClientDashboard() {
   const fallbackMetrics = DEMO_CLIENT_METRICS
   const [analysisModal, setAnalysisModal] = useState(null)
   const [dashboardLoading, setDashboardLoading] = useState(!isDemoMode)
-  const [adPerformance, setAdPerformance] = useState(DEMO_AD_PERFORMANCE)
-  const [invoiceRows, setInvoiceRows] = useState(DEMO_INVOICES.filter((invoice) => invoice.client_id === DEMO_CLIENT_ID))
+  const [adPerformance, setAdPerformance] = useState(isDemoMode ? DEMO_AD_PERFORMANCE : [])
+  const [invoiceRows, setInvoiceRows] = useState(isDemoMode ? DEMO_INVOICES.filter((invoice) => invoice.client_id === DEMO_CLIENT_ID) : [])
 
   useEffect(() => {
     if (isDemoMode || !profile?.client_id) {
@@ -277,7 +277,7 @@ export default function ClientDashboard() {
     useFallback: isDemoMode,
   })
 
-  const chartData = metrics.performance.length ? metrics.performance : aggregatePerformanceRows(DEMO_AD_PERFORMANCE)
+  const chartData = metrics.performance.length ? metrics.performance : (isDemoMode ? aggregatePerformanceRows(DEMO_AD_PERFORMANCE) : [])
   const pieDataRaw = [
     { name: 'Collected', value: metrics.collectedRevenue },
     { name: 'Commission', value: metrics.commissionRevenue },

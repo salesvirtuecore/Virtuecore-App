@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles, X, Pencil, Trash2, Plus, Send } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -72,16 +72,19 @@ export default function ClientView() {
   const [reportModal, setReportModal] = useState(null)
   const [reportToast, setReportToast] = useState(false)
 
+  const [client, setClient] = useState(isDemoMode ? DEMO_CLIENTS.find((c) => c.id === id) ?? null : null)
+  const [loadingClient, setLoadingClient] = useState(!isDemoMode)
+
   // Local data state
   const [deliverables, setDeliverables] = useState(
-    DEMO_DELIVERABLES.filter((d) => d.client_id === id)
+    isDemoMode ? DEMO_DELIVERABLES.filter((d) => d.client_id === id) : []
   )
   const [invoices, setInvoices] = useState(
-    DEMO_INVOICES.filter((i) => i.client_id === id)
+    isDemoMode ? DEMO_INVOICES.filter((i) => i.client_id === id) : []
   )
-  const [adEntries, setAdEntries] = useState([])
+  const [adEntries, setAdEntries] = useState(isDemoMode ? [] : [])
   const [messages, setMessages] = useState(
-    DEMO_MESSAGES.filter((m) => m.client_id === id)
+    isDemoMode ? DEMO_MESSAGES.filter((m) => m.client_id === id) : []
   )
 
   // Modal open states
@@ -101,7 +104,72 @@ export default function ClientView() {
   const [messageText, setMessageText] = useState(EMPTY_MESSAGE)
   const [saving, setSaving] = useState(false)
 
-  const client = DEMO_CLIENTS.find((c) => c.id === id)
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+
+    let cancelled = false
+
+    async function loadClientData() {
+      setLoadingClient(true)
+      try {
+        const [
+          { data: clientRow, error: clientError },
+          { data: deliverableRows, error: deliverablesError },
+          { data: invoiceRows, error: invoicesError },
+          { data: messageRows, error: messagesError },
+          { data: adRows, error: adError },
+        ] = await Promise.all([
+          supabase.from('clients').select('*').eq('id', id).maybeSingle(),
+          supabase.from('deliverables').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+          supabase.from('invoices').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+          supabase.from('messages').select('*').eq('client_id', id).order('created_at', { ascending: true }),
+          supabase.from('ad_performance').select('*').eq('client_id', id).order('date', { ascending: true }),
+        ])
+
+        if (clientError) throw clientError
+        if (deliverablesError) throw deliverablesError
+        if (invoicesError) throw invoicesError
+        if (messagesError) throw messagesError
+        if (adError) throw adError
+
+        if (cancelled) return
+
+        setClient(clientRow || null)
+        setDeliverables(deliverableRows || [])
+        setInvoices(invoiceRows || [])
+        setMessages(messageRows || [])
+        setAdEntries(adRows || [])
+      } catch (error) {
+        if (!cancelled) {
+          setClient(null)
+          setDeliverables([])
+          setInvoices([])
+          setMessages([])
+          setAdEntries([])
+          showToast(error.message ?? 'Failed to load client data', 'error')
+        }
+      } finally {
+        if (!cancelled) setLoadingClient(false)
+      }
+    }
+
+    loadClientData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  if (loadingClient) {
+    return (
+      <div className="p-6">
+        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-4">
+          <ArrowLeft size={14} /> Back to Clients
+        </button>
+        <p className="text-sm text-vc-muted">Loading client...</p>
+      </div>
+    )
+  }
 
   if (!client) {
     return (
@@ -114,7 +182,23 @@ export default function ClientView() {
     )
   }
 
-  const metrics = DEMO_CLIENT_METRICS
+  const totalAdSpend = adEntries.reduce((sum, row) => sum + Number(row.spend || 0), 0)
+  const totalLeads = adEntries.reduce((sum, row) => sum + Number(row.leads || 0), 0)
+  const weightedRoasNumerator = adEntries.reduce((sum, row) => sum + Number(row.spend || 0) * Number(row.roas || 0), 0)
+  const fallbackPerformance = isDemoMode
+    ? DEMO_CLIENT_METRICS
+    : { ad_spend: 0, leads: 0, cpl: 0, roas: 0 }
+  const metrics = {
+    ad_spend: totalAdSpend || fallbackPerformance.ad_spend,
+    leads: totalLeads || fallbackPerformance.leads,
+    cpl: totalLeads ? Math.round(totalAdSpend / totalLeads) : fallbackPerformance.cpl,
+    roas: totalAdSpend ? Number((weightedRoasNumerator / totalAdSpend).toFixed(1)) : fallbackPerformance.roas,
+  }
+  const trendData = adEntries.length ? adEntries.map((row) => ({
+    month: row.date,
+    leads: Number(row.leads || 0),
+    cpl: Number(row.cpl || 0),
+  })) : (isDemoMode ? DEMO_AD_PERFORMANCE : [])
 
   // ── Generate Report ──────────────────────────────────────────────────────────
   async function handleGenerateReport() {
@@ -131,7 +215,7 @@ export default function ClientView() {
             client_id: client.id,
             client_name: client.company_name,
             period: 'March 2026',
-            ad_data: DEMO_AD_PERFORMANCE,
+            ad_data: adEntries,
           }),
         })
         const data = await res.json()
@@ -456,7 +540,7 @@ export default function ClientView() {
       <div className="border border-vc-border p-5">
         <h2 className="text-sm font-medium text-vc-text mb-4">Performance Trend (6 months)</h2>
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={DEMO_AD_PERFORMANCE}>
+          <LineChart data={trendData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
