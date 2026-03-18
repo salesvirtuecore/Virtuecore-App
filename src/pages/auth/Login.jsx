@@ -27,7 +27,7 @@ export default function Login() {
       setError(error.message)
       return
     }
-    // Redirect handled by App.jsx based on role
+    navigate('/', { replace: true })
   }
 
   function quickFill(acc) {
