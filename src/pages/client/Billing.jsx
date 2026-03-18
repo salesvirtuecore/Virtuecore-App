@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase, isDemoMode } from '../../lib/supabase'
 
@@ -135,17 +135,17 @@ export default function Billing() {
     }
   }
 
+  // Keep a ref so the focus listener always calls the latest refreshStatus
+  const refreshStatusRef = useRef(refreshStatus)
+  useEffect(() => { refreshStatusRef.current = refreshStatus })
+
   useEffect(() => {
     refreshStatus()
   }, [profile?.id, profile?.client_id, profile?.email])
 
-  // Auto-refresh status when returning from Stripe onboarding
+  // Auto-refresh when returning from Stripe onboarding tab
   useEffect(() => {
-    const handleFocus = () => {
-      console.log('[Billing] Page regained focus - checking Stripe status')
-      refreshStatus()
-    }
-
+    const handleFocus = () => refreshStatusRef.current()
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
   }, [])

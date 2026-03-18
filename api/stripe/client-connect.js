@@ -201,25 +201,9 @@ export default async function handler(req, res) {
       return res.status(clientError.status).json({ error: clientError.message })
     }
 
-    let stripeAccountId = client?.stripe_account_id || null
-
-    const { data: stripeLookup, error: stripeLookupError } = await supabase
-      .from('clients')
-      .select('stripe_account_id')
-      .eq('id', client.id)
-      .maybeSingle()
-
-    if (stripeLookupError) {
-      if (stripeLookupError.code === '42703') {
-        return res.status(500).json({
-          error:
-            'Database schema is missing clients.stripe_account_id. Run: alter table clients add column if not exists stripe_account_id text;',
-        })
-      }
-      throw stripeLookupError
-    }
-
-    stripeAccountId = stripeLookup?.stripe_account_id || null
+    // stripe_account_id is already selected via resolveAuthenticatedClient
+    const stripeAccountId = client?.stripe_account_id || null
+    console.log('[Stripe Connect] Client resolved:', client.id, '| existing stripe_account_id:', stripeAccountId)
 
     if (req.method === 'GET') {
       const stripeStatus = await loadStripeAccountStatus({ stripe, stripeAccountId })
