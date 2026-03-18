@@ -118,10 +118,14 @@ export default function ClientDashboard() {
       </div>
 
       {/* Stripe integration */}
-      <div className="border border-vc-border p-5 flex items-center justify-between gap-4">
+      <div className="border border-[#c7d2fe] bg-gradient-to-r from-[#eef2ff] to-[#f8f7ff] p-5 flex items-center justify-between gap-4 rounded">
         <div>
-          <h2 className="text-sm font-medium text-vc-text">Stripe Revenue Integration</h2>
-          <p className="text-sm text-vc-muted mt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#635bff]">Stripe</span>
+            <span className="text-xs text-[#4f46e5] bg-white/80 border border-[#c7d2fe] px-2 py-0.5 rounded">Revenue Sync</span>
+          </div>
+          <h2 className="text-sm font-semibold text-[#312e81] mt-1">Stripe Revenue Integration</h2>
+          <p className="text-sm text-[#4338ca] mt-1">
             Connect your own Stripe account so VirtueCore can track your invoice revenue automatically.
           </p>
           {!isDemoMode && stripeStatus.connected && (
@@ -135,18 +139,18 @@ export default function ClientDashboard() {
         </div>
 
         {isDemoMode ? (
-          <button className="text-xs px-3 py-2 border border-vc-border text-vc-muted" disabled>
+          <button className="text-xs px-3 py-2 border border-[#c7d2fe] text-[#6366f1] bg-white rounded" disabled>
             Demo mode
           </button>
         ) : stripeStatus.loading ? (
-          <button className="text-xs px-3 py-2 border border-vc-border text-vc-muted" disabled>
+          <button className="text-xs px-3 py-2 border border-[#c7d2fe] text-[#6366f1] bg-white rounded" disabled>
             Checking...
           </button>
         ) : stripeStatus.connected ? (
           <button
             onClick={connectStripe}
             disabled={connecting}
-            className="text-xs px-3 py-2 border border-vc-border text-vc-text hover:bg-vc-secondary transition-colors"
+            className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-white hover:bg-[#eef2ff] rounded transition-colors"
           >
             {connecting ? 'Opening...' : 'Manage Stripe'}
           </button>
@@ -154,7 +158,7 @@ export default function ClientDashboard() {
           <button
             onClick={connectStripe}
             disabled={connecting}
-            className="text-xs px-3 py-2 bg-gold text-white hover:bg-gold-dark transition-colors"
+            className="text-xs px-3 py-2 bg-[#635bff] text-white hover:bg-[#4f46e5] rounded transition-colors"
           >
             {connecting ? 'Connecting...' : 'Connect Stripe'}
           </button>

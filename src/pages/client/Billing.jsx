@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import Button from '../../components/ui/Button'
 import { useAuth } from '../../context/AuthContext'
 import { supabase, isDemoMode } from '../../lib/supabase'
 
@@ -29,7 +28,7 @@ export default function Billing() {
   const statusPillClass = useMemo(() => {
     return status.connected
       ? 'text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded'
-      : 'text-xs font-medium text-amber-800 bg-amber-100 px-2 py-1 rounded'
+      : 'text-xs font-medium text-[#4338ca] bg-[#e0e7ff] px-2 py-1 rounded'
   }, [status.connected])
 
   async function refreshStatus() {
@@ -118,17 +117,21 @@ export default function Billing() {
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Billing</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#635bff]">Stripe</span>
+          <span className="text-xs text-[#4f46e5] bg-[#eef2ff] border border-[#c7d2fe] px-2 py-0.5 rounded">Client Billing</span>
+        </div>
+        <h1 className="text-xl font-semibold text-vc-text mt-1">Billing</h1>
         <p className="text-sm text-vc-muted mt-0.5">
           Connect your Stripe account to sync revenue and payment performance into VirtueCore.
         </p>
       </div>
 
-      <div className="border border-vc-border p-5 space-y-4">
+      <div className="border border-[#c7d2fe] bg-gradient-to-r from-[#eef2ff] to-[#f8f7ff] p-5 space-y-4 rounded">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-vc-text">Stripe Connection Status</p>
-            <p className="text-xs text-vc-muted mt-1">Last sync check: {formatDateTime(status.lastCheckedAt)}</p>
+            <p className="text-sm font-semibold text-[#312e81]">Stripe Connection Status</p>
+            <p className="text-xs text-[#4338ca] mt-1">Last sync check: {formatDateTime(status.lastCheckedAt)}</p>
           </div>
           {isDemoMode ? (
             <span className="text-xs font-medium text-vc-muted bg-vc-secondary px-2 py-1 rounded">Demo</span>
@@ -139,26 +142,36 @@ export default function Billing() {
 
         {status.companyName && (
           <div className="text-sm text-vc-text">
-            <span className="text-vc-muted">Company:</span> {status.companyName}
+            <span className="text-[#4f46e5]">Company:</span> {status.companyName}
           </div>
         )}
 
         {!isDemoMode && status.stripeAccountId && (
           <div className="text-sm text-vc-text">
-            <span className="text-vc-muted">Stripe Account ID:</span> {status.stripeAccountId}
+            <span className="text-[#4f46e5]">Stripe Account ID:</span> {status.stripeAccountId}
           </div>
         )}
 
         {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{error}</p>}
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={refreshStatus} disabled={loading || isDemoMode}>
+          <button
+            type="button"
+            onClick={refreshStatus}
+            disabled={loading || isDemoMode}
+            className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-white hover:bg-[#eef2ff] rounded transition-colors disabled:opacity-60"
+          >
             {loading ? 'Refreshing...' : 'Refresh Status'}
-          </Button>
+          </button>
 
-          <Button variant="gold" size="sm" onClick={connectStripe} disabled={connecting || loading || isDemoMode}>
+          <button
+            type="button"
+            onClick={connectStripe}
+            disabled={connecting || loading || isDemoMode}
+            className="text-xs px-3 py-2 bg-[#635bff] text-white hover:bg-[#4f46e5] rounded transition-colors disabled:opacity-60"
+          >
             {connecting ? 'Opening Stripe...' : status.connected ? 'Manage Stripe' : 'Connect Stripe'}
-          </Button>
+          </button>
         </div>
       </div>
 
