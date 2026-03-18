@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ExternalLink, UserPlus, Pencil } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
@@ -59,7 +59,7 @@ export default function Clients() {
   const navigate = useNavigate()
   const { showToast } = useToast()
 
-  async function loadClients() {
+  const loadClients = useCallback(async () => {
     if (isDemoMode || !supabase) return
 
     setLoadingClients(true)
@@ -84,11 +84,56 @@ export default function Clients() {
     } finally {
       setLoadingClients(false)
     }
-  }
+  }, [showToast])
 
   useEffect(() => {
     loadClients()
-  }, [])
+  }, [loadClients])
+
+  useEffect(() => {
+    if (isDemoMode || !supabase) return undefined
+
+    const channel = supabase
+      .channel('admin-clients-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clients' },
+        () => loadClients()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        (payload) => {
+          const nextClientId = payload?.new?.client_id
+          const prevClientId = payload?.old?.client_id
+          if (nextClientId || prevClientId) {
+            loadClients()
+          }
+        }
+      )
+      .subscribe()
+
+    const pollId = window.setInterval(() => {
+      loadClients()
+    }, 15000)
+
+    const refreshOnFocus = () => loadClients()
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadClients()
+      }
+    }
+
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnVisible)
+
+    return () => {
+      window.clearInterval(pollId)
+      window.removeEventListener('focus', refreshOnFocus)
+      document.removeEventListener('visibilitychange', refreshOnVisible)
+      supabase.removeChannel(channel)
+    }
+  }, [loadClients])
 
   const filtered = clients.filter((c) => {
     const matchSearch =

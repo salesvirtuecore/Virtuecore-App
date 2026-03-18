@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
@@ -36,30 +36,75 @@ export default function AdminDashboard() {
   const m = DEMO_BUSINESS_METRICS
   const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
 
-  useEffect(() => {
+  const loadClients = useCallback(async () => {
     if (isDemoMode || !supabase) return
 
-    async function loadClients() {
-      const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('profiles')
-          .select('client_id, created_at')
-          .not('client_id', 'is', null),
-      ])
+    const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('client_id, created_at')
+        .not('client_id', 'is', null),
+    ])
 
-      if (clientError || profileError) {
-        setClients([])
-      } else if (clientRows) {
-        setClients(withPortalStatus(clientRows, profileRows || []))
+    if (clientError || profileError) {
+      setClients([])
+    } else if (clientRows) {
+      setClients(withPortalStatus(clientRows, profileRows || []))
+    }
+  }, [])
+
+  useEffect(() => {
+    loadClients()
+  }, [loadClients])
+
+  useEffect(() => {
+    if (isDemoMode || !supabase) return undefined
+
+    const channel = supabase
+      .channel('admin-dashboard-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clients' },
+        () => loadClients()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        (payload) => {
+          const nextClientId = payload?.new?.client_id
+          const prevClientId = payload?.old?.client_id
+          if (nextClientId || prevClientId) {
+            loadClients()
+          }
+        }
+      )
+      .subscribe()
+
+    const pollId = window.setInterval(() => {
+      loadClients()
+    }, 15000)
+
+    const refreshOnFocus = () => loadClients()
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadClients()
       }
     }
 
-    loadClients()
-  }, [])
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnVisible)
+
+    return () => {
+      window.clearInterval(pollId)
+      window.removeEventListener('focus', refreshOnFocus)
+      document.removeEventListener('visibilitychange', refreshOnVisible)
+      supabase.removeChannel(channel)
+    }
+  }, [loadClients])
 
   const activeClients = clients.filter((c) => c.status === 'active')
   const onboardingClients = clients.filter((c) => c.status === 'onboarding')

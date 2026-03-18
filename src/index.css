@@ -25,6 +25,28 @@
 }
 
 @layer utilities {
+  button[class*='bg-gold'] {
+    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 2px 6px rgba(178, 135, 64, 0.16);
+  }
+
+  button[class*='bg-gold']:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(178, 135, 64, 0.22);
+  }
+
+  button[class*='bg-gold']:active:not(:disabled) {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 3px 8px rgba(178, 135, 64, 0.18);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button[class*='bg-gold'] {
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+      transform: none !important;
+    }
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

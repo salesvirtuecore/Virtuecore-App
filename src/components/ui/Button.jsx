@@ -16,7 +16,7 @@ export default function Button({ children, variant = 'primary', size = 'md', cla
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 font-medium transition-colors rounded disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 font-medium rounded transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.99] ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </button>
