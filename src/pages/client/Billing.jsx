@@ -31,6 +31,14 @@ export default function Billing() {
       : 'text-xs font-medium text-[#4338ca] bg-[#e0e7ff] px-2 py-1 rounded'
   }, [status.connected])
 
+  function formatStripeError(message) {
+    if (!message) return 'Stripe connect failed'
+    if (message.includes('clients.stripe_account_id')) {
+      return 'Stripe setup is still being finalized by the admin. Please try again in a few minutes.'
+    }
+    return message
+  }
+
   async function refreshStatus() {
     if (isDemoMode || !profile?.id) return
 
@@ -59,7 +67,7 @@ export default function Billing() {
         lastCheckedAt: new Date().toISOString(),
       })
     } catch (err) {
-      setError(err.message || 'Could not load billing status')
+      setError(formatStripeError(err.message))
       setStatus((prev) => ({ ...prev, lastCheckedAt: new Date().toISOString() }))
     } finally {
       setLoading(false)
@@ -104,7 +112,7 @@ export default function Billing() {
         window.open(payload.connectUrl, '_blank', 'noreferrer')
       }
     } catch (err) {
-      setError(err.message || 'Stripe connect failed')
+      setError(formatStripeError(err.message))
     } finally {
       setConnecting(false)
     }

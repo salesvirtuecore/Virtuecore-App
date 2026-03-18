@@ -12,6 +12,14 @@ export default function ClientDashboard() {
   const [stripeError, setStripeError] = useState('')
   const [connecting, setConnecting] = useState(false)
 
+  function formatStripeError(message) {
+    if (!message) return 'Stripe connection failed'
+    if (message.includes('clients.stripe_account_id')) {
+      return 'Stripe setup is still being finalized by the admin. Please try again in a few minutes.'
+    }
+    return message
+  }
+
   useEffect(() => {
     if (isDemoMode || !profile?.id) return
 
@@ -78,7 +86,7 @@ export default function ClientDashboard() {
         window.open(data.connectUrl, '_blank', 'noreferrer')
       }
     } catch (err) {
-      setStripeError(err.message || 'Stripe connection failed')
+      setStripeError(formatStripeError(err.message))
     } finally {
       setConnecting(false)
     }
