@@ -28,6 +28,7 @@ import Deliverables from './pages/client/Deliverables'
 import ContentCalendar from './pages/client/ContentCalendar'
 import Messages from './pages/client/Messages'
 import Invoices from './pages/client/Invoices'
+import Billing from './pages/client/Billing'
 import Meetings from './pages/client/Meetings'
 
 // VA
@@ -109,6 +110,7 @@ function AppRoutes() {
         <Route path="calendar" element={<ContentCalendar />} />
         <Route path="messages" element={<Messages />} />
         <Route path="invoices" element={<Invoices />} />
+        <Route path="billing" element={<Billing />} />
         <Route path="meetings" element={<Meetings />} />
       </Route>
 

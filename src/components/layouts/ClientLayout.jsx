@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: '/client/calendar', label: 'Content Calendar', icon: Calendar },
   { to: '/client/messages', label: 'Messages', icon: MessageSquare },
   { to: '/client/invoices', label: 'Invoices', icon: Receipt },
+  { to: '/client/billing', label: 'Billing', icon: CreditCard },
   { to: '/client/meetings', label: 'Meetings', icon: Video },
 ]
 
