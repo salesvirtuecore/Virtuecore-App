@@ -67,7 +67,7 @@ export default async function handler(req, res) {
     if (profile?.client_id) {
       const { data } = await supabase
         .from('clients')
-        .select('id, company_name, contact_email, stripe_account_id')
+        .select('id, company_name, contact_email')
         .eq('id', profile.client_id)
         .maybeSingle()
       client = data
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
     if (!client) {
       const { data } = await supabase
         .from('clients')
-        .select('id, company_name, contact_email, stripe_account_id')
+        .select('id, company_name, contact_email')
         .eq('contact_email', user.email)
         .maybeSingle()
       client = data
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       if (normalizedEmail && normalizedEmail !== user.email.toLowerCase()) {
         const { data } = await supabase
           .from('clients')
-          .select('id, company_name, contact_email, stripe_account_id')
+          .select('id, company_name, contact_email')
           .eq('contact_email', normalizedEmail)
           .maybeSingle()
         client = data
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
     if (!client && user.email) {
       const { data } = await supabase
         .from('clients')
-        .select('id, company_name, contact_email, stripe_account_id')
+        .select('id, company_name, contact_email')
         .ilike('contact_email', user.email)
         .maybeSingle()
       client = data
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     if (!client && user?.user_metadata?.full_name) {
       const { data } = await supabase
         .from('clients')
-        .select('id, company_name, contact_email, stripe_account_id')
+        .select('id, company_name, contact_email')
         .ilike('contact_name', user.user_metadata.full_name)
         .maybeSingle()
       client = data
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
           package_tier: 'Starter',
           status: 'onboarding',
         })
-        .select('id, company_name, contact_email, stripe_account_id')
+        .select('id, company_name, contact_email')
         .single()
 
       if (createClientError || !createdClient) {
@@ -148,7 +148,25 @@ export default async function handler(req, res) {
         .eq('id', user.id)
     }
 
-    let stripeAccountId = client.stripe_account_id
+    let stripeAccountId = null
+
+    const { data: stripeLookup, error: stripeLookupError } = await supabase
+      .from('clients')
+      .select('stripe_account_id')
+      .eq('id', client.id)
+      .maybeSingle()
+
+    if (stripeLookupError) {
+      if (stripeLookupError.code === '42703') {
+        return res.status(500).json({
+          error:
+            'Database schema is missing clients.stripe_account_id. Run: alter table clients add column if not exists stripe_account_id text;',
+        })
+      }
+      throw stripeLookupError
+    }
+
+    stripeAccountId = stripeLookup?.stripe_account_id || null
 
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
@@ -174,7 +192,15 @@ export default async function handler(req, res) {
         .update({ stripe_account_id: stripeAccountId })
         .eq('id', client.id)
 
-      if (updateError) throw updateError
+      if (updateError) {
+        if (updateError.code === '42703') {
+          return res.status(500).json({
+            error:
+              'Database schema is missing clients.stripe_account_id. Run: alter table clients add column if not exists stripe_account_id text;',
+          })
+        }
+        throw updateError
+      }
     }
 
     const link = await stripe.accountLinks.create({
