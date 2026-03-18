@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user.id)
+        fetchProfile(session.user)
       } else {
         setLoading(false)
       }
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(session.user)
-        fetchProfile(session.user.id)
+        fetchProfile(session.user)
       } else {
         setUser(null)
         setProfile(null)
@@ -46,13 +46,31 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(userId) {
-    const { data } = await supabase
+  async function fetchProfile(authUser) {
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', authUser.id)
       .single()
-    setProfile(data)
+
+    if (data) {
+      setProfile(data)
+      setLoading(false)
+      return
+    }
+
+    // Fallback so users can continue into the portal even if profile row is delayed/missing.
+    if (error) {
+      console.warn('Profile lookup failed, using auth metadata fallback:', error.message)
+    }
+
+    const fallbackRole = authUser?.user_metadata?.role || 'client'
+    setProfile({
+      id: authUser.id,
+      email: authUser.email,
+      full_name: authUser?.user_metadata?.full_name || '',
+      role: fallbackRole,
+    })
     setLoading(false)
   }
 
