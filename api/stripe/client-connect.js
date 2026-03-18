@@ -51,6 +51,19 @@ export default async function handler(req, res) {
     }
 
     let client = null
+
+    function normalizeEmail(email) {
+      if (!email || typeof email !== 'string') return null
+      const lower = email.trim().toLowerCase()
+      const at = lower.indexOf('@')
+      if (at === -1) return lower
+      const local = lower.slice(0, at)
+      const domain = lower.slice(at + 1)
+      if ((domain === 'gmail.com' || domain === 'googlemail.com') && local.includes('+')) {
+        return `${local.split('+')[0]}@${domain}`
+      }
+      return lower
+    }
     if (profile?.client_id) {
       const { data } = await supabase
         .from('clients')
@@ -70,8 +83,56 @@ export default async function handler(req, res) {
       client = data
     }
 
+    if (!client && user.email) {
+      const normalizedEmail = normalizeEmail(user.email)
+      if (normalizedEmail && normalizedEmail !== user.email.toLowerCase()) {
+        const { data } = await supabase
+          .from('clients')
+          .select('id, company_name, contact_email, stripe_account_id')
+          .eq('contact_email', normalizedEmail)
+          .maybeSingle()
+        client = data
+      }
+    }
+
+    if (!client && user.email) {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, company_name, contact_email, stripe_account_id')
+        .ilike('contact_email', user.email)
+        .maybeSingle()
+      client = data
+    }
+
     if (!client) {
-      return res.status(404).json({ error: 'No client record found for this user' })
+      const fallbackName =
+        user?.user_metadata?.company_name ||
+        user?.user_metadata?.full_name ||
+        (user.email ? user.email.split('@')[0] : 'Client')
+
+      const { data: createdClient, error: createClientError } = await supabase
+        .from('clients')
+        .insert({
+          company_name: fallbackName,
+          contact_name: user?.user_metadata?.full_name || fallbackName,
+          contact_email: user.email,
+          package_tier: 'Starter',
+          status: 'onboarding',
+        })
+        .select('id, company_name, contact_email, stripe_account_id')
+        .single()
+
+      if (createClientError || !createdClient) {
+        return res.status(404).json({ error: 'No client record found for this user' })
+      }
+
+      client = createdClient
+
+      // Best-effort linkage so future lookups are direct.
+      await supabase
+        .from('profiles')
+        .update({ client_id: createdClient.id })
+        .eq('id', user.id)
     }
 
     let stripeAccountId = client.stripe_account_id
