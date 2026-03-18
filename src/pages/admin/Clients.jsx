@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext'
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
 const STATUS_BADGE = { active: 'green', onboarding: 'blue', churned: 'default' }
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
+const PORTAL_BADGE = { joined: 'green', invited: 'blue' }
 
 const EMPTY_FORM = {
   company_name: '',
@@ -22,6 +23,27 @@ const EMPTY_FORM = {
   revenue_share_percentage: '',
   status: 'active',
   health_score: 'green',
+}
+
+function withPortalStatus(clientRows, profileRows = []) {
+  const joinedByClientId = new Map()
+
+  for (const profile of profileRows) {
+    if (!profile?.client_id) continue
+    const existing = joinedByClientId.get(profile.client_id)
+    if (!existing || new Date(profile.created_at) < new Date(existing.created_at)) {
+      joinedByClientId.set(profile.client_id, profile)
+    }
+  }
+
+  return clientRows.map((client) => {
+    const linkedProfile = joinedByClientId.get(client.id)
+    return {
+      ...client,
+      portal_joined: Boolean(linkedProfile),
+      portal_joined_at: linkedProfile?.created_at || null,
+    }
+  })
 }
 
 export default function Clients() {
@@ -42,13 +64,20 @@ export default function Clients() {
 
     setLoadingClients(true)
     try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('client_id, created_at')
+          .not('client_id', 'is', null),
+      ])
 
-      if (error) throw error
-      setClients(data || [])
+      if (clientError) throw clientError
+      if (profileError) throw profileError
+      setClients(withPortalStatus(clientRows || [], profileRows || []))
     } catch (err) {
       showToast(err.message ?? 'Failed to load clients', 'error')
     } finally {
@@ -234,6 +263,7 @@ export default function Clients() {
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Ad Spend</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Stripe</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
+              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Portal</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Health</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Payment</th>
               <th className="px-5 py-2.5" />
@@ -275,6 +305,11 @@ export default function Clients() {
                   <Badge variant={STATUS_BADGE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
                 </td>
                 <td className="px-5 py-3">
+                  <Badge variant={PORTAL_BADGE[c.portal_joined ? 'joined' : 'invited']}>
+                    {c.portal_joined ? 'Joined' : 'Invited'}
+                  </Badge>
+                </td>
+                <td className="px-5 py-3">
                   <Badge variant={HEALTH_BADGE[c.health_score]}>
                     {c.health_score.charAt(0).toUpperCase() + c.health_score.slice(1)}
                   </Badge>
@@ -314,7 +349,7 @@ export default function Clients() {
             ))}
             {!loadingClients && filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-5 py-8 text-center text-sm text-vc-muted">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-vc-muted">
                   No clients match your search.
                 </td>
               </tr>

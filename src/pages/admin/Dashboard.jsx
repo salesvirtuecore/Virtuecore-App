@@ -8,6 +8,24 @@ import { isDemoMode, supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
+const PORTAL_BADGE = { joined: 'green', invited: 'blue' }
+
+function withPortalStatus(clientRows, profileRows = []) {
+  const joinedByClientId = new Map()
+
+  for (const profile of profileRows) {
+    if (!profile?.client_id) continue
+    const existing = joinedByClientId.get(profile.client_id)
+    if (!existing || new Date(profile.created_at) < new Date(existing.created_at)) {
+      joinedByClientId.set(profile.client_id, profile)
+    }
+  }
+
+  return clientRows.map((client) => ({
+    ...client,
+    portal_joined: joinedByClientId.has(client.id),
+  }))
+}
 
 function fmt(n) {
   return n >= 1000 ? `£${(n / 1000).toFixed(1)}k` : `£${n}`
@@ -22,13 +40,19 @@ export default function AdminDashboard() {
     if (isDemoMode || !supabase) return
 
     async function loadClients() {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('client_id, created_at')
+          .not('client_id', 'is', null),
+      ])
 
-      if (!error && data) {
-        setClients(data)
+      if (!clientError && !profileError && clientRows) {
+        setClients(withPortalStatus(clientRows, profileRows || []))
       }
     }
 
@@ -37,6 +61,7 @@ export default function AdminDashboard() {
 
   const activeClients = clients.filter((c) => c.status === 'active')
   const onboardingClients = clients.filter((c) => c.status === 'onboarding')
+  const joinedClients = clients.filter((c) => c.portal_joined)
 
   return (
     <div className="p-6 space-y-6">
@@ -59,7 +84,7 @@ export default function AdminDashboard() {
         <StatCard
           label="Active Clients"
           value={activeClients.length}
-          sub={`${onboardingClients.length} onboarding`}
+          sub={`${joinedClients.length} joined • ${onboardingClients.length} onboarding`}
           icon={Users}
         />
         <StatCard
@@ -133,6 +158,7 @@ export default function AdminDashboard() {
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Package</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Retainer</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Ad Spend</th>
+              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Portal</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Health</th>
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Payment</th>
             </tr>
@@ -148,6 +174,11 @@ export default function AdminDashboard() {
                 <td className="px-5 py-3 text-vc-text">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-vc-text">
                   {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
+                </td>
+                <td className="px-5 py-3">
+                  <Badge variant={PORTAL_BADGE[c.portal_joined ? 'joined' : 'invited']}>
+                    {c.portal_joined ? 'Joined' : 'Invited'}
+                  </Badge>
                 </td>
                 <td className="px-5 py-3">
                   <Badge variant={HEALTH_BADGE[c.health_score]}>
