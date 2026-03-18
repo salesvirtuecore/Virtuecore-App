@@ -17,6 +17,9 @@ export default function ClientDashboard() {
     if (message.includes('clients.stripe_account_id')) {
       return 'Stripe setup is still being finalized by the admin. Please try again in a few minutes.'
     }
+    if (message.includes('Stripe Connect is not enabled')) {
+      return 'Stripe Connect is not enabled yet on the platform account. Please ask admin to enable it in Stripe settings.'
+    }
     return message
   }
 

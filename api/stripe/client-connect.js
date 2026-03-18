@@ -217,6 +217,15 @@ export default async function handler(req, res) {
     })
   } catch (err) {
     console.error('Client Stripe connect error:', err)
+
+    const message = err?.message || 'Stripe connect failed'
+    if (message.includes("signed up for Connect")) {
+      return res.status(400).json({
+        error:
+          'Stripe Connect is not enabled on this platform account yet. Admin: finish Connect onboarding at https://dashboard.stripe.com/connect/settings, then try again.',
+      })
+    }
+
     return res.status(500).json({ error: err.message || 'Stripe connect failed' })
   }
 }
