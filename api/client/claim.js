@@ -96,23 +96,48 @@ export default async function handler(req, res) {
       return res.status(200).json({ skipped: true })
     }
 
-    const client = await findClientForUser({ supabase, user, profile })
+    let client = await findClientForUser({ supabase, user, profile })
+
+    // No invited client row found — auto-create one so direct signups appear in admin immediately
     if (!client) {
-      return res.status(200).json({ linked: false })
+      const fullName = profile?.full_name || user?.user_metadata?.full_name || ''
+      const { data: newClient, error: createError } = await supabase
+        .from('clients')
+        .insert({
+          company_name: fullName || user.email,
+          contact_name: fullName || null,
+          contact_email: user.email,
+          package_tier: 'Starter',
+          monthly_retainer: 0,
+          revenue_share_percentage: 0,
+          status: 'onboarding',
+          onboarding_started_at: new Date().toISOString(),
+        })
+        .select('id, status, onboarding_started_at, contact_email, contact_name')
+        .single()
+
+      if (createError) {
+        console.error('[Client Claim] Failed to auto-create client row:', createError.message)
+        return res.status(200).json({ linked: false })
+      }
+
+      client = newClient
     }
+
+    const fullName = profile?.full_name || user?.user_metadata?.full_name || ''
 
     await supabase
       .from('profiles')
       .update({
         client_id: client.id,
         email: user.email,
-        full_name: profile?.full_name || user?.user_metadata?.full_name || profile?.full_name || '',
+        full_name: fullName,
       })
       .eq('id', user.id)
 
     const clientUpdates = {
       contact_email: client.contact_email || user.email,
-      contact_name: client.contact_name || user?.user_metadata?.full_name || profile?.full_name || null,
+      contact_name: client.contact_name || fullName || null,
       onboarding_started_at: client.onboarding_started_at || new Date().toISOString(),
     }
 
@@ -132,7 +157,7 @@ export default async function handler(req, res) {
       profile: {
         client_id: client.id,
         email: user.email,
-        full_name: profile?.full_name || user?.user_metadata?.full_name || '',
+        full_name: fullName,
       },
     })
   } catch (error) {
