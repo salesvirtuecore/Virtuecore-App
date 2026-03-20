@@ -118,11 +118,11 @@ export default function TimeTracker() {
       </div>
 
       {/* Log */}
-      <div className="border border-vc-border">
+      <div className="border border-vc-border overflow-x-auto">
         <div className="px-5 py-3 border-b border-vc-border">
           <h2 className="text-sm font-medium text-vc-text">Time Log</h2>
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[400px]">
           <thead>
             <tr className="border-b border-vc-border bg-vc-secondary">
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Task</th>

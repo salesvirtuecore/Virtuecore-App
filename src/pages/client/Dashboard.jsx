@@ -491,7 +491,7 @@ export default function ClientDashboard() {
         size="lg"
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {pieDataRaw.map((item, index) => (
               <div key={item.name} className="border border-vc-border p-4">
                 <p className="text-xs uppercase tracking-wide text-vc-muted flex items-center gap-2">

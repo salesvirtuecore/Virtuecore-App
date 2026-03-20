@@ -43,16 +43,28 @@ export default async function handler(req, res) {
     }
 
     // Step 2: Send invite via n8n workflow (supabase resource already updated)
-    const portalLabel = role === 'va' ? 'VA portal' : 'client portal'
+    const isVA = role === 'va'
+    const portalLabel = isVA ? 'VA Portal' : 'Client Portal'
+    const signupUrl = `https://virtuecore-app.vercel.app/signup?role=${role}`
+
+    const emailSubject = isVA
+      ? `You've been invited to join VirtueCore as a Virtual Assistant`
+      : `You've been invited to your VirtueCore Client Portal`
+
+    const emailBody = isVA
+      ? `Hi ${full_name || 'there'},\n\nYou've been invited to VirtueCore as a Virtual Assistant. Here's how to get started:\n\n1. Click the link below to create your account and set a password.\n2. Once logged in, you'll land on your Task Board — this is where all your assigned client tasks live.\n3. Use the Time Tracker to log hours against each task as you work.\n4. Check SOPs & Docs for any standard operating procedures or training materials.\n5. Submit your Daily Standup each day to keep the team updated on progress.\n6. If you have any questions, use the Help button inside the app at any time.\n\nClick the link below to get started:\n${signupUrl}\n\nWelcome to the team,\nThe VirtueCore Team`
+      : `Hi ${full_name || 'there'},\n\nYou've been invited to your VirtueCore Client Portal. Here's how to get started:\n\n1. Click the link below to create your account and set a password.\n2. Once logged in, you'll land on your Client Dashboard where you can see your campaign overview at a glance.\n3. Check your Deliverables to review and approve work submitted by your team.\n4. Use the Content Calendar to see scheduled content and upcoming posts.\n5. View your Invoices and manage Billing directly from the portal.\n6. Book calls with your team anytime via the Meetings page.\n7. Message your VirtueCore team directly through the Messages section.\n\nClick the link below to get started:\n${signupUrl}\n\nLooking forward to working with you,\nThe VirtueCore Team`
+
     const n8nPayload = {
       to: email,
       from: 'sales@virtuecore.co.uk',
-      subject: `You've been invited to VirtueCore`,
+      subject: emailSubject,
       full_name,
       company_name,
       role,
       portalLabel,
-      signupUrl: 'https://virtuecore-app.vercel.app/signup',
+      signupUrl,
+      emailBody,
     }
 
     const n8nRes = await fetch(n8nWebhookUrl, {

@@ -27,8 +27,8 @@ export default function Invoices() {
         </div>
       )}
 
-      <div className="border border-vc-border">
-        <table className="w-full text-sm">
+      <div className="border border-vc-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="border-b border-vc-border bg-vc-secondary">
               <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Invoice</th>

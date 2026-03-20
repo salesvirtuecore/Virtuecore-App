@@ -21,7 +21,7 @@ export default function Messages() {
 
     supabase
       .from('messages')
-      .select('*')
+      .select('*, sender:profiles!sender_id(full_name, role)')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -49,7 +49,14 @@ export default function Messages() {
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev
-            return [...prev, payload.new]
+            // Attach sender info for display (realtime payloads don't include joins)
+            const newMsg = {
+              ...payload.new,
+              sender: payload.new.sender_id === profile?.id
+                ? { full_name: profile?.full_name, role: 'client' }
+                : null,
+            }
+            return [...prev, newMsg]
           })
         }
       )
@@ -92,11 +99,9 @@ export default function Messages() {
         .insert({
           client_id: clientId,
           sender_id: profile?.id,
-          sender_name: profile?.full_name ?? 'Client',
-          sender_role: 'client',
           content,
         })
-        .select()
+        .select('*, sender:profiles!sender_id(full_name, role)')
         .single()
 
       if (error) throw error
@@ -138,7 +143,8 @@ export default function Messages() {
             <p className="text-sm text-vc-muted text-center py-8">No messages yet. Say hi!</p>
           )}
           {messages.map((msg) => {
-            const isMe = msg.sender_role === 'client'
+            const isMe = msg.sender_id === profile?.id
+            const senderName = msg.sender?.full_name ?? (isMe ? (profile?.full_name ?? 'You') : 'VirtueCore')
             return (
               <div key={msg.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                 <div
@@ -146,11 +152,11 @@ export default function Messages() {
                     isMe ? 'bg-vc-secondary text-vc-muted' : 'bg-gold text-white'
                   }`}
                 >
-                  {(msg.sender_name ?? '?')[0]}
+                  {senderName[0]}
                 </div>
                 <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-vc-text">{msg.sender_name}</span>
+                    <span className="text-xs font-medium text-vc-text">{senderName}</span>
                     <span className="text-xs text-vc-muted">{formatTime(msg.created_at)}</span>
                   </div>
                   <div
