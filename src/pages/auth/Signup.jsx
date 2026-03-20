@@ -18,6 +18,7 @@ export default function Signup() {
   const rawRole = searchParams.get('role')
   const role = VALID_ROLES.includes(rawRole) ? rawRole : 'client'
   const portalRoute = PORTAL_ROUTES[role]
+  const roleLabel = role === 'va' ? 'VA' : role === 'admin' ? 'admin' : 'client'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -66,7 +67,7 @@ export default function Signup() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-vc-text">Account created — taking you to your {role === 'va' ? 'VA' : role === 'admin' ? 'admin' : 'client'} portal</p>
+          <p className="text-sm font-medium text-vc-text">Account created — taking you to your {roleLabel} portal</p>
         </div>
       </div>
     )
@@ -77,7 +78,7 @@ export default function Signup() {
       <div className="bg-white border border-vc-border rounded-md p-8 w-full max-w-sm">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-vc-text">Create your account</h1>
-          <p className="text-sm text-vc-muted mt-1">Access your VirtueCore {role === 'va' ? 'VA' : role === 'admin' ? 'admin' : 'client'} portal</p>
+          <p className="text-sm text-vc-muted mt-1">Access your VirtueCore {roleLabel} portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

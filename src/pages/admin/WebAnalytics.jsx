@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Globe, Plus, ExternalLink, Trash2, Copy, Check } from 'lucide-react'
 import { supabase, isDemoMode } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
@@ -26,6 +26,11 @@ const DEMO_WEBSITES = [
     meta_pixel_id: '',
     notes: 'Webflow site',
   },
+]
+
+const DEMO_CLIENTS = [
+  { id: 'c-001', company_name: 'Hartley & Sons Roofing' },
+  { id: 'c-002', company_name: 'Apex Drainage Solutions' },
 ]
 
 const EMPTY_FORM = {
@@ -151,13 +156,12 @@ export default function WebAnalytics() {
     })
   }
 
-  // Group websites by client
-  const byClient = websites.reduce((acc, site) => {
+  const byClient = useMemo(() => websites.reduce((acc, site) => {
     const key = site.client_name
     if (!acc[key]) acc[key] = []
     acc[key].push(site)
     return acc
-  }, {})
+  }, {}), [websites])
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -301,13 +305,9 @@ export default function WebAnalytics() {
               required
             >
               <option value="">Select client...</option>
-              {isDemoMode
-                ? [{ id: 'c-001', company_name: 'Hartley & Sons Roofing' }, { id: 'c-002', company_name: 'Apex Drainage Solutions' }].map((c) => (
-                    <option key={c.id} value={c.id}>{c.company_name}</option>
-                  ))
-                : clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.company_name}</option>
-                  ))}
+              {(isDemoMode ? DEMO_CLIENTS : clients).map((c) => (
+                <option key={c.id} value={c.id}>{c.company_name}</option>
+              ))}
             </select>
           </FormField>
 
