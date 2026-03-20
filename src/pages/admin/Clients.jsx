@@ -356,8 +356,8 @@ export default function Clients() {
                   </Badge>
                 </td>
                 <td className="px-5 py-3">
-                  <Badge variant={HEALTH_BADGE[c.health_score]}>
-                    {c.health_score.charAt(0).toUpperCase() + c.health_score.slice(1)}
+                  <Badge variant={HEALTH_BADGE[c.health_score] ?? 'default'}>
+                    {c.health_score ? c.health_score.charAt(0).toUpperCase() + c.health_score.slice(1) : '—'}
                   </Badge>
                 </td>
                 <td className="px-5 py-3">
@@ -367,10 +367,12 @@ export default function Clients() {
                         ? 'green'
                         : c.payment_status === 'overdue'
                         ? 'red'
-                        : 'amber'
+                        : c.payment_status
+                        ? 'amber'
+                        : 'default'
                     }
                   >
-                    {c.payment_status.charAt(0).toUpperCase() + c.payment_status.slice(1)}
+                    {c.payment_status ? c.payment_status.charAt(0).toUpperCase() + c.payment_status.slice(1) : '—'}
                   </Badge>
                 </td>
                 <td className="px-5 py-3">
