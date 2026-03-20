@@ -351,6 +351,17 @@ export default function ClientView() {
           const { data, error } = await supabase.from('deliverables').insert(payload).select().single()
           if (error) throw error
           setDeliverables((prev) => [...prev, data])
+
+          // Notify client of new deliverable
+          const { data: clientProfile } = await supabase
+            .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
+          if (clientProfile?.id) {
+            sendPushNotification(clientProfile.id, {
+              title: 'New deliverable ready',
+              body: `${payload.title} is ready for your review.`,
+              url: '/client/deliverables',
+            })
+          }
         }
       }
       showToast(editDeliverable ? 'Deliverable updated' : 'Deliverable created')
@@ -437,6 +448,17 @@ export default function ClientView() {
           const { data, error } = await supabase.from('invoices').insert(payload).select().single()
           if (error) throw error
           setInvoices((prev) => [...prev, data])
+
+          // Notify client of new invoice
+          const { data: clientProfile } = await supabase
+            .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
+          if (clientProfile?.id) {
+            sendPushNotification(clientProfile.id, {
+              title: 'New invoice raised',
+              body: `£${Number(payload.amount).toLocaleString()} ${payload.type} invoice — due ${payload.due_date}.`,
+              url: '/client/invoices',
+            })
+          }
         }
       }
       showToast(editInvoice ? 'Invoice updated' : 'Invoice created')

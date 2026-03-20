@@ -6,6 +6,7 @@ import { DEMO_DELIVERABLES } from '../../data/placeholder'
 import { supabase, isDemoMode } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
+import { sendPushNotification } from '../../lib/pushNotifications'
 
 const TYPE_LABELS = {
   ad_creative: 'Ad Creative',
@@ -93,12 +94,18 @@ export default function Deliverables() {
     return normalized.endsWith('.pdf') || normalized.endsWith('.png') || normalized.endsWith('.jpg') || normalized.endsWith('.jpeg') || normalized.endsWith('.webp')
   }
 
+  async function notifyAdmins(title, body) {
+    if (isDemoMode || !supabase) return
+    const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
+    for (const admin of admins || []) {
+      sendPushNotification(admin.id, { title, body, url: `/admin/clients/${clientId}` })
+    }
+  }
+
   async function approve(id) {
+    const deliverable = deliverables.find((d) => d.id === id)
     if (!isDemoMode) {
-      await supabase
-        .from('deliverables')
-        .update({ status: 'approved' })
-        .eq('id', id)
+      await supabase.from('deliverables').update({ status: 'approved' }).eq('id', id)
     }
     setDeliverables((prev) => prev.map((d) => d.id === id ? { ...d, status: 'approved' } : d))
     setJustApproved((prev) => new Set([...prev, id]))
@@ -107,21 +114,21 @@ export default function Deliverables() {
       next.delete(id)
       return next
     }), 3000)
+    notifyAdmins('Deliverable approved ✓', `${profile?.full_name ?? 'Client'} approved "${deliverable?.title ?? 'a deliverable'}"`)
   }
 
   async function requestChanges(id) {
     const text = feedback[id]
     if (!text?.trim()) return
+    const deliverable = deliverables.find((d) => d.id === id)
     if (!isDemoMode) {
-      await supabase
-        .from('deliverables')
-        .update({ status: 'changes_requested', feedback: text })
-        .eq('id', id)
+      await supabase.from('deliverables').update({ status: 'changes_requested', feedback: text }).eq('id', id)
     }
     setDeliverables((prev) => prev.map((d) =>
       d.id === id ? { ...d, status: 'changes_requested', feedback: text } : d
     ))
     setShowFeedback((prev) => ({ ...prev, [id]: false }))
+    notifyAdmins('Changes requested', `${profile?.full_name ?? 'Client'} requested changes on "${deliverable?.title ?? 'a deliverable'}"`)
   }
 
   return (

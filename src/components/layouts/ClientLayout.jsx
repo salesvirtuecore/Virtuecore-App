@@ -1,6 +1,9 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { isDemoMode } from '../../lib/supabase'
+import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
 
@@ -17,6 +20,13 @@ const NAV = [
 export default function ClientLayout() {
   const { profile, logout } = useAuth()
   const navigate = useNavigate()
+
+  // Register push subscription as soon as the client is logged in
+  useEffect(() => {
+    if (!isDemoMode && profile?.id) {
+      subscribeToPush(profile.id)
+    }
+  }, [profile?.id])
 
   async function handleLogout() {
     await logout()

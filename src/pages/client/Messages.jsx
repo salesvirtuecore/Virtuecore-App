@@ -3,7 +3,7 @@ import { Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase, isDemoMode } from '../../lib/supabase'
 import { DEMO_MESSAGES } from '../../data/placeholder'
-import { subscribeToPush, sendPushNotification } from '../../lib/pushNotifications'
+import { sendPushNotification } from '../../lib/pushNotifications'
 
 export default function Messages() {
   const { profile } = useAuth()
@@ -14,13 +14,6 @@ export default function Messages() {
   const bottomRef = useRef(null)
 
   const clientId = profile?.client_id
-
-  // Register push subscription so admin messages reach this device
-  useEffect(() => {
-    if (!isDemoMode && profile?.id) {
-      subscribeToPush(profile.id)
-    }
-  }, [profile?.id])
 
   // Load messages + fetch admin user IDs for push
   useEffect(() => {
