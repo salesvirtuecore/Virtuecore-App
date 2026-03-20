@@ -21,14 +21,23 @@ const DEMO_HISTORY = [
   },
 ]
 
+// Stable — date won't change during a session
+const TODAY = new Date().toISOString().slice(0, 10)
+
+const FIELDS = [
+  { key: 'yesterday', label: 'What did you complete yesterday?', placeholder: 'Tasks completed, milestones reached...' },
+  { key: 'today', label: 'What are you working on today?', placeholder: 'Planned tasks for today...' },
+  { key: 'blockers', label: 'Any blockers or questions?', placeholder: 'Leave blank if none...' },
+]
+
 export default function Standup() {
   const { profile } = useAuth()
-  const today = new Date().toISOString().slice(0, 10)
 
   const [history, setHistory] = useState(isDemoMode ? DEMO_HISTORY : [])
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(!isDemoMode)
   const [saving, setSaving] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [form, setForm] = useState({ yesterday: '', today: '', blockers: '' })
 
   useEffect(() => {
@@ -44,7 +53,7 @@ export default function Standup() {
       .then(({ data }) => {
         if (data) {
           setHistory(data)
-          const todaysEntry = data.find((s) => s.date === today)
+          const todaysEntry = data.find((s) => s.date === TODAY)
           if (todaysEntry) {
             setSubmitted(true)
             setForm({
@@ -56,7 +65,7 @@ export default function Standup() {
         }
         setLoading(false)
       })
-  }, [profile?.id, today])
+  }, [profile?.id])
 
   async function submit(e) {
     e.preventDefault()
@@ -67,6 +76,7 @@ export default function Standup() {
       return
     }
 
+    setSubmitError('')
     setSaving(true)
     try {
       const { data, error } = await supabase
@@ -74,7 +84,7 @@ export default function Standup() {
         .upsert(
           {
             va_id: profile.id,
-            date: today,
+            date: TODAY,
             yesterday: form.yesterday.trim(),
             today: form.today.trim(),
             blockers: form.blockers.trim() || null,
@@ -87,12 +97,9 @@ export default function Standup() {
       if (error) throw error
 
       setSubmitted(true)
-      setHistory((prev) => {
-        const without = prev.filter((s) => s.date !== today)
-        return [data, ...without]
-      })
+      setHistory((prev) => [data, ...prev.filter((s) => s.date !== TODAY)])
     } catch (err) {
-      console.error('Failed to submit standup:', err)
+      setSubmitError(err.message ?? 'Failed to submit standup. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -107,13 +114,13 @@ export default function Standup() {
     )
   }
 
-  const pastEntries = history.filter((s) => s.date !== today)
+  const pastEntries = history.filter((s) => s.date !== TODAY)
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-vc-text">Daily Standup</h1>
-        <p className="text-sm text-vc-muted mt-0.5">{today}</p>
+        <p className="text-sm text-vc-muted mt-0.5">{TODAY}</p>
       </div>
 
       {/* Today's form */}
@@ -124,7 +131,7 @@ export default function Standup() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 px-4 py-3">
               <CheckSquare size={16} />
-              Standup submitted for {today}
+              Standup submitted for {TODAY}
             </div>
             <button
               onClick={() => setSubmitted(false)}
@@ -135,11 +142,7 @@ export default function Standup() {
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
-            {[
-              { key: 'yesterday', label: 'What did you complete yesterday?', placeholder: 'Tasks completed, milestones reached...' },
-              { key: 'today', label: 'What are you working on today?', placeholder: 'Planned tasks for today...' },
-              { key: 'blockers', label: 'Any blockers or questions?', placeholder: 'Leave blank if none...' },
-            ].map(({ key, label, placeholder }) => (
+            {FIELDS.map(({ key, label, placeholder }) => (
               <div key={key}>
                 <label className="block text-sm font-medium text-vc-text mb-1.5">{label}</label>
                 <textarea
@@ -151,6 +154,7 @@ export default function Standup() {
                 />
               </div>
             ))}
+            {submitError && <p className="text-xs text-red-500">{submitError}</p>}
             <Button type="submit" disabled={!form.yesterday.trim() || !form.today.trim() || saving}>
               {saving ? 'Submitting...' : 'Submit standup'}
             </Button>

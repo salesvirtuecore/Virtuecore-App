@@ -30,37 +30,31 @@ export default function TimeTracker() {
   useEffect(() => {
     if (isDemoMode || !supabase || !profile?.id) return
 
-    // Load assigned open tasks
-    supabase
-      .from('tasks')
-      .select('id, title, client_id, clients(company_name)')
-      .eq('assigned_va_id', profile.id)
-      .neq('status', 'complete')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setTasks(data.map((t) => ({ ...t, client_name: t.clients?.company_name ?? '—' })))
-      })
-
-    // Load this week's time entries
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
-    supabase
-      .from('va_time_entries')
-      .select('*, tasks(title, clients(company_name))')
-      .eq('va_id', profile.id)
-      .gte('started_at', weekAgo.toISOString())
-      .order('started_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) {
-          setEntries(
-            data.map((e) => ({
-              ...e,
-              task_name: e.tasks?.title ?? '—',
-              client_name: e.tasks?.clients?.company_name ?? '—',
-            }))
-          )
-        }
-      })
+
+    // Both queries are independent — run in parallel
+    Promise.all([
+      supabase
+        .from('tasks')
+        .select('id, title, client_id, clients(company_name)')
+        .eq('assigned_va_id', profile.id)
+        .neq('status', 'complete')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('va_time_entries')
+        .select('*, tasks(title, clients(company_name))')
+        .eq('va_id', profile.id)
+        .gte('started_at', weekAgo.toISOString())
+        .order('started_at', { ascending: false }),
+    ]).then(([{ data: taskData }, { data: entryData }]) => {
+      if (taskData) setTasks(taskData.map((t) => ({ ...t, client_name: t.clients?.company_name ?? '—' })))
+      if (entryData) setEntries(entryData.map((e) => ({
+        ...e,
+        task_name: e.tasks?.title ?? '—',
+        client_name: e.tasks?.clients?.company_name ?? '—',
+      })))
+    })
   }, [profile?.id])
 
   useEffect(() => {
@@ -107,28 +101,29 @@ export default function TimeTracker() {
     try {
       const task = tasks.find((t) => t.id === activeTask)
 
-      const { data, error } = await supabase
-        .from('va_time_entries')
-        .insert({
-          va_id: profile.id,
-          task_id: activeTask || null,
-          client_id: task?.client_id ?? null,
-          started_at: startedAt,
-          ended_at: endedAt,
-          duration_minutes: durationMinutes,
-        })
-        .select('*, tasks(title, clients(company_name))')
-        .single()
+      // Run insert and time fetch in parallel — they don't depend on each other
+      const [{ data, error }, { data: taskRow }] = await Promise.all([
+        supabase
+          .from('va_time_entries')
+          .insert({
+            va_id: profile.id,
+            task_id: activeTask || null,
+            client_id: task?.client_id ?? null,
+            started_at: startedAt,
+            ended_at: endedAt,
+            duration_minutes: durationMinutes,
+          })
+          .select('*, tasks(title, clients(company_name))')
+          .single(),
+        activeTask
+          ? supabase.from('tasks').select('time_logged_minutes').eq('id', activeTask).single()
+          : Promise.resolve({ data: null }),
+      ])
 
       if (error) throw error
 
-      // Increment task time_logged_minutes
+      // Update task total with the fetched current value
       if (activeTask) {
-        const { data: taskRow } = await supabase
-          .from('tasks')
-          .select('time_logged_minutes')
-          .eq('id', activeTask)
-          .single()
         await supabase
           .from('tasks')
           .update({ time_logged_minutes: (taskRow?.time_logged_minutes ?? 0) + durationMinutes })
