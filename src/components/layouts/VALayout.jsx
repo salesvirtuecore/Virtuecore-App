@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { CheckSquare, Clock, BookOpen, FolderOpen, MessageCircle, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
+import HelpChatWidget from '../ui/HelpChatWidget'
 
 const NAV = [
   { to: '/va', label: 'Task Board', icon: CheckSquare, end: true },
@@ -83,6 +84,7 @@ export default function VALayout() {
           <Outlet />
         </div>
       </main>
+      <HelpChatWidget />
     </div>
   )
 }

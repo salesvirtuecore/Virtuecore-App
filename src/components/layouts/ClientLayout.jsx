@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
+import HelpChatWidget from '../ui/HelpChatWidget'
 
 const NAV = [
   { to: '/client', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -86,6 +87,7 @@ export default function ClientLayout() {
           <Outlet />
         </div>
       </main>
+      <HelpChatWidget />
     </div>
   )
 }

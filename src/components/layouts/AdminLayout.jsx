@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Users, GitBranch, UserCheck, DollarSign, LogOut, Webhook } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
+import HelpChatWidget from '../ui/HelpChatWidget'
 
 const NAV = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -90,6 +91,7 @@ export default function AdminLayout() {
           <Outlet />
         </div>
       </main>
+      <HelpChatWidget />
     </div>
   )
 }
