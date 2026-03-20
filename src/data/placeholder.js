@@ -212,7 +212,7 @@ export const DEMO_DELIVERABLES = [
     type: 'report',
     status: 'pending_review',
     created_at: '2026-03-10',
-    file_url: '#',
+    file_url: '/demo-deliverable.pdf',
     feedback: null,
   },
   {
@@ -222,7 +222,7 @@ export const DEMO_DELIVERABLES = [
     type: 'ad_creative',
     status: 'draft',
     created_at: '2026-03-14',
-    file_url: '#',
+    file_url: '/demo-deliverable.pdf',
     feedback: null,
   },
   {
@@ -232,7 +232,7 @@ export const DEMO_DELIVERABLES = [
     type: 'content_calendar',
     status: 'approved',
     created_at: '2026-01-05',
-    file_url: '#',
+    file_url: '/demo-deliverable.pdf',
     feedback: null,
   },
   {
@@ -242,7 +242,7 @@ export const DEMO_DELIVERABLES = [
     type: 'lead_magnet',
     status: 'changes_requested',
     created_at: '2026-02-20',
-    file_url: '#',
+    file_url: '/demo-deliverable.pdf',
     feedback: 'Please update the CTA button colour to match our brand orange and add a phone number in the footer.',
   },
 ]

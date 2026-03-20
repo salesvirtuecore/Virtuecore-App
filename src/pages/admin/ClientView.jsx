@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, X, Pencil, Trash2, Plus, Send } from 'lucide-react'
+import { ArrowLeft, Sparkles, X, Pencil, Trash2, Plus, Send, Upload, ExternalLink } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/ui/StatCard'
@@ -96,6 +96,8 @@ export default function ClientView() {
 
   // Form state
   const [deliverableForm, setDeliverableForm] = useState(EMPTY_DELIVERABLE)
+  const [deliverableFile, setDeliverableFile] = useState(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
   const [deliverableErrors, setDeliverableErrors] = useState({})
   const [invoiceForm, setInvoiceForm] = useState(EMPTY_INVOICE)
   const [invoiceErrors, setInvoiceErrors] = useState({})
@@ -235,6 +237,7 @@ export default function ClientView() {
   function openAddDeliverable() {
     setEditDeliverable(null)
     setDeliverableForm(EMPTY_DELIVERABLE)
+    setDeliverableFile(null)
     setDeliverableErrors({})
     setShowDeliverableModal(true)
   }
@@ -242,8 +245,30 @@ export default function ClientView() {
   function openEditDeliverable(d) {
     setEditDeliverable(d)
     setDeliverableForm({ title: d.title, type: d.type, file_url: d.file_url ?? '', status: d.status })
+    setDeliverableFile(null)
     setDeliverableErrors({})
     setShowDeliverableModal(true)
+  }
+
+  function sanitizeFilename(name) {
+    return (name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')
+  }
+
+  async function uploadDeliverableToStorage(file) {
+    if (!supabase || !file) return null
+
+    const safeName = sanitizeFilename(file.name)
+    const path = `${id}/${Date.now()}-${safeName}`
+
+    const { error: uploadError } = await supabase
+      .storage
+      .from('deliverables')
+      .upload(path, file, { cacheControl: '3600', upsert: false })
+
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('deliverables').getPublicUrl(path)
+    return data?.publicUrl || null
   }
 
   function validateDeliverable() {
@@ -257,10 +282,22 @@ export default function ClientView() {
     if (Object.keys(e).length) { setDeliverableErrors(e); return }
     setSaving(true)
     try {
+      setUploadingFile(Boolean(deliverableFile))
+
+      let resolvedFileUrl = deliverableForm.file_url.trim() || null
+
+      if (deliverableFile) {
+        if (isDemoMode) {
+          resolvedFileUrl = '/demo-deliverable.pdf'
+        } else {
+          resolvedFileUrl = await uploadDeliverableToStorage(deliverableFile)
+        }
+      }
+
       const payload = {
         title: deliverableForm.title.trim(),
         type: deliverableForm.type,
-        file_url: deliverableForm.file_url.trim() || null,
+        file_url: resolvedFileUrl,
         status: deliverableForm.status,
         client_id: id,
       }
@@ -293,6 +330,7 @@ export default function ClientView() {
     } catch (err) {
       showToast(err.message ?? 'Failed to save deliverable', 'error')
     } finally {
+      setUploadingFile(false)
       setSaving(false)
     }
   }
@@ -575,6 +613,11 @@ export default function ClientView() {
                   <p className="text-xs text-vc-muted capitalize">{d.type.replace(/_/g, ' ')}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {d.file_url && (
+                    <a href={d.file_url} target="_blank" rel="noreferrer" className="text-vc-muted hover:text-vc-text">
+                      <ExternalLink size={13} />
+                    </a>
+                  )}
                   <Badge variant={d.status === 'approved' ? 'green' : d.status === 'changes_requested' ? 'red' : d.status === 'pending_review' ? 'amber' : 'default'}>
                     {d.status.replace(/_/g, ' ')}
                   </Badge>
@@ -779,12 +822,25 @@ export default function ClientView() {
             />
           </FormField>
 
+          <FormField label="Upload File (PDF, image, zip, etc.)">
+            <label className="flex items-center justify-center gap-2 border border-dashed border-vc-border rounded px-3 py-3 text-sm text-vc-muted hover:text-vc-text cursor-pointer">
+              <Upload size={14} />
+              <span>{deliverableFile ? deliverableFile.name : 'Choose file'}</span>
+              <input
+                type="file"
+                className="hidden"
+                onChange={(e) => setDeliverableFile(e.target.files?.[0] || null)}
+              />
+            </label>
+            <p className="text-xs text-vc-muted mt-1">If you upload a file, it will be stored in-app and used instead of the URL above.</p>
+          </FormField>
+
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setShowDeliverableModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
               Cancel
             </button>
             <button onClick={handleSaveDeliverable} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
-              {saving ? 'Saving…' : editDeliverable ? 'Save Changes' : 'Add Deliverable'}
+              {saving ? (uploadingFile ? 'Uploading…' : 'Saving…') : editDeliverable ? 'Save Changes' : 'Add Deliverable'}
             </button>
           </div>
         </div>

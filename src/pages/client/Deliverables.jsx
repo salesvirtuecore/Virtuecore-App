@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { Download, MessageSquare, Check } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Download, MessageSquare, Check, Eye, FileText } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { DEMO_DELIVERABLES } from '../../data/placeholder'
 import { supabase, isDemoMode } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import Modal from '../../components/ui/Modal'
 
 const TYPE_LABELS = {
   ad_creative: 'Ad Creative',
@@ -29,10 +31,67 @@ const STATUS_LABEL = {
 }
 
 export default function Deliverables() {
-  const [deliverables, setDeliverables] = useState(DEMO_DELIVERABLES)
+  const { profile } = useAuth()
+  const [deliverables, setDeliverables] = useState(isDemoMode ? DEMO_DELIVERABLES.filter((d) => d.client_id === 'c-001') : [])
+  const [loading, setLoading] = useState(!isDemoMode)
+  const [previewItem, setPreviewItem] = useState(null)
   const [feedback, setFeedback] = useState({})
   const [showFeedback, setShowFeedback] = useState({})
   const [justApproved, setJustApproved] = useState(new Set())
+
+  const clientId = isDemoMode ? 'c-001' : profile?.client_id
+
+  useEffect(() => {
+    if (isDemoMode || !supabase || !clientId) {
+      setLoading(false)
+      return
+    }
+
+    let canceled = false
+
+    async function loadDeliverables() {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('deliverables')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+
+      if (!canceled) {
+        if (!error) setDeliverables(data || [])
+        setLoading(false)
+      }
+    }
+
+    loadDeliverables()
+
+    const channel = supabase
+      .channel(`client-deliverables-${clientId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deliverables', filter: `client_id=eq.${clientId}` },
+        () => loadDeliverables()
+      )
+      .subscribe()
+
+    return () => {
+      canceled = true
+      supabase.removeChannel(channel)
+    }
+  }, [clientId])
+
+  const normalizedDeliverables = useMemo(() => {
+    return deliverables.map((d) => ({
+      ...d,
+      file_url: d.file_url === '#' ? '/demo-deliverable.pdf' : d.file_url,
+    }))
+  }, [deliverables])
+
+  function isPreviewable(url) {
+    if (!url) return false
+    const normalized = url.toLowerCase().split('?')[0]
+    return normalized.endsWith('.pdf') || normalized.endsWith('.png') || normalized.endsWith('.jpg') || normalized.endsWith('.jpeg') || normalized.endsWith('.webp')
+  }
 
   async function approve(id) {
     if (!isDemoMode) {
@@ -72,8 +131,10 @@ export default function Deliverables() {
         <p className="text-sm text-vc-muted mt-0.5">Review and approve your assets</p>
       </div>
 
+      {loading && <p className="text-sm text-vc-muted">Loading deliverables...</p>}
+
       <div className="space-y-3">
-        {deliverables.map((d) => (
+        {normalizedDeliverables.map((d) => (
           <div key={d.id} className="border border-vc-border p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -96,11 +157,28 @@ export default function Deliverables() {
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm">
-                <Download size={14} />
-                Download
-              </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {d.file_url && isPreviewable(d.file_url) && (
+                <Button variant="secondary" size="sm" onClick={() => setPreviewItem(d)}>
+                  <Eye size={14} />
+                  Preview
+                </Button>
+              )}
+
+              {d.file_url ? (
+                <a href={d.file_url} download target="_blank" rel="noreferrer">
+                  <Button variant="secondary" size="sm">
+                    <Download size={14} />
+                    Download
+                  </Button>
+                </a>
+              ) : (
+                <Button variant="secondary" size="sm" disabled>
+                  <FileText size={14} />
+                  No file
+                </Button>
+              )}
+
               {d.status === 'pending_review' && !justApproved.has(d.id) && (
                 <>
                   <Button variant="primary" size="sm" onClick={() => approve(d.id)}>
@@ -136,6 +214,27 @@ export default function Deliverables() {
           </div>
         ))}
       </div>
+
+      <Modal
+        isOpen={Boolean(previewItem)}
+        onClose={() => setPreviewItem(null)}
+        title={previewItem?.title || 'Deliverable Preview'}
+        size="lg"
+      >
+        {previewItem?.file_url?.toLowerCase().includes('.pdf') ? (
+          <iframe
+            src={previewItem.file_url}
+            title="Deliverable preview"
+            className="w-full h-[70vh] border border-vc-border"
+          />
+        ) : (
+          <img
+            src={previewItem?.file_url}
+            alt={previewItem?.title || 'Deliverable preview'}
+            className="max-h-[70vh] w-full object-contain border border-vc-border"
+          />
+        )}
+      </Modal>
     </div>
   )
 }
