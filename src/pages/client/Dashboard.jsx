@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
+import { RefreshCw } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import { DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS, DEMO_INVOICES } from '../../data/placeholder'
 import { useAuth } from '../../context/AuthContext'
@@ -237,9 +238,15 @@ export default function ClientDashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(!isDemoMode)
   const [adPerformance, setAdPerformance] = useState(isDemoMode ? DEMO_AD_PERFORMANCE : [])
   const [invoiceRows, setInvoiceRows] = useState(isDemoMode ? DEMO_INVOICES.filter((invoice) => invoice.client_id === DEMO_CLIENT_ID) : [])
+  const [metaConnected, setMetaConnected] = useState(null) // null = unknown, true/false
+  const [connectingMeta, setConnectingMeta] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState(null)
+
+  const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemoMode || !profile?.client_id) {
+    if (isDemoMode || !clientId) {
       setDashboardLoading(false)
       return
     }
@@ -248,9 +255,14 @@ export default function ClientDashboard() {
       setDashboardLoading(true)
 
       try {
-        const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }] = await Promise.all([
+        const [
+          { data: adData, error: adError },
+          { data: invoiceData, error: invoiceError },
+          { data: clientRow },
+        ] = await Promise.all([
           supabase.from('ad_performance').select('*').order('date', { ascending: true }),
           supabase.from('invoices').select('*').order('created_at', { ascending: false }),
+          supabase.from('clients').select('meta_ad_account_id').eq('id', clientId).maybeSingle(),
         ])
 
         if (adError) throw adError
@@ -258,6 +270,7 @@ export default function ClientDashboard() {
 
         setAdPerformance(adData || [])
         setInvoiceRows(invoiceData || [])
+        setMetaConnected(Boolean(clientRow?.meta_ad_account_id))
       } catch (error) {
         console.error('Failed to load client dashboard data:', error)
         setAdPerformance([])
@@ -268,7 +281,43 @@ export default function ClientDashboard() {
     }
 
     loadDashboardData()
-  }, [profile?.client_id])
+  }, [clientId])
+
+  async function handleConnectMeta() {
+    if (!clientId) return
+    setConnectingMeta(true)
+    try {
+      const res = await fetch(`/api/meta/connect?client_id=${clientId}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      window.location.href = data.url
+    } catch {
+      setConnectingMeta(false)
+    }
+  }
+
+  async function handleSyncMeta() {
+    if (!clientId) return
+    setSyncing(true)
+    setSyncMessage(null)
+    try {
+      const res = await fetch('/api/meta/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSyncMessage(`Synced ${data.rows_synced} entries`)
+      // Reload ad data
+      const { data: adData } = await supabase.from('ad_performance').select('*').order('date', { ascending: true })
+      setAdPerformance(adData || [])
+    } catch (err) {
+      setSyncMessage(err.message || 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const metrics = buildDashboardMetrics({
     performanceRows: aggregatePerformanceRows(adPerformance),
@@ -297,6 +346,37 @@ export default function ClientDashboard() {
           Revenue view for {metrics.periodLabel}.
         </p>
       </div>
+
+      {/* Meta Ads connect / sync banner */}
+      {!isDemoMode && metaConnected === false && (
+        <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-amber-900">Connect your Meta Ads account</p>
+            <p className="text-xs text-amber-700 mt-0.5">Link your Facebook Ads Manager to see live campaign data on your dashboard.</p>
+          </div>
+          <button
+            onClick={handleConnectMeta}
+            disabled={connectingMeta}
+            className="flex-shrink-0 bg-gold hover:bg-gold-dark text-white text-xs font-medium px-4 py-2 disabled:opacity-60"
+          >
+            {connectingMeta ? 'Redirecting…' : 'Connect Meta Ads'}
+          </button>
+        </div>
+      )}
+
+      {!isDemoMode && metaConnected === true && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-green-700 font-medium">● Meta Ads connected</p>
+          <button
+            onClick={handleSyncMeta}
+            disabled={syncing}
+            className="flex items-center gap-1.5 text-xs text-vc-muted hover:text-vc-text disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing…' : syncMessage ?? 'Sync now'}
+          </button>
+        </div>
+      )}
 
       <div className="border border-vc-border bg-white p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
         <div>

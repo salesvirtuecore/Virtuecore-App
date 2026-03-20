@@ -30,6 +30,7 @@ import Messages from './pages/client/Messages'
 import Invoices from './pages/client/Invoices'
 import Billing from './pages/client/Billing'
 import Meetings from './pages/client/Meetings'
+import MetaCallback from './pages/client/MetaCallback'
 
 // VA
 import TaskBoard from './pages/va/TaskBoard'
@@ -91,6 +92,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/meta/callback" element={<MetaCallback />} />
       <Route path="/preview/client-dashboard" element={<ClientDashboard />} />
       <Route path="/preview/client-deliverables" element={<Deliverables />} />
       <Route path="/preview/admin-dashboard" element={<AdminDashboard />} />
