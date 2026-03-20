@@ -20,6 +20,7 @@ import ClientView from './pages/admin/ClientView'
 import Pipeline from './pages/admin/Pipeline'
 import VAManagement from './pages/admin/VAManagement'
 import Revenue from './pages/admin/Revenue'
+import WebAnalytics from './pages/admin/WebAnalytics'
 import Webhooks from './pages/admin/Webhooks'
 
 // Client
@@ -107,6 +108,7 @@ function AppRoutes() {
         <Route path="pipeline" element={<Pipeline />} />
         <Route path="vas" element={<VAManagement />} />
         <Route path="revenue" element={<Revenue />} />
+        <Route path="analytics" element={<WebAnalytics />} />
         <Route path="webhooks" element={<Webhooks />} />
       </Route>
 

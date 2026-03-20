@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, GitBranch, UserCheck, DollarSign, LogOut, Webhook } from 'lucide-react'
+import { LayoutDashboard, Users, GitBranch, UserCheck, DollarSign, LogOut, Webhook, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
@@ -10,6 +10,7 @@ const NAV = [
   { to: '/admin/pipeline', label: 'Pipeline', short: 'Pipeline', icon: GitBranch },
   { to: '/admin/vas', label: 'VA Management', short: 'VAs', icon: UserCheck },
   { to: '/admin/revenue', label: 'Revenue', short: 'Revenue', icon: DollarSign },
+  { to: '/admin/analytics', label: 'Web Analytics', short: 'Analytics', icon: Globe },
   { to: '/admin/webhooks', label: 'Integrations', short: 'Integrations', icon: Webhook },
 ]
 

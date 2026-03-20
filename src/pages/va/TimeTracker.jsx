@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Play, Square } from 'lucide-react'
+import { supabase, isDemoMode } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import { DEMO_TASKS } from '../../data/placeholder'
 
 function formatDuration(seconds) {
@@ -9,17 +11,57 @@ function formatDuration(seconds) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-const WEEK_ENTRIES = [
-  { task: 'Design March ad creatives — Meta', client: 'Hartley & Sons Roofing', duration: 90, date: '2026-03-14' },
-  { task: 'Build onboarding questionnaire — Apex', client: 'Apex Drainage Solutions', duration: 60, date: '2026-03-14' },
-  { task: 'Update Google Ads negative keywords — Prestige', client: 'Prestige Window Cleaning', duration: 45, date: '2026-03-13' },
+const DEMO_ENTRIES = [
+  { id: '1', task_name: 'Design March ad creatives — Meta', client_name: 'Hartley & Sons Roofing', duration_minutes: 90, started_at: '2026-03-14T09:00:00Z' },
+  { id: '2', task_name: 'Build onboarding questionnaire — Apex', client_name: 'Apex Drainage Solutions', duration_minutes: 60, started_at: '2026-03-14T11:00:00Z' },
+  { id: '3', task_name: 'Update Google Ads negative keywords — Prestige', client_name: 'Prestige Window Cleaning', duration_minutes: 45, started_at: '2026-03-13T14:00:00Z' },
 ]
 
 export default function TimeTracker() {
+  const { profile } = useAuth()
+  const [tasks, setTasks] = useState(isDemoMode ? DEMO_TASKS.filter((t) => t.status !== 'complete') : [])
+  const [entries, setEntries] = useState(isDemoMode ? DEMO_ENTRIES : [])
   const [activeTask, setActiveTask] = useState('')
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
-  const [entries, setEntries] = useState(WEEK_ENTRIES)
+  const [saving, setSaving] = useState(false)
+  const startedAtRef = useRef(null)
+
+  useEffect(() => {
+    if (isDemoMode || !supabase || !profile?.id) return
+
+    // Load assigned open tasks
+    supabase
+      .from('tasks')
+      .select('id, title, client_id, clients(company_name)')
+      .eq('assigned_va_id', profile.id)
+      .neq('status', 'complete')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setTasks(data.map((t) => ({ ...t, client_name: t.clients?.company_name ?? '—' })))
+      })
+
+    // Load this week's time entries
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    supabase
+      .from('va_time_entries')
+      .select('*, tasks(title, clients(company_name))')
+      .eq('va_id', profile.id)
+      .gte('started_at', weekAgo.toISOString())
+      .order('started_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) {
+          setEntries(
+            data.map((e) => ({
+              ...e,
+              task_name: e.tasks?.title ?? '—',
+              client_name: e.tasks?.clients?.company_name ?? '—',
+            }))
+          )
+        }
+      })
+  }, [profile?.id])
 
   useEffect(() => {
     if (!running) return
@@ -29,25 +71,87 @@ export default function TimeTracker() {
 
   function start() {
     if (!activeTask) return
+    startedAtRef.current = new Date().toISOString()
     setElapsed(0)
     setRunning(true)
   }
 
-  function stop() {
+  async function stop() {
     setRunning(false)
-    if (elapsed > 0) {
-      const task = DEMO_TASKS.find((t) => t.id === activeTask)
-      setEntries((prev) => [{
-        task: task?.title ?? activeTask,
-        client: task?.client_name ?? '—',
-        duration: Math.round(elapsed / 60),
-        date: new Date().toISOString().slice(0, 10),
-      }, ...prev])
+    if (elapsed < 60) {
+      setElapsed(0)
+      return
     }
-    setElapsed(0)
+
+    const durationMinutes = Math.round(elapsed / 60)
+    const startedAt = startedAtRef.current ?? new Date().toISOString()
+    const endedAt = new Date().toISOString()
+
+    if (isDemoMode) {
+      const task = tasks.find((t) => t.id === activeTask)
+      setEntries((prev) => [
+        {
+          id: `demo-${Date.now()}`,
+          task_name: task?.title ?? activeTask,
+          client_name: task?.client_name ?? '—',
+          duration_minutes: durationMinutes,
+          started_at: startedAt,
+        },
+        ...prev,
+      ])
+      setElapsed(0)
+      return
+    }
+
+    setSaving(true)
+    try {
+      const task = tasks.find((t) => t.id === activeTask)
+
+      const { data, error } = await supabase
+        .from('va_time_entries')
+        .insert({
+          va_id: profile.id,
+          task_id: activeTask || null,
+          client_id: task?.client_id ?? null,
+          started_at: startedAt,
+          ended_at: endedAt,
+          duration_minutes: durationMinutes,
+        })
+        .select('*, tasks(title, clients(company_name))')
+        .single()
+
+      if (error) throw error
+
+      // Increment task time_logged_minutes
+      if (activeTask) {
+        const { data: taskRow } = await supabase
+          .from('tasks')
+          .select('time_logged_minutes')
+          .eq('id', activeTask)
+          .single()
+        await supabase
+          .from('tasks')
+          .update({ time_logged_minutes: (taskRow?.time_logged_minutes ?? 0) + durationMinutes })
+          .eq('id', activeTask)
+      }
+
+      setEntries((prev) => [
+        {
+          ...data,
+          task_name: data.tasks?.title ?? task?.title ?? '—',
+          client_name: data.tasks?.clients?.company_name ?? task?.client_name ?? '—',
+        },
+        ...prev,
+      ])
+    } catch (err) {
+      console.error('Failed to save time entry:', err)
+    } finally {
+      setSaving(false)
+      setElapsed(0)
+    }
   }
 
-  const totalMinutes = entries.reduce((s, e) => s + e.duration, 0)
+  const totalMinutes = entries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0)
   const totalHours = (totalMinutes / 60).toFixed(1)
 
   return (
@@ -68,7 +172,7 @@ export default function TimeTracker() {
             className="flex-1 border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-vc-text bg-white disabled:bg-vc-secondary"
           >
             <option value="">Select a task...</option>
-            {DEMO_TASKS.filter(t => t.status !== 'complete').map((t) => (
+            {tasks.map((t) => (
               <option key={t.id} value={t.id}>{t.title}</option>
             ))}
           </select>
@@ -90,13 +194,19 @@ export default function TimeTracker() {
           ) : (
             <button
               onClick={stop}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60 transition-colors"
             >
               <Square size={14} fill="currentColor" />
-              Stop & Save
+              {saving ? 'Saving...' : 'Stop & Save'}
             </button>
           )}
         </div>
+        {running && elapsed < 60 && (
+          <p className="text-xs text-vc-muted mt-3">
+            Log at least 1 minute before stopping to save an entry.
+          </p>
+        )}
       </div>
 
       {/* Summary */}
@@ -122,28 +232,36 @@ export default function TimeTracker() {
         <div className="px-5 py-3 border-b border-vc-border">
           <h2 className="text-sm font-medium text-vc-text">Time Log</h2>
         </div>
-        <table className="w-full text-sm min-w-[400px]">
-          <thead>
-            <tr className="border-b border-vc-border bg-vc-secondary">
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Task</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Client</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Duration</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e, i) => (
-              <tr key={i} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
-                <td className="px-5 py-3 text-vc-text">{e.task}</td>
-                <td className="px-5 py-3 text-vc-muted">{e.client}</td>
-                <td className="px-5 py-3 text-vc-text">
-                  {e.duration >= 60 ? `${Math.floor(e.duration / 60)}h ${e.duration % 60}m` : `${e.duration}m`}
-                </td>
-                <td className="px-5 py-3 text-vc-muted">{e.date}</td>
+        {entries.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-vc-muted">No entries this week.</p>
+        ) : (
+          <table className="w-full text-sm min-w-[400px]">
+            <thead>
+              <tr className="border-b border-vc-border bg-vc-secondary">
+                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Task</th>
+                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Client</th>
+                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Duration</th>
+                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => (
+                <tr key={e.id ?? i} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
+                  <td className="px-5 py-3 text-vc-text">{e.task_name}</td>
+                  <td className="px-5 py-3 text-vc-muted">{e.client_name}</td>
+                  <td className="px-5 py-3 text-vc-text">
+                    {e.duration_minutes >= 60
+                      ? `${Math.floor(e.duration_minutes / 60)}h ${e.duration_minutes % 60}m`
+                      : `${e.duration_minutes}m`}
+                  </td>
+                  <td className="px-5 py-3 text-vc-muted">
+                    {e.started_at ? new Date(e.started_at).toLocaleDateString('en-GB') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )

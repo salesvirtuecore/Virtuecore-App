@@ -75,6 +75,10 @@ export default function ClientView() {
   const [reportLoading, setReportLoading] = useState(false)
   const [reportModal, setReportModal] = useState(null)
   const [reportToast, setReportToast] = useState(false)
+  const [reportPeriod, setReportPeriod] = useState(() => {
+    const now = new Date()
+    return now.toLocaleString('en-GB', { month: 'long', year: 'numeric' })
+  })
 
   const [client, setClient] = useState(isDemoMode ? DEMO_CLIENTS.find((c) => c.id === id) ?? null : null)
   const [loadingClient, setLoadingClient] = useState(!isDemoMode)
@@ -128,7 +132,7 @@ export default function ClientView() {
           supabase.from('clients').select('*').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('*').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-          supabase.from('messages').select('*').eq('client_id', id).order('created_at', { ascending: true }),
+          supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
           supabase.from('ad_performance').select('*').eq('client_id', id).order('date', { ascending: true }),
         ])
 
@@ -177,7 +181,14 @@ export default function ClientView() {
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev
-            return [...prev, payload.new]
+            // Fetch sender info for display since realtime payloads don't include joins
+            const newMsg = {
+              ...payload.new,
+              sender: payload.new.sender_id === profile?.id
+                ? { full_name: profile?.full_name, role: 'admin' }
+                : null,
+            }
+            return [...prev, newMsg]
           })
         }
       )
@@ -244,7 +255,7 @@ export default function ClientView() {
           body: JSON.stringify({
             client_id: client.id,
             client_name: client.company_name,
-            period: 'March 2026',
+            period: reportPeriod,
             ad_data: adEntries,
           }),
         })
@@ -524,12 +535,14 @@ export default function ClientView() {
       const payload = {
         client_id: id,
         sender_id: profile?.id ?? null,
-        sender_name: profile?.full_name ? `${profile.full_name} — VirtueCore` : 'VirtueCore',
-        sender_role: 'admin',
         content,
       }
       if (!isDemoMode) {
-        const { data, error } = await supabase.from('messages').insert(payload).select().single()
+        const { data, error } = await supabase
+          .from('messages')
+          .insert(payload)
+          .select('*, sender:profiles!sender_id(full_name, role)')
+          .single()
         if (error) throw error
         setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
 
@@ -616,14 +629,23 @@ export default function ClientView() {
             <Badge variant={client.status === 'active' ? 'green' : 'blue'}>
               {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
             </Badge>
-            <button
-              onClick={handleGenerateReport}
-              disabled={reportLoading}
-              className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 disabled:opacity-60 text-white text-sm px-4 py-2 transition-colors"
-            >
-              <Sparkles size={14} />
-              {reportLoading ? 'Generating…' : 'Generate AI Report'}
-            </button>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={reportPeriod}
+                onChange={(e) => setReportPeriod(e.target.value)}
+                placeholder="e.g. March 2026"
+                className="border border-vc-border px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-gold w-36"
+              />
+              <button
+                onClick={handleGenerateReport}
+                disabled={reportLoading || !reportPeriod.trim()}
+                className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 disabled:opacity-60 text-white text-sm px-4 py-2 transition-colors whitespace-nowrap"
+              >
+                <Sparkles size={14} />
+                {reportLoading ? 'Generating…' : 'Generate AI Report'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -710,9 +732,9 @@ export default function ClientView() {
               <p className="px-4 py-4 text-sm text-vc-muted">No messages yet.</p>
             )}
             {messages.map((msg) => (
-              <div key={msg.id} className={`px-4 py-3 ${msg.sender_role === 'admin' ? 'bg-vc-secondary' : ''}`}>
+              <div key={msg.id} className={`px-4 py-3 ${msg.sender?.role === 'admin' ? 'bg-vc-secondary' : ''}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-vc-text">{msg.sender_name ?? 'Unknown'}</span>
+                  <span className="text-xs font-medium text-vc-text">{msg.sender?.full_name ?? (msg.sender_id === profile?.id ? profile?.full_name : 'Client')}</span>
                   <span className="text-xs text-vc-muted">
                     {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
