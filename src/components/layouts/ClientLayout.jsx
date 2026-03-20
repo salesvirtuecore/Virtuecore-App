@@ -5,13 +5,13 @@ import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
 
 const NAV = [
-  { to: '/client', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/client/deliverables', label: 'Deliverables', icon: FileText },
-  { to: '/client/calendar', label: 'Content Calendar', icon: Calendar },
-  { to: '/client/messages', label: 'Messages', icon: MessageSquare },
-  { to: '/client/invoices', label: 'Invoices', icon: Receipt },
-  { to: '/client/billing', label: 'Billing', icon: CreditCard },
-  { to: '/client/meetings', label: 'Meetings', icon: Video },
+  { to: '/client', label: 'Dashboard', short: 'Home', icon: LayoutDashboard, end: true },
+  { to: '/client/deliverables', label: 'Deliverables', short: 'Files', icon: FileText },
+  { to: '/client/calendar', label: 'Content Calendar', short: 'Calendar', icon: Calendar },
+  { to: '/client/messages', label: 'Messages', short: 'Messages', icon: MessageSquare },
+  { to: '/client/invoices', label: 'Invoices', short: 'Invoices', icon: Receipt },
+  { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard },
+  { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video },
 ]
 
 export default function ClientLayout() {
@@ -25,8 +25,8 @@ export default function ClientLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
-      {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 bg-vc-sidebar flex flex-col">
+      {/* Sidebar - desktop only */}
+      <aside className="hidden md:flex w-56 flex-shrink-0 bg-vc-sidebar flex-col">
         <div className="px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-gold flex items-center justify-center">
@@ -79,14 +79,44 @@ export default function ClientLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-end px-4 py-2 border-b border-vc-border bg-vc-sidebar flex-shrink-0">
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-vc-border bg-vc-sidebar flex-shrink-0">
+          {/* Logo - mobile only */}
+          <div className="flex items-center gap-2 md:hidden">
+            <div className="w-7 h-7 bg-gold flex items-center justify-center">
+              <span className="text-white text-sm font-bold">V</span>
+            </div>
+            <span className="text-white font-semibold text-sm tracking-wide">VirtueCore</span>
+          </div>
+          <div className="hidden md:block" />
           <NotificationBell />
         </div>
-        <div className="flex-1 overflow-y-auto">
+
+        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
           <Outlet />
         </div>
       </main>
+
+      {/* Bottom nav - mobile only */}
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-vc-sidebar border-t border-white/10 flex z-50">
+        {NAV.map(({ to, short, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+                isActive ? 'text-white' : 'text-white/50'
+              }`
+            }
+          >
+            <Icon size={18} />
+            <span className="text-[8px] leading-tight text-center">{short}</span>
+          </NavLink>
+        ))}
+      </nav>
+
       <HelpChatWidget />
     </div>
   )

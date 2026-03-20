@@ -54,4 +54,9 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* iPhone home indicator safe area */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
