@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles, X, Pencil, Trash2, Plus, Send, Upload, ExternalLink } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -12,6 +12,8 @@ import {
 } from '../../data/placeholder'
 import { isDemoMode, supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
+import { sendPushNotification } from '../../lib/pushNotifications'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -67,6 +69,8 @@ export default function ClientView() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { profile } = useAuth()
+  const messagesBottomRef = useRef(null)
 
   const [reportLoading, setReportLoading] = useState(false)
   const [reportModal, setReportModal] = useState(null)
@@ -161,6 +165,30 @@ export default function ClientView() {
       cancelled = true
     }
   }, [id])
+
+  // Realtime messages subscription
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    const channel = supabase
+      .channel(`admin-messages-${id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${id}` },
+        (payload) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) return prev
+            return [...prev, payload.new]
+          })
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [id])
+
+  // Scroll messages to bottom
+  useEffect(() => {
+    messagesBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   if (loadingClient) {
     return (
@@ -467,26 +495,43 @@ export default function ClientView() {
   // ── Messages ─────────────────────────────────────────────────────────────────
   async function handleSendMessage() {
     if (!messageText.trim()) return
+    const content = messageText.trim()
+    setMessageText('')
     setSaving(true)
     try {
       const payload = {
         client_id: id,
-        sender_id: 'admin-001',
-        sender_name: 'Samuel — VirtueCore',
+        sender_id: profile?.id ?? null,
+        sender_name: profile?.full_name ? `${profile.full_name} — VirtueCore` : 'VirtueCore',
         sender_role: 'admin',
-        content: messageText.trim(),
-        created_at: new Date().toISOString(),
+        content,
       }
       if (!isDemoMode) {
         const { data, error } = await supabase.from('messages').insert(payload).select().single()
         if (error) throw error
-        setMessages((prev) => [...prev, data])
+        setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
+
+        // Find the client's user profile and push-notify them
+        const { data: clientProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('client_id', id)
+          .eq('role', 'client')
+          .maybeSingle()
+
+        if (clientProfile?.id) {
+          sendPushNotification(clientProfile.id, {
+            title: `New message from VirtueCore`,
+            body: content.slice(0, 100),
+            url: '/client/messages',
+          })
+        }
       } else {
-        setMessages((prev) => [...prev, { ...payload, id: `m-${Date.now()}` }])
+        setMessages((prev) => [...prev, { ...payload, id: `m-${Date.now()}`, created_at: new Date().toISOString() }])
       }
-      setMessageText('')
     } catch (err) {
       showToast(err.message ?? 'Failed to send message', 'error')
+      setMessageText(content)
     } finally {
       setSaving(false)
     }
@@ -638,14 +683,14 @@ export default function ClientView() {
           <div className="px-4 py-3 border-b border-vc-border">
             <h2 className="text-sm font-medium text-vc-text">Messages</h2>
           </div>
-          <div className="divide-y divide-vc-border max-h-64 overflow-y-auto flex-1">
+          <div className="divide-y divide-vc-border max-h-72 overflow-y-auto flex-1">
             {messages.length === 0 && (
               <p className="px-4 py-4 text-sm text-vc-muted">No messages yet.</p>
             )}
             {messages.map((msg) => (
               <div key={msg.id} className={`px-4 py-3 ${msg.sender_role === 'admin' ? 'bg-vc-secondary' : ''}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-vc-text">{msg.sender_name}</span>
+                  <span className="text-xs font-medium text-vc-text">{msg.sender_name ?? 'Unknown'}</span>
                   <span className="text-xs text-vc-muted">
                     {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -653,6 +698,7 @@ export default function ClientView() {
                 <p className="text-sm text-vc-text">{msg.content}</p>
               </div>
             ))}
+            <div ref={messagesBottomRef} />
           </div>
           {/* Send message */}
           <div className="px-4 py-3 border-t border-vc-border flex gap-2">
