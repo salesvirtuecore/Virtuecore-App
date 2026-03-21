@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, BarChart2, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isDemoMode } from '../../lib/supabase'
 import { subscribeToPush } from '../../lib/pushNotifications'
@@ -15,6 +15,7 @@ const NAV = [
   { to: '/client/invoices', label: 'Invoices', short: 'Invoices', icon: Receipt },
   { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard },
   { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video },
+  { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2 },
 ]
 
 export default function ClientLayout() {

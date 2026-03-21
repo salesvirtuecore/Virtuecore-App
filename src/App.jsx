@@ -32,6 +32,7 @@ import Invoices from './pages/client/Invoices'
 import Billing from './pages/client/Billing'
 import Meetings from './pages/client/Meetings'
 import MetaCallback from './pages/client/MetaCallback'
+import ClientWebAnalytics from './pages/client/WebAnalytics'
 
 // VA
 import TaskBoard from './pages/va/TaskBoard'
@@ -121,6 +122,7 @@ function AppRoutes() {
         <Route path="invoices" element={<Invoices />} />
         <Route path="billing" element={<Billing />} />
         <Route path="meetings" element={<Meetings />} />
+        <Route path="analytics" element={<ClientWebAnalytics />} />
       </Route>
 
       {/* VA */}
