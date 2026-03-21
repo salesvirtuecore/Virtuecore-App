@@ -37,7 +37,13 @@ export default function Signup() {
         },
       })
 
-      if (signUpError) throw signUpError
+      if (signUpError) {
+        if (signUpError.message?.toLowerCase().includes('already registered')) {
+          navigate(`/login?email=${encodeURIComponent(email)}`)
+          return
+        }
+        throw signUpError
+      }
 
       const userId = data?.user?.id
       if (userId) {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
 
@@ -10,9 +10,10 @@ const DEMO_ACCOUNTS = [
 ]
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [searchParams] = useSearchParams()
+  const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(searchParams.get('email') ? 'You already have an account — sign in below.' : '')
   const [loading, setLoading] = useState(false)
   const { login, isDemoMode } = useAuth()
   const navigate = useNavigate()
@@ -92,7 +93,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{error}</p>
+              <p className={`text-xs px-3 py-2 border ${searchParams.get('email') ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-red-600 bg-red-50 border-red-200'}`}>{error}</p>
             )}
 
             <Button type="submit" disabled={loading} className="w-full justify-center">
