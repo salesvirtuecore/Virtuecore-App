@@ -59,12 +59,15 @@ export default async function handler(req, res) {
       to: email,
       from: 'sales@virtuecore.co.uk',
       subject: emailSubject,
-      full_name,
-      company_name,
+      full_name: full_name || '',
+      company_name: company_name || '',
       role,
       portalLabel,
       signupUrl,
       emailBody,
+      body: emailBody,
+      text: emailBody,
+      message: emailBody,
     }
 
     const n8nRes = await fetch(n8nWebhookUrl, {
