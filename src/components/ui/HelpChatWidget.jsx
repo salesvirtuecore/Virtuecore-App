@@ -96,6 +96,8 @@ export default function HelpChatWidget() {
     }
   }
 
+  if (location.pathname === '/client/messages') return null
+
   return (
     <div className="fixed right-4 bottom-20 md:bottom-6 z-50">
       {!open && (

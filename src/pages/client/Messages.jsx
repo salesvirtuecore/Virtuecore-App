@@ -21,7 +21,7 @@ export default function Messages() {
 
     supabase
       .from('messages')
-      .select('*, sender:profiles!sender_id(full_name, role)')
+      .select('*')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -101,11 +101,12 @@ export default function Messages() {
           sender_id: profile?.id,
           content,
         })
-        .select('*, sender:profiles!sender_id(full_name, role)')
+        .select()
         .single()
 
       if (error) throw error
-      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
+      const enriched = { ...data, sender: { full_name: profile?.full_name, role: 'client' } }
+      setMessages((prev) => (prev.some((m) => m.id === enriched.id) ? prev : [...prev, enriched]))
 
       // Notify all admins
       for (const adminId of adminUserIds) {

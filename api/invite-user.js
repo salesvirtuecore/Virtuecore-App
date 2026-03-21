@@ -59,6 +59,7 @@ export default async function handler(req, res) {
       to: email,
       from: 'sales@virtuecore.co.uk',
       subject: emailSubject,
+      emailSubject,
       full_name: full_name || '',
       company_name: company_name || '',
       role,
