@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 
 const STEPS = [
   { id: 'account', label: 'Create your account', required: true, auto: true },
-  { id: 'message', label: 'Send your first message', required: true, link: '/client/messages' },
   { id: 'deliverable', label: 'Review your first deliverable', required: true, link: '/client/deliverables' },
   { id: 'stripe', label: 'Connect Stripe billing', required: false, link: '/client/billing' },
   { id: 'call', label: 'Book a discovery call', required: false, external: true },
@@ -39,11 +38,6 @@ export default function OnboardingChecklist({ calendlyUrl }) {
       .then(({ data }) => {
         if (data?.stripe_account_id) mark('stripe')
       })
-
-    // Check message sent
-    supabase.from('messages').select('id', { count: 'exact', head: true })
-      .eq('client_id', profile.client_id).eq('sender_role', 'client')
-      .then(({ count }) => { if (count > 0) mark('message') })
 
     // Check deliverable viewed
     supabase.from('deliverables').select('id', { count: 'exact', head: true })

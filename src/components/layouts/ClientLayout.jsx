@@ -13,15 +13,15 @@ const NAV = [
   { to: '/client/deliverables', label: 'Deliverables', short: 'Files', icon: FileText },
   { to: '/client/calendar', label: 'Content Calendar', short: 'Calendar', icon: Calendar },
   { to: '/client/messages', label: 'Messages', short: 'Messages', icon: MessageSquare },
-  { to: '/client/invoices', label: 'Invoices', short: 'Invoices', icon: Receipt },
-  { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard },
-  { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video },
-  { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2, sidebarOnly: true },
-  { to: '/client/integrations', label: 'Integrations', short: 'Connect', icon: Plug, sidebarOnly: true },
   { to: '/client/ad-performance', label: 'Ad Performance', short: 'Ads', icon: TrendingUp, sidebarOnly: true },
   { to: '/client/scorecard', label: 'Growth Scorecard', short: 'Growth', icon: Award, sidebarOnly: true },
   { to: '/client/pulse', label: 'Weekly Pulse', short: 'Pulse', icon: Zap, sidebarOnly: true },
   { to: '/client/roi', label: 'ROI Calculator', short: 'ROI', icon: Calculator, sidebarOnly: true },
+  { to: '/client/invoices', label: 'Invoices', short: 'Invoices', icon: Receipt, sidebarOnly: true },
+  { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard, sidebarOnly: true },
+  { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video, sidebarOnly: true },
+  { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2, sidebarOnly: true },
+  { to: '/client/integrations', label: 'Integrations', short: 'Connect', icon: Plug, sidebarOnly: true },
 ]
 
 export default function ClientLayout() {
