@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 const STEPS = [
   { id: 'account', label: 'Create your account', required: true, auto: true },
   { id: 'deliverable', label: 'Review your first deliverable', required: true, link: '/client/deliverables' },
+  { id: 'meta', label: 'Connect Facebook Ads Manager', required: false, link: '/client/integrations' },
   { id: 'stripe', label: 'Connect Stripe billing', required: false, link: '/client/billing' },
   { id: 'call', label: 'Book a discovery call', required: false, external: true },
 ]
@@ -33,10 +34,11 @@ export default function OnboardingChecklist({ calendlyUrl }) {
   useEffect(() => {
     if (isDemoMode || !profile?.client_id) return
 
-    // Check stripe
-    supabase.from('clients').select('stripe_account_id').eq('id', profile.client_id).maybeSingle()
+    // Check stripe + meta
+    supabase.from('clients').select('stripe_account_id, meta_ad_account_id').eq('id', profile.client_id).maybeSingle()
       .then(({ data }) => {
         if (data?.stripe_account_id) mark('stripe')
+        if (data?.meta_ad_account_id) mark('meta')
       })
 
     // Check deliverable viewed
