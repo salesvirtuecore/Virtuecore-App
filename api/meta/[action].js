@@ -11,15 +11,16 @@ function makeSupabase() {
 // ── /api/meta/connect (GET) ─────────────────────────────────────────────────
 async function handleConnect(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
-  const { META_APP_ID, VITE_APP_URL } = process.env
-  if (!META_APP_ID || !VITE_APP_URL) return res.status(500).json({ error: 'Meta app not configured' })
+  const appId = process.env.META_APP_ID || process.env.META_ADS_APP_ID
+  const appUrl = process.env.VITE_APP_URL
+  if (!appId || !appUrl) return res.status(500).json({ error: 'Meta app not configured — META_APP_ID and VITE_APP_URL must be set in Vercel environment variables' })
   const { client_id } = req.query
   if (!client_id) return res.status(400).json({ error: 'Missing client_id' })
-  const redirectUri = `${VITE_APP_URL}/meta/callback`
+  const redirectUri = `${appUrl}/meta/callback`
   const url = new URL('https://www.facebook.com/v19.0/dialog/oauth')
-  url.searchParams.set('client_id', META_APP_ID)
+  url.searchParams.set('client_id', appId)
   url.searchParams.set('redirect_uri', redirectUri)
-  url.searchParams.set('scope', 'ads_read,read_insights')
+  url.searchParams.set('scope', 'ads_read')
   url.searchParams.set('state', client_id)
   url.searchParams.set('response_type', 'code')
   res.status(200).json({ url: url.toString() })
@@ -28,12 +29,17 @@ async function handleConnect(req, res) {
 // ── /api/meta/callback (POST) ───────────────────────────────────────────────
 async function handleCallback(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
-  const { META_APP_ID, META_APP_SECRET, VITE_APP_URL } = process.env
+  const appId = process.env.META_APP_ID || process.env.META_ADS_APP_ID
+  const appSecret = process.env.META_APP_SECRET || process.env.META_ADS_APP_SECRET
+  const appUrl = process.env.VITE_APP_URL
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!META_APP_ID || !META_APP_SECRET || !VITE_APP_URL || !supabaseUrl || !serviceRoleKey) {
-    return res.status(500).json({ error: 'Server not configured' })
+  if (!appId || !appSecret || !appUrl || !supabaseUrl || !serviceRoleKey) {
+    return res.status(500).json({ error: `Server not configured — missing: ${[!appId && 'META_APP_ID', !appSecret && 'META_APP_SECRET', !appUrl && 'VITE_APP_URL'].filter(Boolean).join(', ')}` })
   }
+  const META_APP_ID = appId
+  const META_APP_SECRET = appSecret
+  const VITE_APP_URL = appUrl
   const { code, client_id } = req.body
   if (!code || !client_id) return res.status(400).json({ error: 'Missing code or client_id' })
   const redirectUri = `${VITE_APP_URL}/meta/callback`
@@ -105,7 +111,7 @@ async function handleSync(req, res) {
     if (client.meta_token_expires_at && new Date(client.meta_token_expires_at) < new Date()) {
       return res.status(401).json({ error: 'Meta access token has expired. Please reconnect.' })
     }
-    const fields = ['spend','impressions','clicks','leads','conversions','ctr','cost_per_unique_action_type','purchase_roas','date_start'].join(',')
+    const fields = ['spend','impressions','clicks','actions','cost_per_action_type','ctr','purchase_roas','date_start'].join(',')
     const metaUrl = new URL(`https://graph.facebook.com/v19.0/${client.meta_ad_account_id}/insights`)
     metaUrl.searchParams.set('fields', fields)
     metaUrl.searchParams.set('date_preset', 'last_90d')
@@ -113,18 +119,25 @@ async function handleSync(req, res) {
     metaUrl.searchParams.set('access_token', client.meta_access_token)
     const metaRes = await fetch(metaUrl.toString())
     const metaData = await metaRes.json()
-    if (!metaRes.ok) return res.status(502).json({ error: 'Meta API error', detail: metaData })
+    if (!metaRes.ok) return res.status(502).json({ error: `Meta API error: ${metaData?.error?.message || metaData?.error?.type || JSON.stringify(metaData?.error)}`, detail: metaData })
     const rows = (metaData.data || []).map((row) => {
-      const cplEntry = Array.isArray(row.cost_per_unique_action_type)
-        ? row.cost_per_unique_action_type.find((a) => a.action_type === 'lead') : null
+      const actions = Array.isArray(row.actions) ? row.actions : []
+      const costPerAction = Array.isArray(row.cost_per_action_type) ? row.cost_per_action_type : []
+      const leadAction = actions.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
+      const convAction = actions.find((a) => a.action_type === 'offsite_conversion.fb_pixel_lead' || a.action_type === 'lead')
+      const cplEntry = costPerAction.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
       const roas = Array.isArray(row.purchase_roas) ? parseFloat(row.purchase_roas[0]?.value ?? 0) : parseFloat(row.purchase_roas ?? 0)
       return {
         client_id, platform: 'meta',
         date: row.date_start ?? new Date().toISOString().split('T')[0],
-        spend: parseFloat(row.spend ?? 0), impressions: parseInt(row.impressions ?? 0, 10),
-        clicks: parseInt(row.clicks ?? 0, 10), leads: parseInt(row.leads ?? 0, 10),
-        conversions: parseInt(row.conversions ?? 0, 10), ctr: parseFloat(row.ctr ?? 0),
-        cpl: parseFloat(cplEntry?.value ?? 0), roas,
+        spend: parseFloat(row.spend ?? 0),
+        impressions: parseInt(row.impressions ?? 0, 10),
+        clicks: parseInt(row.clicks ?? 0, 10),
+        leads: parseInt(leadAction?.value ?? 0, 10),
+        conversions: parseInt(convAction?.value ?? 0, 10),
+        ctr: parseFloat(row.ctr ?? 0),
+        cpl: parseFloat(cplEntry?.value ?? 0),
+        roas,
       }
     })
     if (rows.length > 0) {
