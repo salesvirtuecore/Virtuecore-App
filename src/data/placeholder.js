@@ -480,3 +480,93 @@ export const DEMO_VA_TRAINING = {
     last_activity: '2026-03-10',
   },
 }
+
+// ─── AD PERFORMANCE FEED (live feed demo) ─────────────────────────────────────
+export const DEMO_AD_FEED = {
+  last_updated: '2026-03-23T08:00:00Z',
+  week_summary: { spend: 2100, leads: 18, cpl: 116, roas: 6.2, impressions: 24800, clicks: 342 },
+  winning_ad: { name: 'Hook A — Emergency Call-Out Angle', platform: 'Meta', cpl: 98, vs_avg_pct: -16, leads: 11, spend: 1078 },
+  ab_tests: [
+    {
+      id: 'ab-001',
+      test_name: 'Headline Test — March',
+      platform: 'Meta',
+      started: '2026-03-17',
+      days_running: 6,
+      status: 'running',
+      winner: 'a',
+      variant_a: { name: 'Hook A: Emergency Call-Out Angle', spend: 1078, leads: 11, cpl: 98, ctr: 1.9 },
+      variant_b: { name: 'Hook B: Seasonal Roof Check Angle', spend: 1022, leads: 7, cpl: 146, ctr: 1.4 },
+    },
+  ],
+  daily_feed: [
+    { date: '2026-03-23', spend: 312, leads: 3, cpl: 104, impressions: 4200, ctr: 1.8 },
+    { date: '2026-03-22', spend: 298, leads: 2, cpl: 149, impressions: 3900, ctr: 1.5 },
+    { date: '2026-03-21', spend: 265, leads: 3, cpl: 88, impressions: 3600, ctr: 2.1 },
+    { date: '2026-03-20', spend: 288, leads: 4, cpl: 72, impressions: 3800, ctr: 2.3 },
+    { date: '2026-03-19', spend: 301, leads: 2, cpl: 150, impressions: 3700, ctr: 1.3 },
+    { date: '2026-03-18', spend: 278, leads: 2, cpl: 139, impressions: 3500, ctr: 1.6 },
+    { date: '2026-03-17', spend: 358, leads: 2, cpl: 179, impressions: 4100, ctr: 1.1 },
+  ],
+  campaigns: [
+    { name: 'Manchester Lead Gen — March', platform: 'Meta', status: 'active', daily_budget: 350, spend_today: 312, leads_today: 3 },
+    { name: 'Roof Inspection — Google', platform: 'Google', status: 'active', daily_budget: 80, spend_today: 62, leads_today: 1 },
+    { name: 'Retargeting — Past Visitors', platform: 'Meta', status: 'testing', daily_budget: 50, spend_today: 41, leads_today: 0 },
+  ],
+}
+
+// ─── GROWTH SCORECARD ─────────────────────────────────────────────────────────
+export const DEMO_GROWTH_SCORECARD = {
+  client_since: '2025-10-01',
+  months_active: 6,
+  metrics: [
+    { label: 'Cost Per Lead', key: 'cpl', start: 218, now: 125, unit: '£', prefix: true, lower_is_better: true },
+    { label: 'Monthly Leads', key: 'leads', start: 24, now: 67, unit: '', lower_is_better: false },
+    { label: 'Return on Ad Spend', key: 'roas', start: 2.1, now: 5.8, unit: 'x', suffix: true, lower_is_better: false },
+    { label: 'Monthly Spend Managed', key: 'spend', start: 3200, now: 8400, unit: '£', prefix: true, lower_is_better: false },
+    { label: 'Hrs Saved Per Week', key: 'hours', start: 0, now: 12, unit: 'hrs', suffix: true, lower_is_better: false },
+    { label: 'Tasks Delegated (Total)', key: 'tasks', start: 0, now: 47, unit: '', lower_is_better: false },
+  ],
+  monthly_leads: [
+    { month: 'Oct', leads: 24, cpl: 218 },
+    { month: 'Nov', leads: 31, cpl: 195 },
+    { month: 'Dec', leads: 28, cpl: 204 },
+    { month: 'Jan', leads: 44, cpl: 162 },
+    { month: 'Feb', leads: 55, cpl: 138 },
+    { month: 'Mar', leads: 67, cpl: 125 },
+  ],
+  totals: {
+    leads_generated: 249,
+    ad_spend_managed: 46200,
+    estimated_pipeline: 186750,
+    tasks_completed: 47,
+  },
+}
+
+// ─── WEEKLY PULSE ─────────────────────────────────────────────────────────────
+export const DEMO_WEEKLY_PULSES = [
+  {
+    week_start: '2026-03-17',
+    week_end: '2026-03-23',
+    summary: 'Last week: 18 leads generated, 23 messages handled, 7 tasks completed by VA, ad spend £2,100 with £13,500 pipeline value created.',
+    metrics: { leads: 18, spend: 2100, cpl: 116, messages: 23, tasks_completed: 7, deliverables: 2, pipeline_value: 13500, automations_triggered: 47 },
+    wow: { leads: +29, spend: +8, cpl: -16 },
+    highlights: ['Hook A outperforming Hook B by 34% on CPL', '7 tasks completed on time by VA team', 'March content calendar fully approved'],
+  },
+  {
+    week_start: '2026-03-10',
+    week_end: '2026-03-16',
+    summary: 'Last week: 14 leads generated, 18 messages handled, 5 tasks completed by VA, ad spend £1,942 with £10,500 pipeline value created.',
+    metrics: { leads: 14, spend: 1942, cpl: 139, messages: 18, tasks_completed: 5, deliverables: 1, pipeline_value: 10500, automations_triggered: 31 },
+    wow: { leads: -7, spend: -3, cpl: +2 },
+    highlights: ['Q1 content calendar delivered and approved', 'New negative keywords reducing wasted Google spend', 'Invoice sent for March retainer'],
+  },
+  {
+    week_start: '2026-03-03',
+    week_end: '2026-03-09',
+    summary: 'Last week: 15 leads generated, 21 messages handled, 6 tasks completed by VA, ad spend £2,001 with £11,250 pipeline value created.',
+    metrics: { leads: 15, spend: 2001, cpl: 133, messages: 21, tasks_completed: 6, deliverables: 3, pipeline_value: 11250, automations_triggered: 38 },
+    wow: { leads: +7, spend: +4, cpl: -4 },
+    highlights: ['February report delivered — client approved same day', 'March creatives pack in final review', 'Lead magnet funnel live — 6 opt-ins'],
+  },
+]

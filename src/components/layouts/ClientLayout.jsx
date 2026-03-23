@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, BarChart2, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, Calendar, MessageSquare, Receipt, Video, CreditCard, BarChart2, Plug, LogOut, TrendingUp, Award, Zap, Calculator } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isDemoMode } from '../../lib/supabase'
 import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
+import NPSWidget from '../ui/NPSWidget'
 
 const NAV = [
   { to: '/client', label: 'Dashboard', short: 'Home', icon: LayoutDashboard, end: true },
@@ -15,7 +16,12 @@ const NAV = [
   { to: '/client/invoices', label: 'Invoices', short: 'Invoices', icon: Receipt },
   { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard },
   { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video },
-  { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2 },
+  { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2, sidebarOnly: true },
+  { to: '/client/integrations', label: 'Integrations', short: 'Connect', icon: Plug, sidebarOnly: true },
+  { to: '/client/ad-performance', label: 'Ad Performance', short: 'Ads', icon: TrendingUp, sidebarOnly: true },
+  { to: '/client/scorecard', label: 'Growth Scorecard', short: 'Growth', icon: Award, sidebarOnly: true },
+  { to: '/client/pulse', label: 'Weekly Pulse', short: 'Pulse', icon: Zap, sidebarOnly: true },
+  { to: '/client/roi', label: 'ROI Calculator', short: 'ROI', icon: Calculator, sidebarOnly: true },
 ]
 
 export default function ClientLayout() {
@@ -28,6 +34,19 @@ export default function ClientLayout() {
       subscribeToPush(profile.id)
     }
   }, [profile?.id])
+
+  // Trigger smart notifications check once per day
+  useEffect(() => {
+    if (isDemoMode || !profile?.id || !profile?.client_id) return
+    const todayKey = `vc_smart_${new Date().toISOString().split('T')[0]}_${profile.id}`
+    if (sessionStorage.getItem(todayKey)) return
+    sessionStorage.setItem(todayKey, '1')
+    fetch('/api/admin/smart-notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: profile.id, client_id: profile.client_id }),
+    }).catch(() => {})
+  }, [profile?.id, profile?.client_id])
 
   async function handleLogout() {
     await logout()
@@ -104,14 +123,14 @@ export default function ClientLayout() {
           <NotificationBell />
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
           <Outlet />
         </div>
       </main>
 
       {/* Bottom nav - mobile only */}
       <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-vc-sidebar border-t border-white/10 flex z-50 safe-area-pb">
-        {NAV.map(({ to, short, icon: Icon, end }) => (
+        {NAV.filter((item) => !item.sidebarOnly).map(({ to, short, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -129,6 +148,7 @@ export default function ClientLayout() {
       </nav>
 
       <HelpChatWidget />
+      <NPSWidget />
     </div>
   )
 }

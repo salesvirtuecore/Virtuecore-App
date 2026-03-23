@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import Modal from '../../components/ui/Modal'
+import OnboardingChecklist from '../../components/ui/OnboardingChecklist'
 import { DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS, DEMO_INVOICES } from '../../data/placeholder'
 import { useAuth } from '../../context/AuthContext'
 import { supabase, isDemoMode } from '../../lib/supabase'
@@ -239,7 +241,6 @@ export default function ClientDashboard() {
   const [adPerformance, setAdPerformance] = useState(isDemoMode ? DEMO_AD_PERFORMANCE : [])
   const [invoiceRows, setInvoiceRows] = useState(isDemoMode ? DEMO_INVOICES.filter((invoice) => invoice.client_id === DEMO_CLIENT_ID) : [])
   const [metaConnected, setMetaConnected] = useState(null) // null = unknown, true/false
-  const [connectingMeta, setConnectingMeta] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
 
@@ -283,19 +284,6 @@ export default function ClientDashboard() {
     loadDashboardData()
   }, [clientId])
 
-  async function handleConnectMeta() {
-    if (!clientId) return
-    setConnectingMeta(true)
-    try {
-      const res = await fetch(`/api/meta/connect?client_id=${clientId}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      window.location.href = data.url
-    } catch {
-      setConnectingMeta(false)
-    }
-  }
-
   async function handleSyncMeta() {
     if (!clientId) return
     setSyncing(true)
@@ -337,7 +325,7 @@ export default function ClientDashboard() {
   const pieColors = hasPieValues ? ['#6D28D9', '#1A1A1A', '#D4A843'] : ['#6D28D9']
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 w-full overflow-x-hidden">
       <div>
         <h1 className="text-xl font-semibold text-vc-text">
           Hello, {profile?.full_name?.split(' ')[0] ?? 'there'}
@@ -347,26 +335,27 @@ export default function ClientDashboard() {
         </p>
       </div>
 
+      <OnboardingChecklist calendlyUrl="https://calendly.com/virtuecore" />
+
       {/* Meta Ads connect / sync banner */}
       {!isDemoMode && metaConnected === false && (
         <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-amber-900">Connect your Meta Ads account</p>
-            <p className="text-xs text-amber-700 mt-0.5">Link your Facebook Ads Manager to see live campaign data on your dashboard.</p>
+            <p className="text-sm font-medium text-amber-900">Connect your Facebook Ads account</p>
+            <p className="text-xs text-amber-700 mt-0.5">Link your Facebook Ads Manager to see live campaign data here.</p>
           </div>
-          <button
-            onClick={handleConnectMeta}
-            disabled={connectingMeta}
-            className="flex-shrink-0 bg-gold hover:bg-gold-dark text-white text-xs font-medium px-4 py-2 disabled:opacity-60"
+          <Link
+            to="/client/integrations"
+            className="flex-shrink-0 bg-gold hover:bg-gold-dark text-white text-xs font-medium px-4 py-2"
           >
-            {connectingMeta ? 'Redirecting…' : 'Connect Meta Ads'}
-          </button>
+            Connect
+          </Link>
         </div>
       )}
 
       {!isDemoMode && metaConnected === true && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-green-700 font-medium">● Meta Ads connected</p>
+          <p className="text-xs text-green-700 font-medium">● Facebook Ads connected</p>
           <button
             onClick={handleSyncMeta}
             disabled={syncing}

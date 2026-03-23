@@ -143,9 +143,9 @@ export default function Webhooks() {
               <p className="text-xs text-vc-muted mb-1.5 font-medium uppercase tracking-wide">Endpoint URL</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs bg-vc-secondary border border-vc-border px-3 py-2 text-vc-text font-mono truncate">
-                  {BASE_URL}/api/meta-ads?client_id=CLIENT_UUID&account_id=ACT_XXXXXXX&date_preset=last_30d
+                  {BASE_URL}/api/admin/meta-ads?client_id=CLIENT_UUID&account_id=ACT_XXXXXXX&date_preset=last_30d
                 </code>
-                <CopyButton text={`${BASE_URL}/api/meta-ads?client_id=CLIENT_UUID&account_id=ACT_XXXXXXX&date_preset=last_30d`} />
+                <CopyButton text={`${BASE_URL}/api/admin/meta-ads?client_id=CLIENT_UUID&account_id=ACT_XXXXXXX&date_preset=last_30d`} />
               </div>
             </div>
             <div>

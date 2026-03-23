@@ -79,22 +79,44 @@ export function AuthProvider({ children }) {
     let nextProfile = data
 
     if (!nextProfile) {
-      // Fallback so users can continue into the portal even if profile row is delayed/missing.
       if (error) {
-        console.warn('Profile lookup failed, using auth metadata fallback:', error.message)
+        console.warn('Profile lookup failed:', error.message)
       }
 
-      const fallbackRole = authUser?.user_metadata?.role || 'client'
-      nextProfile = {
-        id: authUser.id,
-        email: authUser.email,
-        full_name: authUser?.user_metadata?.full_name || '',
-        role: fallbackRole,
+      // Check auth metadata for a role (set during VA/client signup)
+      const metaRole = authUser?.user_metadata?.role
+      if (metaRole && metaRole !== 'client') {
+        // VA or other non-client role from metadata — use it, no sync needed
+        nextProfile = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: authUser?.user_metadata?.full_name || '',
+          role: metaRole,
+        }
+      } else {
+        // No profile row, might be a new client — try to sync/claim
+        const syncResult = await syncClientAccess(accessToken)
+        if (syncResult?.profile) {
+          nextProfile = {
+            id: authUser.id,
+            email: authUser.email,
+            full_name: authUser?.user_metadata?.full_name || '',
+            role: 'client',
+            ...syncResult.profile,
+          }
+        } else {
+          // No profile, no client record — this account has no access, sign them out
+          await supabase.auth.signOut()
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          return
+        }
       }
     }
 
-    const effectiveRole = nextProfile?.role || authUser?.user_metadata?.role || 'client'
-    if (effectiveRole === 'client') {
+    const effectiveRole = nextProfile?.role || 'client'
+    if (effectiveRole === 'client' && !nextProfile.client_id) {
       const syncResult = await syncClientAccess(accessToken)
       if (syncResult?.profile) {
         nextProfile = { ...nextProfile, ...syncResult.profile }

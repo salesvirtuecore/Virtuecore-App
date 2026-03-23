@@ -65,7 +65,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
         }),
       }
 
-      const res = await fetch('/api/invite-user', {
+      const res = await fetch('/api/admin/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

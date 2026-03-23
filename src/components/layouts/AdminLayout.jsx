@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Users, GitBranch, UserCheck, DollarSign, LogOut, Webhook, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
+import { subscribeToPush } from '../../lib/pushNotifications'
 
 const NAV = [
   { to: '/admin', label: 'Overview', short: 'Overview', icon: LayoutDashboard, end: true },
@@ -17,6 +19,10 @@ const NAV = [
 export default function AdminLayout() {
   const { profile, logout } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (profile?.id) subscribeToPush(profile.id)
+  }, [profile?.id])
 
   async function handleLogout() {
     await logout()

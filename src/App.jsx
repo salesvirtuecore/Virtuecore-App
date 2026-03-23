@@ -12,6 +12,7 @@ import Login from './pages/auth/Login'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import AcceptInvite from './pages/auth/AcceptInvite'
 import Signup from './pages/auth/Signup'
+import SignupVA from './pages/auth/SignupVA'
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard'
@@ -33,6 +34,11 @@ import Billing from './pages/client/Billing'
 import Meetings from './pages/client/Meetings'
 import MetaCallback from './pages/client/MetaCallback'
 import ClientWebAnalytics from './pages/client/WebAnalytics'
+import Integrations from './pages/client/Integrations'
+import AdPerformance from './pages/client/AdPerformance'
+import GrowthScorecard from './pages/client/GrowthScorecard'
+import WeeklyPulse from './pages/client/WeeklyPulse'
+import ROICalculator from './pages/client/ROICalculator'
 
 // VA
 import TaskBoard from './pages/va/TaskBoard'
@@ -94,7 +100,12 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/signup/va" element={<SignupVA />} />
       <Route path="/meta/callback" element={<MetaCallback />} />
+      <Route path="/preview/ad-feed" element={<AdPerformance />} />
+      <Route path="/preview/scorecard" element={<GrowthScorecard />} />
+      <Route path="/preview/weekly-pulse" element={<WeeklyPulse />} />
+      <Route path="/preview/roi-calculator" element={<ROICalculator />} />
       <Route path="/preview/client-dashboard" element={<ClientDashboard />} />
       <Route path="/preview/client-deliverables" element={<Deliverables />} />
       <Route path="/preview/admin-dashboard" element={<AdminDashboard />} />
@@ -123,6 +134,11 @@ function AppRoutes() {
         <Route path="billing" element={<Billing />} />
         <Route path="meetings" element={<Meetings />} />
         <Route path="analytics" element={<ClientWebAnalytics />} />
+        <Route path="integrations" element={<Integrations />} />
+        <Route path="ad-performance" element={<AdPerformance />} />
+        <Route path="scorecard" element={<GrowthScorecard />} />
+        <Route path="pulse" element={<WeeklyPulse />} />
+        <Route path="roi" element={<ROICalculator />} />
       </Route>
 
       {/* VA */}

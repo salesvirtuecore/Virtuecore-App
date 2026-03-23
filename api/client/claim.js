@@ -96,44 +96,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ skipped: true })
     }
 
-    let client = await findClientForUser({ supabase, user, profile })
+    const client = await findClientForUser({ supabase, user, profile })
 
-    // No invited client row found — auto-create one so direct signups appear in admin immediately
+    // No invited client row found — only admins can create clients, so reject quietly
     if (!client) {
-      const fullName = profile?.full_name || user?.user_metadata?.full_name || ''
-      const { data: newClient, error: createError } = await supabase
-        .from('clients')
-        .insert({
-          company_name: fullName || user.email,
-          contact_name: fullName || null,
-          contact_email: user.email,
-          package_tier: 'Starter',
-          monthly_retainer: 0,
-          revenue_share_percentage: 0,
-          status: 'onboarding',
-          onboarding_started_at: new Date().toISOString(),
-        })
-        .select('id, status, onboarding_started_at, contact_email, contact_name')
-        .single()
-
-      if (createError) {
-        console.error('[Client Claim] Failed to auto-create client row:', createError.message)
-        return res.status(200).json({ linked: false })
-      }
-
-      client = newClient
+      return res.status(200).json({ linked: false })
     }
 
     const fullName = profile?.full_name || user?.user_metadata?.full_name || ''
 
+    // Upsert so the profile row is created if the trigger didn't fire
     await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: user.id,
         client_id: client.id,
         email: user.email,
         full_name: fullName,
-      })
-      .eq('id', user.id)
+        role: 'client',
+      }, { onConflict: 'id' })
 
     const clientUpdates = {
       contact_email: client.contact_email || user.email,

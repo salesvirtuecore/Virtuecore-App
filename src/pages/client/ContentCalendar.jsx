@@ -1,21 +1,42 @@
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Check, MessageSquare } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Check, MessageSquare, FileText, Download, Eye } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { DEMO_CONTENT_CALENDAR } from '../../data/placeholder'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay } from 'date-fns'
 import { supabase, isDemoMode } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import Modal from '../../components/ui/Modal'
 
 const STATUS_BADGE = { scheduled: 'blue', published: 'green', draft: 'default' }
 const PLATFORM_COLOR = { Instagram: '#E1306C', Facebook: '#1877F2', TikTok: '#000000', LinkedIn: '#0A66C2' }
 
 export default function ContentCalendar() {
-  const [current, setCurrent] = useState(new Date(2026, 2, 1)) // March 2026
+  const { profile } = useAuth()
+  const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
-  const [posts, setPosts] = useState(DEMO_CONTENT_CALENDAR)
+  const [posts, setPosts] = useState(isDemoMode ? DEMO_CONTENT_CALENDAR : [])
+  const [loadingPosts, setLoadingPosts] = useState(!isDemoMode)
   const [approvedIds, setApprovedIds] = useState(new Set())
   const [feedbackOpen, setFeedbackOpen] = useState({})
   const [feedbackText, setFeedbackText] = useState({})
   const [submittedFeedback, setSubmittedFeedback] = useState(new Set())
+  const [contentPlans, setContentPlans] = useState([])
+  const [previewPlan, setPreviewPlan] = useState(null)
+
+  useEffect(() => {
+    const clientId = profile?.client_id
+    if (isDemoMode || !supabase || !clientId) return
+
+    setLoadingPosts(true)
+    Promise.all([
+      supabase.from('content_calendar').select('*').eq('client_id', clientId).order('post_date', { ascending: true }),
+      supabase.from('deliverables').select('id, title, file_url, created_at').eq('client_id', clientId).eq('type', 'content_calendar').order('created_at', { ascending: false }),
+    ]).then(([{ data: calData }, { data: planData }]) => {
+      setPosts(calData || [])
+      setContentPlans(planData || [])
+      setLoadingPosts(false)
+    })
+  }, [profile?.client_id])
 
   const monthStart = startOfMonth(current)
   const monthEnd = endOfMonth(current)
@@ -76,11 +97,11 @@ export default function ContentCalendar() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-vc-text">Content Calendar</h1>
-          <p className="text-sm text-vc-muted mt-0.5">{DEMO_CONTENT_CALENDAR.length} posts this month</p>
+          <p className="text-sm text-vc-muted mt-0.5">{posts.length} posts scheduled</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setCurrent(subMonths(current, 1))} className="p-1.5 border border-vc-border hover:bg-vc-secondary transition-colors">
@@ -93,7 +114,35 @@ export default function ContentCalendar() {
         </div>
       </div>
 
-      <div className="border border-vc-border">
+      {contentPlans.length > 0 && (
+        <div className="border border-vc-border p-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-vc-muted">Content Plans</p>
+          {contentPlans.map((plan) => (
+            <div key={plan.id} className="flex items-center justify-between gap-3 py-2 border-t border-vc-border first:border-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={14} className="text-vc-muted flex-shrink-0" />
+                <span className="text-sm text-vc-text truncate">{plan.title}</span>
+                <span className="text-xs text-vc-muted flex-shrink-0">{new Date(plan.created_at).toLocaleDateString('en-GB')}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {plan.file_url && (
+                  <>
+                    <button onClick={() => setPreviewPlan(plan)} className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text border border-vc-border px-2 py-1 transition-colors">
+                      <Eye size={12} /> Preview
+                    </button>
+                    <a href={plan.file_url} target="_blank" rel="noreferrer" download className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text border border-vc-border px-2 py-1 transition-colors">
+                      <Download size={12} /> Download
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="border border-vc-border overflow-x-auto">
+        <div className="min-w-[420px]">
         {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-vc-border">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
@@ -110,7 +159,7 @@ export default function ContentCalendar() {
             const posts = postsMap[key] ?? []
             const isCurrentMonth = isSameMonth(day, current)
             const isSelected = selected && isSameDay(day, selected)
-            const isToday = isSameDay(day, new Date(2026, 2, 16))
+            const isToday = isSameDay(day, new Date())
 
             return (
               <div
@@ -145,6 +194,7 @@ export default function ContentCalendar() {
               </div>
             )
           })}
+        </div>
         </div>
       </div>
 
@@ -226,6 +276,14 @@ export default function ContentCalendar() {
           })}
         </div>
       )}
+
+      <Modal isOpen={Boolean(previewPlan)} onClose={() => setPreviewPlan(null)} title={previewPlan?.title || 'Content Plan'} size="lg">
+        {previewPlan?.file_url && (
+          previewPlan.file_url.toLowerCase().includes('.pdf')
+            ? <iframe src={previewPlan.file_url} title="Content plan" className="w-full h-[70vh] border border-vc-border" />
+            : <img src={previewPlan.file_url} alt={previewPlan.title} className="max-h-[70vh] w-full object-contain border border-vc-border" />
+        )}
+      </Modal>
     </div>
   )
 }

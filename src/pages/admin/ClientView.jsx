@@ -249,7 +249,7 @@ export default function ClientView() {
         await new Promise((r) => setTimeout(r, 1800))
         setReportModal({ text: DEMO_REPORT_PREVIEW, saved: true })
       } else {
-        const res = await fetch('/api/generate-report', {
+        const res = await fetch('/api/admin/generate-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -362,6 +362,19 @@ export default function ClientView() {
           const { data, error } = await supabase.from('deliverables').insert(payload).select().single()
           if (error) throw error
           setDeliverables((prev) => [...prev, data])
+
+          // Auto-import content calendar PDFs
+          if (payload.type === 'content_calendar' && payload.file_url) {
+            fetch('/api/admin/parse-content-plan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ client_id: id, file_url: payload.file_url, title: payload.title }),
+            }).then(async (r) => {
+              const result = await r.json()
+              if (r.ok) showToast(`Content plan imported — ${result.posts_imported} posts added to calendar`)
+              else showToast(`Calendar import failed: ${result.error}`, 'error')
+            })
+          }
 
           // Notify client of new deliverable
           const { data: clientProfile } = await supabase

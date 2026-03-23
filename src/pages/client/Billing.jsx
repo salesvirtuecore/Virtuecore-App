@@ -150,7 +150,7 @@ export default function Billing() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#635bff]">Stripe</span>

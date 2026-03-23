@@ -76,7 +76,7 @@ export default function Meetings() {
   const canceled = meetings.filter((m) => m.status === 'canceled')
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 w-full overflow-x-hidden">
       <div>
         <h1 className="text-xl font-semibold text-vc-text">Meetings</h1>
         <p className="text-sm text-vc-muted mt-0.5">Book a call and view your scheduled sessions</p>
@@ -92,7 +92,7 @@ export default function Meetings() {
           </div>
           <div className="divide-y divide-vc-border">
             {upcoming.map((m) => (
-              <div key={m.id} className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-vc-secondary transition-colors">
+              <div key={m.id} className="px-4 py-4 flex items-start justify-between gap-4 hover:bg-vc-secondary transition-colors">
                 <div>
                   <p className="text-sm font-medium text-vc-text">{m.event_type_name || 'Meeting'}</p>
                   <div className="flex items-center gap-1.5 mt-1">
@@ -128,7 +128,7 @@ export default function Meetings() {
           <div
             className="calendly-inline-widget w-full"
             data-url={calendlyUrl}
-            style={{ minWidth: '320px', height: '700px' }}
+            style={{ height: '700px' }}
           />
         ) : (
           <div className="bg-vc-secondary h-48 flex items-center justify-center">

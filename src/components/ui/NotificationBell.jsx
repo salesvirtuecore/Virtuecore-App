@@ -30,6 +30,22 @@ const DEMO_NOTIFICATIONS = [
     read: true,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
   },
+  {
+    id: 'n-smart-001',
+    type: 'smart',
+    title: 'CPL improved 16% this week 📉',
+    body: 'Cost per lead dropped from £138 to £116 — your campaigns are getting more efficient.',
+    read: false,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+  },
+  {
+    id: 'n-smart-002',
+    type: 'smart',
+    title: 'Lead volume up 29% this week 🚀',
+    body: '18 leads this week vs 14 last week — your best performance yet.',
+    read: false,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+  },
 ]
 
 const TYPE_ICON_COLOR = {
@@ -37,6 +53,7 @@ const TYPE_ICON_COLOR = {
   deliverable_approved: 'bg-green-100 text-green-700',
   message: 'bg-blue-100 text-blue-700',
   invoice_due: 'bg-red-100 text-red-700',
+  smart: 'bg-blue-100 text-blue-700',
 }
 
 export default function NotificationBell() {

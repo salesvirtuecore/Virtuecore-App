@@ -10,6 +10,7 @@ export default function Messages() {
   const [messages, setMessages] = useState(isDemoMode ? DEMO_MESSAGES : [])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [adminUserIds, setAdminUserIds] = useState([])
   const bottomRef = useRef(null)
 
@@ -92,6 +93,7 @@ export default function Messages() {
       return
     }
 
+    setSendError('')
     setSending(true)
     try {
       const { data, error } = await supabase
@@ -99,6 +101,8 @@ export default function Messages() {
         .insert({
           client_id: clientId,
           sender_id: profile?.id,
+          sender_name: profile?.full_name ?? null,
+          sender_role: 'client',
           content,
         })
         .select()
@@ -118,6 +122,7 @@ export default function Messages() {
       }
     } catch (err) {
       console.error('Failed to send message', err)
+      setSendError(err?.message || 'Failed to send. Please try again.')
       setInput(content)
     } finally {
       setSending(false)
@@ -131,11 +136,23 @@ export default function Messages() {
   }
 
   return (
-    <div className="p-4 md:p-6 flex flex-col h-full">
+    <div className="p-4 md:p-6 flex flex-col h-full min-h-0">
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-vc-text">Messages</h1>
         <p className="text-sm text-vc-muted mt-0.5">Your VirtueCore team</p>
       </div>
+
+      {sendError && (
+        <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 text-xs text-red-700">
+          {sendError}
+        </div>
+      )}
+
+      {!isDemoMode && !clientId && !sending && (
+        <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          Account not linked yet — try refreshing the page.
+        </div>
+      )}
 
       <div className="flex-1 border border-vc-border flex flex-col min-h-0">
         {/* Thread */}
@@ -145,7 +162,7 @@ export default function Messages() {
           )}
           {messages.map((msg) => {
             const isMe = msg.sender_id === profile?.id
-            const senderName = msg.sender?.full_name ?? (isMe ? (profile?.full_name ?? 'You') : 'VirtueCore')
+            const senderName = msg.sender?.full_name ?? msg.sender_name ?? (isMe ? (profile?.full_name ?? 'You') : 'VirtueCore')
             return (
               <div key={msg.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                 <div

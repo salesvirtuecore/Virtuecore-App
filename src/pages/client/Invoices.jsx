@@ -54,7 +54,7 @@ export default function Invoices() {
   const total = outstanding.reduce((s, i) => s + Number(i.amount), 0)
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div>
         <h1 className="text-xl font-semibold text-vc-text">Invoices</h1>
         <p className="text-sm text-vc-muted mt-0.5">Payment history and upcoming invoices</p>

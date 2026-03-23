@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UserPlus, Pencil, ClipboardList } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import InviteModal from '../../components/ui/InviteModal'
@@ -7,6 +7,7 @@ import FormField from '../../components/ui/FormField'
 import { DEMO_VAS, DEMO_TASKS, DEMO_VA_TRAINING, DEMO_CLIENTS } from '../../data/placeholder'
 import { isDemoMode, supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { sendPushNotification } from '../../lib/pushNotifications'
 
 const EMPTY_TASK_FORM = {
   title: '',
@@ -22,9 +23,40 @@ const EMPTY_VA_FORM = {
 
 export default function VAManagement() {
   const [showInvite, setShowInvite] = useState(false)
-  const [vas, setVas] = useState(DEMO_VAS)
-  const [tasks, setTasks] = useState(DEMO_TASKS)
+  const [vas, setVas] = useState(isDemoMode ? DEMO_VAS : [])
+  const [tasks, setTasks] = useState(isDemoMode ? DEMO_TASKS : [])
+  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
   const { showToast } = useToast()
+
+  useEffect(() => {
+    if (isDemoMode || !supabase) return
+    Promise.all([
+      supabase.from('profiles').select('id, full_name, email, created_at').eq('role', 'va').order('created_at'),
+      supabase.from('tasks').select('*').order('deadline'),
+      supabase.from('clients').select('id, company_name').order('company_name'),
+    ]).then(([{ data: vaRows }, { data: taskRows }, { data: clientRows }]) => {
+      if (vaRows) {
+        const now = new Date()
+        const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay())
+        setVas(vaRows.map((va) => {
+          const vaTasks = (taskRows || []).filter((t) => t.assigned_va_id === va.id)
+          const weekTasks = vaTasks.filter((t) => t.deadline >= weekStart.toISOString().split('T')[0])
+          const completedWeek = weekTasks.filter((t) => t.status === 'complete').length
+          const hoursLogged = Math.round(vaTasks.reduce((s, t) => s + (t.time_logged_minutes || 0), 0) / 60 * 10) / 10
+          return {
+            ...va,
+            tasks_assigned: weekTasks.length,
+            tasks_completed_this_week: completedWeek,
+            hours_this_week: hoursLogged,
+            performance_score: weekTasks.length ? Math.round((completedWeek / weekTasks.length) * 100) : 0,
+            training_completion: 0,
+          }
+        }))
+      }
+      if (taskRows) setTasks(taskRows)
+      if (clientRows) setClients(clientRows)
+    })
+  }, [])
 
   // Assign Task modal
   const [assignTarget, setAssignTarget] = useState(null) // va being assigned to
@@ -57,7 +89,7 @@ export default function VAManagement() {
     if (Object.keys(e).length) { setTaskErrors(e); return }
     setSavingTask(true)
     try {
-      const client = DEMO_CLIENTS.find((c) => c.id === taskForm.client_id)
+      const client = clients.find((c) => c.id === taskForm.client_id)
       const payload = {
         title: taskForm.title.trim(),
         brief: taskForm.brief.trim(),
@@ -79,6 +111,11 @@ export default function VAManagement() {
         if (error) throw error
         setTasks((prev) => [...prev, data])
         showToast(`Task assigned to ${assignTarget.full_name}`)
+        sendPushNotification(assignTarget.id, {
+          title: 'New task assigned',
+          body: `${payload.title}${payload.client_name ? ` — ${payload.client_name}` : ''}`,
+          url: '/va',
+        })
       }
       setAssignTarget(null)
     } catch (err) {
@@ -311,7 +348,7 @@ export default function VAManagement() {
                   onChange={(e) => setTaskForm({ ...taskForm, client_id: e.target.value })}
                 >
                   <option value="">No client</option>
-                  {DEMO_CLIENTS.map((c) => (
+                  {clients.map((c) => (
                     <option key={c.id} value={c.id}>{c.company_name}</option>
                   ))}
                 </select>

@@ -68,7 +68,7 @@ export default function HelpChatWidget() {
     setSending(true)
 
     try {
-      const response = await fetch('/api/help-chat', {
+      const response = await fetch('/api/admin/help-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,7 +96,7 @@ export default function HelpChatWidget() {
     }
   }
 
-  if (location.pathname === '/client/messages') return null
+  if (location.pathname.startsWith('/client/messages')) return null
 
   return (
     <div className="fixed right-4 bottom-20 md:bottom-6 z-50">
