@@ -21,7 +21,7 @@ const NAV = [
   { to: '/client/billing', label: 'Billing', short: 'Billing', icon: CreditCard, sidebarOnly: true },
   { to: '/client/meetings', label: 'Meetings', short: 'Meetings', icon: Video, sidebarOnly: true },
   { to: '/client/analytics', label: 'Web Analytics', short: 'Analytics', icon: BarChart2, sidebarOnly: true },
-  { to: '/client/integrations', label: 'Integrations', short: 'Connect', icon: Plug, sidebarOnly: true },
+  { to: '/client/integrations', label: 'Connect', short: 'Connect', icon: Plug, sidebarOnly: true },
 ]
 
 export default function ClientLayout() {

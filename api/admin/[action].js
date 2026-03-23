@@ -323,14 +323,69 @@ async function handleSaveNPS(req, res) {
   const { user_id, client_id, score, comment } = req.body ?? {}
   if (!user_id || !score) return res.status(400).json({ error: 'user_id and score required' })
   const supabase = makeSupabase()
+
+  // Get client name for the notification + review
+  let clientName = 'A client'
+  if (client_id) {
+    const { data: clientRow } = await supabase.from('clients').select('company_name, contact_name').eq('id', client_id).maybeSingle()
+    clientName = clientRow?.company_name || clientRow?.contact_name || 'A client'
+  }
+
   const { error } = await supabase.from('nps_responses').insert({
     user_id, client_id: client_id || null,
     score: Number(score), comment: comment || null,
+    client_name: clientName,
     created_at: new Date().toISOString(),
   })
-  // Don't fail loudly if table doesn't exist yet
   if (error && !error.message.includes('does not exist')) return res.status(500).json({ error: error.message })
+
+  // Notify admin via n8n webhook
+  const webhookUrl = process.env.N8N_NPS_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL
+  if (webhookUrl) {
+    const sentiment = score >= 9 ? '🟢 Promoter' : score >= 7 ? '🟡 Passive' : '🔴 Detractor'
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: `NPS Feedback: ${clientName} gave ${score}/10`,
+        to: process.env.ADMIN_EMAIL || 'sales@virtuecore.co.uk',
+        client_name: clientName,
+        score: Number(score),
+        sentiment,
+        comment: comment || '(no comment)',
+        submitted_at: new Date().toISOString(),
+        portal_url: `${process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'}/admin`,
+      }),
+    }).catch(() => {})
+  }
+
   return res.status(200).json({ ok: true })
+}
+
+// ── get-reviews (public — for website embed) ──────────────────────────────────
+async function handleGetReviews(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method !== 'GET') return res.status(405).end()
+  const supabase = makeSupabase()
+  const { data, error } = await supabase
+    .from('nps_responses')
+    .select('score, comment, client_name, created_at')
+    .gte('score', 9)
+    .not('comment', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (error) return res.status(500).json({ error: error.message })
+  const reviews = (data || [])
+    .filter((r) => r.comment && r.comment.trim().length > 10)
+    .map((r) => ({
+      name: r.client_name || 'VirtueCore Client',
+      score: r.score,
+      review: r.comment,
+      date: r.created_at,
+    }))
+  return res.status(200).json({ reviews })
 }
 
 // ── smart-notifications ───────────────────────────────────────────────────────
@@ -410,5 +465,6 @@ export default async function handler(req, res) {
   if (action === 'weekly-pulse') return handleWeeklyPulse(req, res)
   if (action === 'save-nps') return handleSaveNPS(req, res)
   if (action === 'smart-notifications') return handleSmartNotifications(req, res)
+  if (action === 'get-reviews') return handleGetReviews(req, res)
   return res.status(404).json({ error: 'Unknown action' })
 }
