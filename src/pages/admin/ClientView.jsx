@@ -91,6 +91,11 @@ export default function ClientView() {
     isDemoMode ? DEMO_INVOICES.filter((i) => i.client_id === id) : []
   )
   const [adEntries, setAdEntries] = useState(isDemoMode ? [] : [])
+  const [npsData, setNpsData] = useState(isDemoMode ? [
+    { id: 'n1', score: 9, comment: 'Really pleased with the leads coming through, team is responsive.', created_at: new Date(Date.now() - 1000*60*60*24*30).toISOString() },
+    { id: 'n2', score: 10, comment: 'Best marketing agency we've worked with. Results speak for themselves.', created_at: new Date(Date.now() - 1000*60*60*24*60).toISOString() },
+    { id: 'n3', score: 8, comment: null, created_at: new Date(Date.now() - 1000*60*60*24*90).toISOString() },
+  ] : [])
   const [messages, setMessages] = useState(
     isDemoMode ? DEMO_MESSAGES.filter((m) => m.client_id === id) : []
   )
@@ -128,12 +133,14 @@ export default function ClientView() {
           { data: invoiceRows, error: invoicesError },
           { data: messageRows, error: messagesError },
           { data: adRows, error: adError },
+          { data: npsRows },
         ] = await Promise.all([
           supabase.from('clients').select('*').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('*').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('*').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
           supabase.from('ad_performance').select('*').eq('client_id', id).order('date', { ascending: true }),
+          supabase.from('nps_responses').select('score,comment,created_at').eq('client_id', id).order('created_at', { ascending: false }).limit(12),
         ])
 
         if (clientError) throw clientError
@@ -149,6 +156,7 @@ export default function ClientView() {
         setInvoices(invoiceRows || [])
         setMessages(messageRows || [])
         setAdEntries(adRows || [])
+        setNpsData(npsRows || [])
       } catch (error) {
         if (!cancelled) {
           setClient(null)
@@ -690,6 +698,39 @@ export default function ClientView() {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* NPS / Client Feedback */}
+      {npsData.length > 0 && (() => {
+        const latest = npsData[0]
+        const avg = Math.round(npsData.reduce((s, r) => s + r.score, 0) / npsData.length * 10) / 10
+        const sentimentColor = (s) => s >= 9 ? 'text-green-600 bg-green-50 border-green-200' : s >= 7 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'
+        const sentimentLabel = (s) => s >= 9 ? 'Promoter' : s >= 7 ? 'Passive' : 'Detractor'
+        return (
+          <div className="border border-vc-border">
+            <div className="px-4 py-3 border-b border-vc-border flex items-center justify-between">
+              <h2 className="text-sm font-medium text-vc-text">Client Feedback (NPS)</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-vc-muted">{npsData.length} response{npsData.length !== 1 ? 's' : ''}</span>
+                <span className="text-xs font-semibold text-vc-text">Avg: {avg}/10</span>
+              </div>
+            </div>
+            <div className="divide-y divide-vc-border">
+              {npsData.map((r, i) => (
+                <div key={i} className="px-4 py-3 flex items-start gap-3">
+                  <span className={`text-xs font-bold border px-2 py-1 flex-shrink-0 rounded ${sentimentColor(r.score)}`}>{r.score}/10</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`text-xs font-medium ${sentimentColor(r.score).split(' ')[0]}`}>{sentimentLabel(r.score)}</span>
+                      <span className="text-xs text-vc-muted">{new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                    {r.comment ? <p className="text-sm text-vc-text">{r.comment}</p> : <p className="text-xs text-vc-muted italic">No comment left</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Deliverables + Messages */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
