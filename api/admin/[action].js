@@ -87,7 +87,7 @@ async function handleGenerateReport(req, res) {
     const reportText = message.content?.[0]?.type === 'text' ? message.content[0].text : 'Report generation failed.'
     const supabase = makeSupabase()
     const { data: deliverable } = await supabase.from('deliverables').insert({ client_id, title: `${client_name} — Performance Report ${period}`, type: 'report', status: 'draft', file_url: null }).select('id').single()
-    await supabase.from('reports').insert({ client_id, deliverable_id: deliverable?.id ?? null, content: reportText, period })
+    await supabase.from('crm_reports').insert({ client_id, deliverable_id: deliverable?.id ?? null, content: reportText, period })
     return res.status(200).json({ success: true, report: reportText, deliverable_id: deliverable?.id ?? null })
   } catch (err) {
     return res.status(500).json({ error: err.message })
@@ -206,7 +206,7 @@ async function handleMonthlyReport(req, res) {
       const reportText = msg.content?.[0]?.type === 'text' ? msg.content[0].text : null
       if (!reportText) throw new Error('No content from Claude')
       const { data: del } = await supabase.from('deliverables').insert({ client_id: client.id, title: `${client.company_name} — Monthly Report ${period}`, type: 'report', status: 'pending_review' }).select('id').single()
-      await supabase.from('reports').insert({ client_id: client.id, deliverable_id: del?.id ?? null, content: reportText, period })
+      await supabase.from('crm_reports').insert({ client_id: client.id, deliverable_id: del?.id ?? null, content: reportText, period })
       if (n8nWebhook && client.contact_email) { await fetch(n8nWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: client.contact_email, company_name: client.company_name, period, report: reportText, portal_url: `${process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'}/client/deliverables` }) }).catch(() => {}) }
       results.push({ client: client.company_name, ok: true })
     } catch (err) {
@@ -297,7 +297,7 @@ async function handleWeeklyPulse(req, res) {
   const [adRes, prevAdRes, msgRes, delRes] = await Promise.all([
     supabase.from('ad_performance').select('spend,leads,cpl,roas').eq('client_id', client_id).gte('date', weekStartStr).lte('date', nowStr),
     supabase.from('ad_performance').select('spend,leads,cpl').eq('client_id', client_id).gte('date', prevWeekStartStr).lt('date', weekStartStr),
-    supabase.from('messages').select('id').eq('client_id', client_id).gte('created_at', weekStart.toISOString()),
+    supabase.from('crm_messages').select('id').eq('client_id', client_id).gte('created_at', weekStart.toISOString()),
     supabase.from('deliverables').select('id').eq('client_id', client_id).in('status', ['approved', 'pending_review']).gte('created_at', weekStart.toISOString()),
   ])
   const ad = adRes.data || [], prevAd = prevAdRes.data || []

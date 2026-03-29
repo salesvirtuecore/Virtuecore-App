@@ -85,7 +85,7 @@ export default function ContentCalendar() {
       console.log('Feedback submitted (demo):', { post_id: post.id, platform: post.platform, feedback: text })
     } else {
       // Send as a message to the client thread
-      await supabase.from('messages').insert({
+      await supabase.from('crm_messages').insert({
         client_id: post.client_id,
         sender_id: null,
         content: `Changes requested for ${post.platform} post on ${post.post_date}: ${text}`,

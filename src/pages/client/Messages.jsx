@@ -21,7 +21,7 @@ export default function Messages() {
     if (isDemoMode || !supabase || !clientId) return
 
     supabase
-      .from('messages')
+      .from('crm_messages')
       .select('*')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true })
@@ -97,7 +97,7 @@ export default function Messages() {
     setSending(true)
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('crm_messages')
         .insert({
           client_id: clientId,
           sender_id: profile?.id,

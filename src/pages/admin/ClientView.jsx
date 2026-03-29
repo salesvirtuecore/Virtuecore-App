@@ -138,7 +138,7 @@ export default function ClientView() {
           supabase.from('clients').select('*').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('*').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-          supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
+          supabase.from('crm_messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
           supabase.from('ad_performance').select('*').eq('client_id', id).order('date', { ascending: true }),
           supabase.from('nps_responses').select('score,comment,created_at').eq('client_id', id).order('created_at', { ascending: false }).limit(12),
         ])
@@ -560,7 +560,7 @@ export default function ClientView() {
       }
       if (!isDemoMode) {
         const { data, error } = await supabase
-          .from('messages')
+          .from('crm_messages')
           .insert(payload)
           .select('*, sender:profiles!sender_id(full_name, role)')
           .single()
