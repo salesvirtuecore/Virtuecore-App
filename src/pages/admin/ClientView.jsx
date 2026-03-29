@@ -93,7 +93,7 @@ export default function ClientView() {
   const [adEntries, setAdEntries] = useState(isDemoMode ? [] : [])
   const [npsData, setNpsData] = useState(isDemoMode ? [
     { id: 'n1', score: 9, comment: 'Really pleased with the leads coming through, team is responsive.', created_at: new Date(Date.now() - 1000*60*60*24*30).toISOString() },
-    { id: 'n2', score: 10, comment: 'Best marketing agency we've worked with. Results speak for themselves.', created_at: new Date(Date.now() - 1000*60*60*24*60).toISOString() },
+    { id: 'n2', score: 10, comment: "Best marketing agency we've worked with. Results speak for themselves.", created_at: new Date(Date.now() - 1000*60*60*24*60).toISOString() },
     { id: 'n3', score: 8, comment: null, created_at: new Date(Date.now() - 1000*60*60*24*90).toISOString() },
   ] : [])
   const [messages, setMessages] = useState(
