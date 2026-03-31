@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, ExternalLink, CheckCircle, XCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 export default function Integrations() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [metaConnected, setMetaConnected] = useState(null)
   const [metaAccountId, setMetaAccountId] = useState(null)
   const [connecting, setConnecting] = useState(false)
@@ -16,7 +16,7 @@ export default function Integrations() {
   const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemoMode || !clientId) return
+    if (isDemo || !clientId) return
     supabase
       .from('clients')
       .select('meta_ad_account_id')
@@ -141,7 +141,7 @@ export default function Integrations() {
           {metaConnected === false && (
             <button
               onClick={handleConnect}
-              disabled={connecting || isDemoMode}
+              disabled={connecting || isDemo}
               className="bg-vc-primary text-white text-xs font-medium px-4 py-2 hover:bg-vc-accent disabled:opacity-60 flex items-center gap-1.5"
             >
               <ExternalLink size={12} />
@@ -169,7 +169,7 @@ export default function Integrations() {
             </>
           )}
 
-          {isDemoMode && (
+          {isDemo && (
             <p className="text-xs text-text-secondary self-center">Integration unavailable in demo mode.</p>
           )}
         </div>

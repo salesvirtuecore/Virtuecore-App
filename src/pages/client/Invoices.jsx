@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_INVOICES } from '../../data/placeholder'
 
 const STATUS_BADGE = { paid: 'green', sent: 'blue', overdue: 'red', draft: 'default' }
 
 export default function Invoices() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [invoices, setInvoices] = useState(
-    isDemoMode ? DEMO_INVOICES.filter((i) => i.client_id === 'c-001') : []
+    isDemo ? DEMO_INVOICES.filter((i) => i.client_id === 'c-001') : []
   )
   const [paying, setPaying] = useState(null)
   const [payError, setPayError] = useState('')
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !profile?.client_id) return
+    if (isDemo || !supabase || !profile?.client_id) return
 
     supabase
       .from('invoices')
@@ -29,7 +29,7 @@ export default function Invoices() {
   }, [profile?.client_id])
 
   async function handlePay(inv) {
-    if (isDemoMode) {
+    if (isDemo) {
       alert('Payment is disabled in demo mode.')
       return
     }

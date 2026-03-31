@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Check, MessageSquare, FileText, Download, Ey
 import Badge from '../../components/ui/Badge'
 import { DEMO_CONTENT_CALENDAR } from '../../data/placeholder'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay } from 'date-fns'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 
@@ -11,11 +11,11 @@ const STATUS_BADGE = { scheduled: 'blue', published: 'green', draft: 'default' }
 const PLATFORM_COLOR = { Instagram: '#E1306C', Facebook: '#1877F2', TikTok: '#000000', LinkedIn: '#0A66C2' }
 
 export default function ContentCalendar() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
-  const [posts, setPosts] = useState(isDemoMode ? DEMO_CONTENT_CALENDAR : [])
-  const [loadingPosts, setLoadingPosts] = useState(!isDemoMode)
+  const [posts, setPosts] = useState(isDemo ? DEMO_CONTENT_CALENDAR : [])
+  const [loadingPosts, setLoadingPosts] = useState(!isDemo)
   const [approvedIds, setApprovedIds] = useState(new Set())
   const [feedbackOpen, setFeedbackOpen] = useState({})
   const [feedbackText, setFeedbackText] = useState({})
@@ -25,7 +25,7 @@ export default function ContentCalendar() {
 
   useEffect(() => {
     const clientId = profile?.client_id
-    if (isDemoMode || !supabase || !clientId) return
+    if (isDemo || !supabase || !clientId) return
 
     setLoadingPosts(true)
     Promise.all([
@@ -60,7 +60,7 @@ export default function ContentCalendar() {
   const selectedPosts = selected ? (postsMap[format(selected, 'yyyy-MM-dd')] ?? []) : []
 
   async function handleApprove(postId) {
-    if (isDemoMode) {
+    if (isDemo) {
       setPosts((prev) =>
         prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
       )
@@ -81,7 +81,7 @@ export default function ContentCalendar() {
     const text = feedbackText[post.id]
     if (!text?.trim()) return
 
-    if (isDemoMode) {
+    if (isDemo) {
       console.log('Feedback submitted (demo):', { post_id: post.id, platform: post.platform, feedback: text })
     } else {
       // Send as a message to the client thread

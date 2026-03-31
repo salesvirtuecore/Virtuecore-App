@@ -6,7 +6,7 @@ import Modal from '../../components/ui/Modal'
 import OnboardingChecklist from '../../components/ui/OnboardingChecklist'
 import { DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS, DEMO_INVOICES } from '../../data/placeholder'
 import { useAuth } from '../../context/AuthContext'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 const DEMO_CLIENT_ID = 'c-001'
 
@@ -180,12 +180,12 @@ function TrendBadge({ value, suffix = '%' }) {
 }
 
 export default function ClientDashboard() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const fallbackMetrics = DEMO_CLIENT_METRICS
   const [analysisModal, setAnalysisModal] = useState(null)
-  const [dashboardLoading, setDashboardLoading] = useState(!isDemoMode)
-  const [adPerformance, setAdPerformance] = useState(isDemoMode ? DEMO_AD_PERFORMANCE : [])
-  const [invoiceRows, setInvoiceRows] = useState(isDemoMode ? DEMO_INVOICES.filter((i) => i.client_id === DEMO_CLIENT_ID) : [])
+  const [dashboardLoading, setDashboardLoading] = useState(!isDemo)
+  const [adPerformance, setAdPerformance] = useState(isDemo ? DEMO_AD_PERFORMANCE : [])
+  const [invoiceRows, setInvoiceRows] = useState(isDemo ? DEMO_INVOICES.filter((i) => i.client_id === DEMO_CLIENT_ID) : [])
   const [metaConnected, setMetaConnected] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
@@ -193,7 +193,7 @@ export default function ClientDashboard() {
   const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemoMode || !clientId) { setDashboardLoading(false); return }
+    if (isDemo || !clientId) { setDashboardLoading(false); return }
     async function loadDashboardData() {
       setDashboardLoading(true)
       try {
@@ -238,12 +238,12 @@ export default function ClientDashboard() {
     performanceRows: aggregatePerformanceRows(adPerformance),
     invoices: invoiceRows,
     fallbackMetrics,
-    useFallback: isDemoMode,
+    useFallback: isDemo,
   })
 
   const hasRealData = adPerformance.length > 0 || invoiceRows.length > 0
   const chartData = metrics.performance.length ? metrics.performance : PLACEHOLDER_TREND
-  const isPlaceholder = !hasRealData && !isDemoMode
+  const isPlaceholder = !hasRealData && !isDemo
 
   const kpiCards = [
     { label: 'Total Revenue', value: formatCurrency(metrics.revenuePrimary), icon: PoundSterling, color: 'text-vc-accent', sub: metrics.collectedRevenue > 0 ? `${formatCurrency(metrics.collectedRevenue)} collected` : null },
@@ -264,7 +264,7 @@ export default function ClientDashboard() {
             {isPlaceholder ? 'Your data will appear here once your campaigns are live.' : `Revenue view for ${metrics.periodLabel}.`}
           </p>
         </div>
-        {!isDemoMode && metaConnected === true && (
+        {!isDemo && metaConnected === true && (
           <button onClick={handleSyncMeta} disabled={syncing} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors flex-shrink-0 mt-1">
             <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Syncing…' : syncMessage ?? 'Sync now'}
@@ -275,7 +275,7 @@ export default function ClientDashboard() {
       <OnboardingChecklist calendlyUrl="https://calendly.com/virtuecore" />
 
       {/* Meta connect banner */}
-      {!isDemoMode && metaConnected === false && (
+      {!isDemo && metaConnected === false && (
         <div className="vc-card flex items-center justify-between gap-4 border-status-warning/20 bg-status-warning/5">
           <div>
             <p className="text-sm font-medium text-status-warning">Connect your Facebook Ads account</p>
@@ -317,7 +317,7 @@ export default function ClientDashboard() {
               PREVIEW
             </span>
           )}
-          {dashboardLoading && !isDemoMode && !isPlaceholder && (
+          {dashboardLoading && !isDemo && !isPlaceholder && (
             <span className="text-xs text-text-tertiary">Refreshing...</span>
           )}
         </div>

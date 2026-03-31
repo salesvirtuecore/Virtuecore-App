@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Zap, Activity, Target, ChevronDown, ChevronUp } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_AD_FEED } from '../../data/placeholder'
 import { format, parseISO } from 'date-fns'
@@ -32,9 +32,9 @@ function StatCard({ label, value, sub }) {
 }
 
 export default function AdPerformance() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const { pathname } = useLocation()
-  const useDemo = isDemoMode || pathname.startsWith('/preview/')
+  const useDemo = isDemo || pathname.startsWith('/preview/')
   const [data, setData] = useState(useDemo ? DEMO_AD_FEED : null)
   const [loading, setLoading] = useState(!useDemo)
   const [expandedTest, setExpandedTest] = useState(null)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Video, Calendar, Clock, ExternalLink, CheckCircle, XCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 const CALENDLY_URL = import.meta.env.VITE_CALENDLY_URL || ''
 
@@ -29,9 +29,9 @@ function useCalendlyScript(url) {
 }
 
 export default function Meetings() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [meetings, setMeetings] = useState([])
-  const [loading, setLoading] = useState(!isDemoMode)
+  const [loading, setLoading] = useState(!isDemo)
 
   // Build pre-fill query string so Calendly fills name/email automatically
   const calendlyUrl = CALENDLY_URL
@@ -41,7 +41,7 @@ export default function Meetings() {
   useCalendlyScript(calendlyUrl)
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !profile?.client_id) {
+    if (isDemo || !supabase || !profile?.client_id) {
       setLoading(false)
       return
     }

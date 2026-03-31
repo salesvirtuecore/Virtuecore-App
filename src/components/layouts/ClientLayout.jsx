@@ -6,7 +6,7 @@ import {
   Award, Zap, Calculator, Menu, X, HelpCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { isDemoMode } from '../../lib/supabase'
+
 import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
@@ -96,16 +96,16 @@ function SidebarContent({ profile, onLogout, onNavClick }) {
 }
 
 export default function ClientLayout() {
-  const { profile, logout } = useAuth()
+  const { profile, logout, isDemo } = useAuth()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    if (!isDemoMode && profile?.id) subscribeToPush(profile.id)
+    if (!isDemo && profile?.id) subscribeToPush(profile.id)
   }, [profile?.id])
 
   useEffect(() => {
-    if (isDemoMode || !profile?.id || !profile?.client_id) return
+    if (isDemo || !profile?.id || !profile?.client_id) return
     const todayKey = `vc_smart_${new Date().toISOString().split('T')[0]}_${profile.id}`
     if (sessionStorage.getItem(todayKey)) return
     sessionStorage.setItem(todayKey, '1')

@@ -195,8 +195,11 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  // True when running in env-based demo mode OR when a demo override session is active
+  const isDemo = isDemoMode || !!sessionStorage.getItem('vc_demo_override')
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode, isDemo }}>
       {children}
     </AuthContext.Provider>
   )

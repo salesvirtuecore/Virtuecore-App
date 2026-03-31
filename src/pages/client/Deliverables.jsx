@@ -3,7 +3,7 @@ import { Download, MessageSquare, Check, Eye, FileText } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { DEMO_DELIVERABLES } from '../../data/placeholder'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import { sendPushNotification } from '../../lib/pushNotifications'
@@ -32,18 +32,18 @@ const STATUS_LABEL = {
 }
 
 export default function Deliverables() {
-  const { profile } = useAuth()
-  const [deliverables, setDeliverables] = useState(isDemoMode ? DEMO_DELIVERABLES.filter((d) => d.client_id === 'c-001') : [])
-  const [loading, setLoading] = useState(!isDemoMode)
+  const { profile, isDemo } = useAuth()
+  const [deliverables, setDeliverables] = useState(isDemo ? DEMO_DELIVERABLES.filter((d) => d.client_id === 'c-001') : [])
+  const [loading, setLoading] = useState(!isDemo)
   const [previewItem, setPreviewItem] = useState(null)
   const [feedback, setFeedback] = useState({})
   const [showFeedback, setShowFeedback] = useState({})
   const [justApproved, setJustApproved] = useState(new Set())
 
-  const clientId = isDemoMode ? 'c-001' : profile?.client_id
+  const clientId = isDemo ? 'c-001' : profile?.client_id
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !clientId) {
+    if (isDemo || !supabase || !clientId) {
       setLoading(false)
       return
     }
@@ -95,7 +95,7 @@ export default function Deliverables() {
   }
 
   async function notifyAdmins(title, body) {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
     const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
     for (const admin of admins || []) {
       sendPushNotification(admin.id, { title, body, url: `/admin/clients/${clientId}` })
@@ -104,7 +104,7 @@ export default function Deliverables() {
 
   async function approve(id) {
     const deliverable = deliverables.find((d) => d.id === id)
-    if (!isDemoMode) {
+    if (!isDemo) {
       await supabase.from('deliverables').update({ status: 'approved' }).eq('id', id)
     }
     setDeliverables((prev) => prev.map((d) => d.id === id ? { ...d, status: 'approved' } : d))
@@ -121,7 +121,7 @@ export default function Deliverables() {
     const text = feedback[id]
     if (!text?.trim()) return
     const deliverable = deliverables.find((d) => d.id === id)
-    if (!isDemoMode) {
+    if (!isDemo) {
       await supabase.from('deliverables').update({ status: 'changes_requested', feedback: text }).eq('id', id)
     }
     setDeliverables((prev) => prev.map((d) =>

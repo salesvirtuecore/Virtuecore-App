@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BarChart2, ExternalLink, Copy, Check, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 const DEMO_SITES = [
   {
@@ -15,9 +15,9 @@ const DEMO_SITES = [
 ]
 
 export default function ClientWebAnalytics() {
-  const { profile } = useAuth()
-  const [sites, setSites] = useState(isDemoMode ? DEMO_SITES : [])
-  const [loading, setLoading] = useState(!isDemoMode)
+  const { profile, isDemo } = useAuth()
+  const [sites, setSites] = useState(isDemo ? DEMO_SITES : [])
+  const [loading, setLoading] = useState(!isDemo)
   const [copiedId, setCopiedId] = useState(null)
   const [openSnippet, setOpenSnippet] = useState(null)
   const [gaInput, setGaInput] = useState({})
@@ -26,7 +26,7 @@ export default function ClientWebAnalytics() {
   const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !clientId) return
+    if (isDemo || !supabase || !clientId) return
     supabase
       .from('client_websites')
       .select('*')
@@ -42,7 +42,7 @@ export default function ClientWebAnalytics() {
     const value = (gaInput[site.id] ?? site.ga_measurement_id ?? '').trim()
     setSaving(site.id)
     try {
-      if (!isDemoMode) {
+      if (!isDemo) {
         await supabase
           .from('client_websites')
           .update({ ga_measurement_id: value || null })

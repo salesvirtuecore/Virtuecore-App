@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { isDemoMode } from '../../lib/supabase'
+
 import { useAuth } from '../../context/AuthContext'
 
 function getMonthKey(userId) {
@@ -20,7 +20,7 @@ const SCORE_COLOR_ACTIVE = (s) => {
 }
 
 export default function NPSWidget() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [visible, setVisible] = useState(false)
   const [score, setScore] = useState(null)
   const [comment, setComment] = useState('')
@@ -28,7 +28,7 @@ export default function NPSWidget() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!profile?.id || isDemoMode) return
+    if (!profile?.id || isDemo) return
     // Only show for client role
     if (profile.role !== 'client') return
     const key = getMonthKey(profile.id)

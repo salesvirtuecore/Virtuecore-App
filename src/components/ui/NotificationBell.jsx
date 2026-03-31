@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 // ── Demo notifications ────────────────────────────────────────────────────────
@@ -57,14 +57,14 @@ const TYPE_ICON_COLOR = {
 }
 
 export default function NotificationBell() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const dropdownRef = useRef(null)
 
   // Load notifications
   useEffect(() => {
-    if (isDemoMode) {
+    if (isDemo) {
       setNotifications(DEMO_NOTIFICATIONS)
       return
     }
@@ -98,7 +98,7 @@ export default function NotificationBell() {
   async function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
 
-    if (!isDemoMode && profile?.id) {
+    if (!isDemo && profile?.id) {
       await supabase
         .from('notifications')
         .update({ read: true })

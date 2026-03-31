@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { DEMO_MESSAGES } from '../../data/placeholder'
 import { sendPushNotification } from '../../lib/pushNotifications'
 
 export default function Messages() {
-  const { profile } = useAuth()
-  const [messages, setMessages] = useState(isDemoMode ? DEMO_MESSAGES : [])
+  const { profile, isDemo } = useAuth()
+  const [messages, setMessages] = useState(isDemo ? DEMO_MESSAGES : [])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -18,7 +18,7 @@ export default function Messages() {
 
   // Load messages + fetch admin user IDs for push
   useEffect(() => {
-    if (isDemoMode || !supabase || !clientId) return
+    if (isDemo || !supabase || !clientId) return
 
     supabase
       .from('crm_messages')
@@ -40,7 +40,7 @@ export default function Messages() {
 
   // Realtime subscription
   useEffect(() => {
-    if (isDemoMode || !supabase || !clientId) return
+    if (isDemo || !supabase || !clientId) return
 
     const channel = supabase
       .channel(`client-messages-${clientId}`)
@@ -77,7 +77,7 @@ export default function Messages() {
     const content = input.trim()
     setInput('')
 
-    if (isDemoMode) {
+    if (isDemo) {
       setMessages((prev) => [
         ...prev,
         {
@@ -148,7 +148,7 @@ export default function Messages() {
         </div>
       )}
 
-      {!isDemoMode && !clientId && !sending && (
+      {!isDemo && !clientId && !sending && (
         <div className="mb-3 px-3 py-2 bg-status-warning/10 border border-status-warning/20 text-xs text-amber-800">
           Account not linked yet — try refreshing the page.
         </div>

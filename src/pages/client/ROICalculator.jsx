@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Info } from 'lucide-react'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_CLIENT_METRICS } from '../../data/placeholder'
 
@@ -21,9 +21,9 @@ function DiffBadge({ value, inverted = false }) {
 }
 
 export default function ROICalculator() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const { pathname } = useLocation()
-  const useDemo = isDemoMode || pathname.startsWith('/preview/')
+  const useDemo = isDemo || pathname.startsWith('/preview/')
 
   const [base, setBase] = useState(null)
   const [loading, setLoading] = useState(true)
