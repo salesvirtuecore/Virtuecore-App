@@ -10,8 +10,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isDemoMode) {
-      // Check for persisted demo session
+    // Support demo override even when Supabase is configured
+    const demoOverride = sessionStorage.getItem('vc_demo_override')
+    if (isDemoMode || demoOverride) {
       const saved = sessionStorage.getItem('vc_demo_profile')
       if (saved) {
         const p = JSON.parse(saved)
@@ -143,6 +144,17 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  // Allows previewing any demo role even when Supabase is configured
+  function loginAsDemo(role = 'client') {
+    const emailMap = { client: 'client@virtuecore.com', admin: 'sales@virtuecore.co.uk', va: 'va@virtuecore.com' }
+    const demoProfile = DEMO_PROFILES[emailMap[role]]
+    if (!demoProfile) return
+    sessionStorage.setItem('vc_demo_profile', JSON.stringify(demoProfile))
+    sessionStorage.setItem('vc_demo_override', '1')
+    setProfile(demoProfile)
+    setUser({ id: demoProfile.id, email: demoProfile.email })
+  }
+
   async function signup(email, password, fullName, role) {
     if (isDemoMode) {
       return { error: { message: 'Signup is disabled in demo mode' } }
@@ -184,7 +196,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, signup, logout, resetPassword, isDemoMode }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode }}>
       {children}
     </AuthContext.Provider>
   )

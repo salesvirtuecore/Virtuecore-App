@@ -2,11 +2,18 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
+import { Eye } from 'lucide-react'
 
 const DEMO_ACCOUNTS = [
   { label: 'Admin (Samuel)', email: 'sales@virtuecore.co.uk', pw: 'demo1234' },
   { label: 'Client', email: 'client@virtuecore.com', pw: 'demo1234' },
   { label: 'VA', email: 'va@virtuecore.com', pw: 'demo1234' },
+]
+
+const PREVIEW_ROLES = [
+  { label: 'Client portal', role: 'client' },
+  { label: 'Admin portal', role: 'admin' },
+  { label: 'VA portal', role: 'va' },
 ]
 
 export default function Login() {
@@ -15,7 +22,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(searchParams.get('email') ? 'You already have an account — sign in below.' : '')
   const [loading, setLoading] = useState(false)
-  const { login, isDemoMode } = useAuth()
+  const { login, loginAsDemo, isDemoMode } = useAuth()
   const navigate = useNavigate()
 
   async function handleSubmit(e) {
@@ -34,6 +41,11 @@ export default function Login() {
   function quickFill(acc) {
     setEmail(acc.email)
     setPassword(acc.pw)
+  }
+
+  function handlePreview(role) {
+    loginAsDemo(role)
+    navigate('/', { replace: true })
   }
 
   return (
@@ -105,6 +117,25 @@ export default function Login() {
             <Link to="/forgot-password" className="hover:text-text-primary transition-colors">
               Forgot password?
             </Link>
+          </div>
+
+          {/* Preview section — always visible */}
+          <div className="mt-6 pt-5 border-t border-white/[0.06]">
+            <p className="text-xs text-text-tertiary mb-2.5 flex items-center gap-1.5">
+              <Eye size={11} />
+              Preview with sample data
+            </p>
+            <div className="flex gap-2">
+              {PREVIEW_ROLES.map(({ label, role }) => (
+                <button
+                  key={role}
+                  onClick={() => handlePreview(role)}
+                  className="flex-1 text-xs py-1.5 bg-bg-tertiary border border-white/[0.08] text-text-secondary hover:text-vc-accent hover:border-vc-primary/30 rounded-btn transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
