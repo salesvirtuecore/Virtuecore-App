@@ -134,31 +134,31 @@ export default function Deliverables() {
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Deliverables</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Review and approve your assets</p>
+        <h1 className="text-h2 font-heading text-text-primary">Deliverables</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Review and approve your assets</p>
       </div>
 
-      {loading && <p className="text-sm text-vc-muted">Loading deliverables...</p>}
+      {loading && <p className="text-sm text-text-secondary">Loading deliverables...</p>}
 
       <div className="space-y-3">
         {normalizedDeliverables.map((d) => (
-          <div key={d.id} className="border border-vc-border p-5">
+          <div key={d.id} className="vc-card">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="font-medium text-vc-text">{d.title}</p>
-                <p className="text-xs text-vc-muted mt-0.5">{TYPE_LABELS[d.type]} · {d.created_at}</p>
+                <p className="font-medium text-text-primary">{d.title}</p>
+                <p className="text-xs text-text-secondary mt-0.5">{TYPE_LABELS[d.type]} · {d.created_at}</p>
               </div>
               <Badge variant={STATUS_BADGE[d.status]}>{STATUS_LABEL[d.status]}</Badge>
             </div>
 
             {d.feedback && (
-              <div className="mb-3 p-3 bg-red-50 border border-red-200 text-sm text-red-700">
+              <div className="mb-3 p-3 bg-status-danger/10 border border-status-danger/20 text-sm text-red-700">
                 <span className="font-medium">Feedback: </span>{d.feedback}
               </div>
             )}
 
             {justApproved.has(d.id) && (
-              <div className="mb-3 flex items-center gap-1.5 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2">
+              <div className="mb-3 flex items-center gap-1.5 text-sm text-status-success bg-status-success/10 border border-status-success/20 px-3 py-2">
                 <Check size={14} />
                 Approved — thank you! The team has been notified.
               </div>
@@ -211,7 +211,7 @@ export default function Deliverables() {
                   onChange={(e) => setFeedback((p) => ({ ...p, [d.id]: e.target.value }))}
                   placeholder="Describe the changes you'd like..."
                   rows={3}
-                  className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-vc-text resize-none"
+                  className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary resize-none"
                 />
                 <Button variant="danger" size="sm" onClick={() => requestChanges(d.id)}>
                   Submit feedback
@@ -232,13 +232,13 @@ export default function Deliverables() {
           <iframe
             src={previewItem.file_url}
             title="Deliverable preview"
-            className="w-full h-[70vh] border border-vc-border"
+            className="w-full h-[70vh] border border-white/[0.06]"
           />
         ) : (
           <img
             src={previewItem?.file_url}
             alt={previewItem?.title || 'Deliverable preview'}
-            className="max-h-[70vh] w-full object-contain border border-vc-border"
+            className="max-h-[70vh] w-full object-contain border border-white/[0.06]"
           />
         )}
       </Modal>

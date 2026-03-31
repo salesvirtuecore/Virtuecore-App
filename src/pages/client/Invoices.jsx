@@ -56,21 +56,21 @@ export default function Invoices() {
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Invoices</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Payment history and upcoming invoices</p>
+        <h1 className="text-h2 font-heading text-text-primary">Invoices</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Payment history and upcoming invoices</p>
       </div>
 
       {payError && (
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="border border-status-danger/20 bg-status-danger/10 px-4 py-3 text-sm text-status-danger">
           {payError}
         </div>
       )}
 
       {outstanding.length > 0 && (
-        <div className="border border-gold bg-amber-50 p-4 flex items-center justify-between gap-4">
+        <div className="border border-vc-primary bg-status-warning/10 p-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-vc-text">Outstanding balance</p>
-            <p className="text-2xl font-semibold text-vc-text mt-0.5">£{total.toLocaleString()}</p>
+            <p className="text-sm font-medium text-text-primary">Outstanding balance</p>
+            <p className="text-2xl font-semibold text-text-primary mt-0.5">£{total.toLocaleString()}</p>
           </div>
           <Button
             variant="gold"
@@ -82,38 +82,38 @@ export default function Invoices() {
         </div>
       )}
 
-      <div className="border border-vc-border overflow-x-auto">
+      <div className="border border-white/[0.06] overflow-x-auto">
         <table className="w-full text-sm min-w-[560px]">
           <thead>
-            <tr className="border-b border-vc-border bg-vc-secondary">
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Invoice</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Type</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Amount</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Due Date</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Paid</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
+            <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Invoice</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Type</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Amount</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Due Date</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Paid</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Status</th>
               <th className="px-5 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {invoices.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-4 text-sm text-vc-muted">
+                <td colSpan={7} className="px-5 py-4 text-sm text-text-secondary">
                   No invoices yet.
                 </td>
               </tr>
             )}
             {invoices.map((inv) => (
-              <tr key={inv.id} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
-                <td className="px-5 py-3 font-mono text-xs text-vc-muted">
+              <tr key={inv.id} className="border-b border-white/[0.06] last:border-0 hover:bg-bg-tertiary transition-colors">
+                <td className="px-5 py-3 font-mono text-xs text-text-secondary">
                   {inv.id.slice(0, 8).toUpperCase()}
                 </td>
-                <td className="px-5 py-3 capitalize text-vc-text">{inv.type}</td>
-                <td className="px-5 py-3 font-semibold text-vc-text">
+                <td className="px-5 py-3 capitalize text-text-primary">{inv.type}</td>
+                <td className="px-5 py-3 font-semibold text-text-primary">
                   £{Number(inv.amount).toLocaleString()}
                 </td>
-                <td className="px-5 py-3 text-vc-muted">{inv.due_date ?? '—'}</td>
-                <td className="px-5 py-3 text-vc-muted">{inv.paid_date ?? '—'}</td>
+                <td className="px-5 py-3 text-text-secondary">{inv.due_date ?? '—'}</td>
+                <td className="px-5 py-3 text-text-secondary">{inv.paid_date ?? '—'}</td>
                 <td className="px-5 py-3">
                   <Badge variant={STATUS_BADGE[inv.status]}>
                     {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
@@ -131,7 +131,7 @@ export default function Invoices() {
                     </Button>
                   )}
                   {inv.status === 'paid' && (
-                    <button className="text-xs text-vc-muted hover:text-vc-text transition-colors">
+                    <button className="text-xs text-text-secondary hover:text-text-primary transition-colors">
                       Download
                     </button>
                   )}

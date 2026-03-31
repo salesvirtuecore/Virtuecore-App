@@ -49,11 +49,11 @@ const DEMO_NOTIFICATIONS = [
 ]
 
 const TYPE_ICON_COLOR = {
-  deliverable_review: 'bg-amber-100 text-amber-700',
-  deliverable_approved: 'bg-green-100 text-green-700',
-  message: 'bg-blue-100 text-blue-700',
-  invoice_due: 'bg-red-100 text-red-700',
-  smart: 'bg-blue-100 text-blue-700',
+  deliverable_review: 'bg-status-warning/10 text-status-warning',
+  deliverable_approved: 'bg-status-success/10 text-status-success',
+  message: 'bg-status-info/10 text-status-info',
+  invoice_due: 'bg-status-danger/10 text-red-700',
+  smart: 'bg-status-info/10 text-status-info',
 }
 
 export default function NotificationBell() {
@@ -116,21 +116,21 @@ export default function NotificationBell() {
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+          <span className="absolute top-1 right-1 w-4 h-4 bg-status-danger/100 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-vc-border shadow-md z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-bg-elevated border border-white/[0.08] shadow-md z-50">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-vc-border">
-            <span className="text-sm font-medium text-vc-text">Notifications</span>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+            <span className="text-sm font-medium text-text-primary">Notifications</span>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs text-vc-muted hover:text-vc-text transition-colors"
+                className="text-xs text-text-secondary hover:text-text-primary transition-colors"
               >
                 Mark all read
               </button>
@@ -138,27 +138,27 @@ export default function NotificationBell() {
           </div>
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-vc-border">
+          <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.06]">
             {notifications.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-vc-muted text-center">
+              <p className="px-4 py-6 text-sm text-text-secondary text-center">
                 No notifications
               </p>
             ) : (
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  className={`px-4 py-3 ${n.read ? '' : 'bg-amber-50/40'}`}
+                  className={`px-4 py-3 ${n.read ? '' : 'bg-status-warning/10/40'}`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.read ? 'bg-vc-border' : 'bg-gold'}`} />
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.read ? 'bg-vc-border' : 'bg-vc-primary'}`} />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium ${n.read ? 'text-vc-muted' : 'text-vc-text'}`}>
+                      <p className={`text-xs font-medium ${n.read ? 'text-text-secondary' : 'text-text-primary'}`}>
                         {n.title}
                       </p>
                       {n.body && (
-                        <p className="text-xs text-vc-muted mt-0.5 line-clamp-2">{n.body}</p>
+                        <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{n.body}</p>
                       )}
-                      <p className="text-xs text-vc-muted/70 mt-1">
+                      <p className="text-xs text-text-secondary/70 mt-1">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                       </p>
                     </div>

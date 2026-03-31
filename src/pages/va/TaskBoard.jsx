@@ -13,33 +13,33 @@ const PRIORITY_BADGE = { urgent: 'red', high: 'amber', medium: 'blue', low: 'def
 function TaskCard({ task, expanded, onToggle, onCycleStatus }) {
   const isExpanded = expanded === task.id
   return (
-    <div className="bg-white border border-vc-border">
+    <div className="bg-bg-elevated border border-white/[0.08]">
       <div
-        className="p-4 cursor-pointer hover:bg-vc-secondary transition-colors"
+        className="p-4 cursor-pointer hover:bg-bg-tertiary transition-colors"
         onClick={() => onToggle(task.id)}
       >
         <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="text-sm font-medium text-vc-text flex-1">{task.title}</p>
+          <p className="text-sm font-medium text-text-primary flex-1">{task.title}</p>
           <Badge variant={PRIORITY_BADGE[task.priority]} size="xs">
             {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
           </Badge>
         </div>
-        <p className="text-xs text-vc-muted mb-2">{task.client_name}</p>
+        <p className="text-xs text-text-secondary mb-2">{task.client_name}</p>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-xs text-vc-muted">
+          <div className="flex items-center gap-1 text-xs text-text-secondary">
             <Clock size={11} />
             <span>Due {task.deadline ?? 'No date'}</span>
           </div>
           {task.time_logged_minutes > 0 && (
-            <span className="text-xs text-vc-muted">
+            <span className="text-xs text-text-secondary">
               {Math.floor(task.time_logged_minutes / 60)}h {task.time_logged_minutes % 60}m logged
             </span>
           )}
         </div>
       </div>
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-vc-border pt-3">
-          {task.brief && <p className="text-xs text-vc-muted mb-3">{task.brief}</p>}
+        <div className="px-4 pb-4 border-t border-white/[0.06] pt-3">
+          {task.brief && <p className="text-xs text-text-secondary mb-3">{task.brief}</p>}
           <button
             onClick={() => onCycleStatus(task.id)}
             className="text-xs px-3 py-1.5 bg-vc-text text-white hover:bg-gray-800 transition-colors"
@@ -111,8 +111,8 @@ export default function TaskBoard() {
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-semibold text-vc-text mb-4">Task Board</h1>
-        <p className="text-sm text-vc-muted">Loading tasks...</p>
+        <h1 className="text-h2 font-heading text-text-primary mb-4">Task Board</h1>
+        <p className="text-sm text-text-secondary">Loading tasks...</p>
       </div>
     )
   }
@@ -120,14 +120,14 @@ export default function TaskBoard() {
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Task Board</h1>
-        <p className="text-sm text-vc-muted mt-0.5">
+        <h1 className="text-h2 font-heading text-text-primary">Task Board</h1>
+        <p className="text-sm text-text-secondary mt-0.5">
           {tasks.filter((t) => t.status !== 'complete').length} open tasks
         </p>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="border border-dashed border-vc-border p-8 text-center text-sm text-vc-muted">
+        <div className="border border-dashed border-white/[0.06] p-8 text-center text-sm text-text-secondary">
           No tasks assigned to you yet.
         </div>
       ) : (
@@ -135,10 +135,10 @@ export default function TaskBoard() {
           {Object.entries(byStatus).map(([status, statusTasks]) => (
             <div key={status}>
               <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-xs font-medium text-vc-text uppercase tracking-wide">
+                <span className="text-xs font-medium text-text-primary uppercase tracking-wide">
                   {STATUS_LABEL[status]}
                 </span>
-                <span className="text-xs text-vc-muted bg-vc-secondary px-1.5 py-0.5">
+                <span className="text-xs text-text-secondary bg-bg-tertiary px-1.5 py-0.5">
                   {statusTasks.length}
                 </span>
               </div>
@@ -153,7 +153,7 @@ export default function TaskBoard() {
                   />
                 ))}
                 {statusTasks.length === 0 && (
-                  <div className="border border-dashed border-vc-border p-4 text-center text-xs text-vc-muted">
+                  <div className="border border-dashed border-white/[0.06] p-4 text-center text-xs text-text-secondary">
                     No tasks here
                   </div>
                 )}

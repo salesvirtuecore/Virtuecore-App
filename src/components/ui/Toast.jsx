@@ -11,10 +11,10 @@ export default function Toast({ message, type = 'success', onDismiss }) {
 
   return (
     <div
-      className={`bg-white border border-vc-border border-l-4 ${borderColor} rounded shadow-md px-4 py-3 min-w-[280px] flex items-start gap-3`}
+      className={`bg-bg-elevated border border-white/[0.08] border-l-4 ${borderColor} rounded shadow-md px-4 py-3 min-w-[280px] flex items-start gap-3`}
     >
-      <p className="text-sm text-vc-text flex-1">{message}</p>
-      <button onClick={onDismiss} className="text-vc-muted hover:text-vc-text flex-shrink-0 mt-0.5">
+      <p className="text-sm text-text-primary flex-1">{message}</p>
+      <button onClick={onDismiss} className="text-text-secondary hover:text-text-primary flex-shrink-0 mt-0.5">
         <X size={14} />
       </button>
     </div>

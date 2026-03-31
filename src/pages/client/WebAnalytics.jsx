@@ -63,20 +63,20 @@ export default function ClientWebAnalytics() {
     })
   }
 
-  if (loading) return <div className="p-6 text-sm text-vc-muted">Loading...</div>
+  if (loading) return <div className="p-6 text-sm text-text-secondary">Loading...</div>
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Web Analytics</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Track and view your website performance</p>
+        <h1 className="text-h2 font-heading text-text-primary">Web Analytics</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Track and view your website performance</p>
       </div>
 
       {sites.length === 0 ? (
-        <div className="border border-dashed border-vc-border p-10 text-center">
-          <Globe size={28} className="text-vc-muted mx-auto mb-3" />
-          <p className="text-sm text-vc-text font-medium mb-1">No websites set up yet</p>
-          <p className="text-sm text-vc-muted">Contact your VirtueCore team to connect your website.</p>
+        <div className="border border-dashed border-white/[0.06] p-10 text-center">
+          <Globe size={28} className="text-text-secondary mx-auto mb-3" />
+          <p className="text-sm text-text-primary font-medium mb-1">No websites set up yet</p>
+          <p className="text-sm text-text-secondary">Contact your VirtueCore team to connect your website.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -84,34 +84,34 @@ export default function ClientWebAnalytics() {
             const gaId = gaInput[site.id] !== undefined ? gaInput[site.id] : (site.ga_measurement_id ?? '')
             const hasChanged = gaInput[site.id] !== undefined && gaInput[site.id] !== (site.ga_measurement_id ?? '')
             return (
-              <div key={site.id} className="border border-vc-border">
+              <div key={site.id} className="border border-white/[0.06]">
                 {/* Header */}
                 <div className="p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 bg-vc-secondary border border-vc-border flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Globe size={15} className="text-vc-muted" />
+                  <div className="w-8 h-8 bg-bg-tertiary border border-white/[0.06] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Globe size={15} className="text-text-secondary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-vc-text">{site.name}</p>
+                    <p className="text-sm font-medium text-text-primary">{site.name}</p>
                     <a
                       href={site.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-gold hover:underline mt-0.5"
+                      className="flex items-center gap-1 text-xs text-vc-accent hover:underline mt-0.5"
                     >
                       {site.url}
                       <ExternalLink size={10} />
                     </a>
-                    {site.notes && <p className="text-xs text-vc-muted mt-1">{site.notes}</p>}
+                    {site.notes && <p className="text-xs text-text-secondary mt-1">{site.notes}</p>}
                   </div>
                 </div>
 
                 {/* GA4 ID row */}
-                <div className="border-t border-vc-border p-4 space-y-3">
+                <div className="border-t border-white/[0.06] p-4 space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-vc-muted mb-1.5">Google Analytics 4 (GA4) Measurement ID</label>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">Google Analytics 4 (GA4) Measurement ID</label>
                     <div className="flex gap-2">
                       <input
-                        className="flex-1 border border-vc-border px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-vc-text font-mono"
+                        className="flex-1 border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-vc-primary font-mono"
                         placeholder="G-XXXXXXXXXX"
                         value={gaId}
                         onChange={(e) => setGaInput((prev) => ({ ...prev, [site.id]: e.target.value }))}
@@ -127,7 +127,7 @@ export default function ClientWebAnalytics() {
                       )}
                     </div>
                     {site.ga_measurement_id && (
-                      <p className="text-xs text-vc-muted mt-1.5">
+                      <p className="text-xs text-text-secondary mt-1.5">
                         Your GA4 ID is connected. Paste the tracking snippet below into your website's{' '}
                         <code className="font-mono">&lt;head&gt;</code> tag if not already installed.
                       </p>
@@ -137,8 +137,8 @@ export default function ClientWebAnalytics() {
                   {/* Meta Pixel */}
                   {site.meta_pixel_id && (
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-vc-muted">Meta Pixel:</span>
-                      <span className="font-mono text-vc-text">{site.meta_pixel_id}</span>
+                      <span className="text-text-secondary">Meta Pixel:</span>
+                      <span className="font-mono text-text-primary">{site.meta_pixel_id}</span>
                     </div>
                   )}
 
@@ -148,7 +148,7 @@ export default function ClientWebAnalytics() {
                       <>
                         <button
                           onClick={() => setOpenSnippet(openSnippet === site.id ? null : site.id)}
-                          className="text-xs border border-vc-border px-3 py-1.5 text-vc-muted hover:text-vc-text transition-colors"
+                          className="text-xs border border-white/[0.06] px-3 py-1.5 text-text-secondary hover:text-text-primary transition-colors"
                         >
                           {openSnippet === site.id ? 'Hide snippet' : 'View tracking snippet'}
                         </button>
@@ -156,7 +156,7 @@ export default function ClientWebAnalytics() {
                           href={`https://analytics.google.com/analytics/web/`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs border border-vc-border px-3 py-1.5 text-vc-muted hover:text-vc-text transition-colors"
+                          className="flex items-center gap-1 text-xs border border-white/[0.06] px-3 py-1.5 text-text-secondary hover:text-text-primary transition-colors"
                         >
                           Open Google Analytics
                           <ExternalLink size={10} />
@@ -169,16 +169,16 @@ export default function ClientWebAnalytics() {
                   {openSnippet === site.id && site.ga_measurement_id && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-vc-text">Paste this into your website's &lt;head&gt;</p>
+                        <p className="text-xs font-medium text-text-primary">Paste this into your website's &lt;head&gt;</p>
                         <button
                           onClick={() => copySnippet(site)}
-                          className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+                          className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
                         >
-                          {copiedId === site.id ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                          {copiedId === site.id ? <Check size={12} className="text-status-success" /> : <Copy size={12} />}
                           {copiedId === site.id ? 'Copied!' : 'Copy'}
                         </button>
                       </div>
-                      <pre className="text-xs font-mono bg-vc-secondary border border-vc-border p-3 overflow-x-auto text-vc-muted leading-relaxed whitespace-pre-wrap">{`<!-- Google Analytics -->
+                      <pre className="text-xs font-mono bg-bg-tertiary border border-white/[0.06] p-3 overflow-x-auto text-text-secondary leading-relaxed whitespace-pre-wrap">{`<!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=${site.ga_measurement_id}"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -192,8 +192,8 @@ export default function ClientWebAnalytics() {
 
                 {/* Stats CTA */}
                 {site.ga_measurement_id && (
-                  <div className="border-t border-vc-border px-4 py-3 bg-vc-secondary flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-vc-muted">
+                  <div className="border-t border-white/[0.06] px-4 py-3 bg-bg-tertiary flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-text-secondary">
                       <BarChart2 size={13} />
                       <span>View live stats in your Google Analytics dashboard</span>
                     </div>
@@ -201,7 +201,7 @@ export default function ClientWebAnalytics() {
                       href="https://analytics.google.com/analytics/web/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-gold hover:underline flex items-center gap-1"
+                      className="text-xs text-vc-accent hover:underline flex items-center gap-1"
                     >
                       Open dashboard <ExternalLink size={10} />
                     </a>

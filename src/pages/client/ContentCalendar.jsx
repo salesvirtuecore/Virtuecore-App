@@ -100,37 +100,37 @@ export default function ContentCalendar() {
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-vc-text">Content Calendar</h1>
-          <p className="text-sm text-vc-muted mt-0.5">{posts.length} posts scheduled</p>
+          <h1 className="text-h2 font-heading text-text-primary">Content Calendar</h1>
+          <p className="text-sm text-text-secondary mt-0.5">{posts.length} posts scheduled</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setCurrent(subMonths(current, 1))} className="p-1.5 border border-vc-border hover:bg-vc-secondary transition-colors">
+          <button onClick={() => setCurrent(subMonths(current, 1))} className="p-1.5 border border-white/[0.06] hover:bg-bg-tertiary transition-colors">
             <ChevronLeft size={14} />
           </button>
-          <span className="text-sm font-medium text-vc-text px-2">{format(current, 'MMMM yyyy')}</span>
-          <button onClick={() => setCurrent(addMonths(current, 1))} className="p-1.5 border border-vc-border hover:bg-vc-secondary transition-colors">
+          <span className="text-sm font-medium text-text-primary px-2">{format(current, 'MMMM yyyy')}</span>
+          <button onClick={() => setCurrent(addMonths(current, 1))} className="p-1.5 border border-white/[0.06] hover:bg-bg-tertiary transition-colors">
             <ChevronRight size={14} />
           </button>
         </div>
       </div>
 
       {contentPlans.length > 0 && (
-        <div className="border border-vc-border p-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-vc-muted">Content Plans</p>
+        <div className="vc-card space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Content Plans</p>
           {contentPlans.map((plan) => (
-            <div key={plan.id} className="flex items-center justify-between gap-3 py-2 border-t border-vc-border first:border-0">
+            <div key={plan.id} className="flex items-center justify-between gap-3 py-2 border-t border-white/[0.06] first:border-0">
               <div className="flex items-center gap-2 min-w-0">
-                <FileText size={14} className="text-vc-muted flex-shrink-0" />
-                <span className="text-sm text-vc-text truncate">{plan.title}</span>
-                <span className="text-xs text-vc-muted flex-shrink-0">{new Date(plan.created_at).toLocaleDateString('en-GB')}</span>
+                <FileText size={14} className="text-text-secondary flex-shrink-0" />
+                <span className="text-sm text-text-primary truncate">{plan.title}</span>
+                <span className="text-xs text-text-secondary flex-shrink-0">{new Date(plan.created_at).toLocaleDateString('en-GB')}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {plan.file_url && (
                   <>
-                    <button onClick={() => setPreviewPlan(plan)} className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text border border-vc-border px-2 py-1 transition-colors">
+                    <button onClick={() => setPreviewPlan(plan)} className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary border border-white/[0.06] px-2 py-1 transition-colors">
                       <Eye size={12} /> Preview
                     </button>
-                    <a href={plan.file_url} target="_blank" rel="noreferrer" download className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text border border-vc-border px-2 py-1 transition-colors">
+                    <a href={plan.file_url} target="_blank" rel="noreferrer" download className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary border border-white/[0.06] px-2 py-1 transition-colors">
                       <Download size={12} /> Download
                     </a>
                   </>
@@ -141,12 +141,12 @@ export default function ContentCalendar() {
         </div>
       )}
 
-      <div className="border border-vc-border overflow-x-auto">
+      <div className="border border-white/[0.06] overflow-x-auto">
         <div className="min-w-[420px]">
         {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-vc-border">
+        <div className="grid grid-cols-7 border-b border-white/[0.06]">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-            <div key={day} className="px-3 py-2 text-xs font-medium text-vc-muted text-center border-r border-vc-border last:border-0">
+            <div key={day} className="px-3 py-2 text-xs font-medium text-text-secondary text-center border-r border-white/[0.06] last:border-0">
               {day}
             </div>
           ))}
@@ -165,15 +165,15 @@ export default function ContentCalendar() {
               <div
                 key={idx}
                 onClick={() => setSelected(posts.length > 0 ? day : null)}
-                className={`min-h-20 p-2 border-b border-r border-vc-border last-of-type:border-r-0 transition-colors ${
-                  isCurrentMonth ? 'bg-white' : 'bg-vc-secondary'
-                } ${posts.length > 0 ? 'cursor-pointer hover:bg-vc-secondary' : ''} ${
+                className={`min-h-20 p-2 border-b border-r border-white/[0.06] last-of-type:border-r-0 transition-colors ${
+                  isCurrentMonth ? 'bg-bg-elevated' : 'bg-bg-secondary'
+                } ${posts.length > 0 ? 'cursor-pointer hover:bg-bg-tertiary' : ''} ${
                   isSelected ? 'ring-1 ring-inset ring-gold' : ''
                 }`}
               >
                 <div className={`text-xs mb-1.5 font-medium w-5 h-5 flex items-center justify-center ${
                   isToday ? 'bg-vc-text text-white rounded-full' :
-                  isCurrentMonth ? 'text-vc-text' : 'text-vc-muted/50'
+                  isCurrentMonth ? 'text-text-primary' : 'text-text-secondary/50'
                 }`}>
                   {format(day, 'd')}
                 </div>
@@ -188,7 +188,7 @@ export default function ContentCalendar() {
                     </div>
                   ))}
                   {posts.length > 2 && (
-                    <p className="text-xs text-vc-muted pl-1">+{posts.length - 2} more</p>
+                    <p className="text-xs text-text-secondary pl-1">+{posts.length - 2} more</p>
                   )}
                 </div>
               </div>
@@ -200,15 +200,15 @@ export default function ContentCalendar() {
 
       {/* Post detail */}
       {selected && selectedPosts.length > 0 && (
-        <div className="border border-vc-border p-5 space-y-3">
-          <h2 className="text-sm font-medium text-vc-text">{format(selected, 'EEEE, d MMMM yyyy')}</h2>
+        <div className="vc-card space-y-3">
+          <h2 className="text-sm font-medium text-text-primary">{format(selected, 'EEEE, d MMMM yyyy')}</h2>
           {selectedPosts.map((post) => {
             const currentStatus = posts.find((p) => p.id === post.id)?.status ?? post.status
             const isApproved = approvedIds.has(post.id) || currentStatus === 'published'
             const feedbackSent = submittedFeedback.has(post.id)
 
             return (
-              <div key={post.id} className="py-3 border-t border-vc-border first:border-0">
+              <div key={post.id} className="py-3 border-t border-white/[0.06] first:border-0">
                 <div className="flex items-start gap-3">
                   <div
                     className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
@@ -216,24 +216,24 @@ export default function ContentCalendar() {
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-vc-text">{post.platform}</span>
+                      <span className="text-xs font-medium text-text-primary">{post.platform}</span>
                       <Badge variant={STATUS_BADGE[currentStatus]} size="xs">{currentStatus}</Badge>
                     </div>
-                    <p className="text-sm text-vc-text mb-3">{post.content}</p>
+                    <p className="text-sm text-text-primary mb-3">{post.content}</p>
 
                     {/* Approval actions — only when status is 'scheduled' */}
                     {currentStatus === 'scheduled' && !isApproved && !feedbackSent && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleApprove(post.id)}
-                          className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 text-white text-xs px-3 py-1.5 transition-colors"
+                          className="flex items-center gap-1.5 bg-vc-primary hover:bg-amber-600 text-white text-xs px-3 py-1.5 transition-colors"
                         >
                           <Check size={12} />
                           Approve
                         </button>
                         <button
                           onClick={() => setFeedbackOpen((p) => ({ ...p, [post.id]: !p[post.id] }))}
-                          className="flex items-center gap-1.5 border border-vc-border text-vc-muted hover:text-vc-text text-xs px-3 py-1.5 transition-colors hover:bg-vc-secondary"
+                          className="flex items-center gap-1.5 border border-white/[0.06] text-text-secondary hover:text-text-primary text-xs px-3 py-1.5 transition-colors hover:bg-bg-tertiary"
                         >
                           <MessageSquare size={12} />
                           Request changes
@@ -243,12 +243,12 @@ export default function ContentCalendar() {
 
                     {/* Success states */}
                     {isApproved && (
-                      <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                      <p className="text-xs text-status-success font-medium flex items-center gap-1">
                         <Check size={12} /> Approved — marked as published
                       </p>
                     )}
                     {feedbackSent && (
-                      <p className="text-xs text-vc-muted">Changes requested — team notified.</p>
+                      <p className="text-xs text-text-secondary">Changes requested — team notified.</p>
                     )}
 
                     {/* Feedback input */}
@@ -259,7 +259,7 @@ export default function ContentCalendar() {
                           onChange={(e) => setFeedbackText((p) => ({ ...p, [post.id]: e.target.value }))}
                           placeholder="Describe the changes you'd like…"
                           rows={3}
-                          className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-vc-text resize-none"
+                          className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary resize-none"
                         />
                         <button
                           onClick={() => handleSubmitFeedback(post)}
@@ -280,8 +280,8 @@ export default function ContentCalendar() {
       <Modal isOpen={Boolean(previewPlan)} onClose={() => setPreviewPlan(null)} title={previewPlan?.title || 'Content Plan'} size="lg">
         {previewPlan?.file_url && (
           previewPlan.file_url.toLowerCase().includes('.pdf')
-            ? <iframe src={previewPlan.file_url} title="Content plan" className="w-full h-[70vh] border border-vc-border" />
-            : <img src={previewPlan.file_url} alt={previewPlan.title} className="max-h-[70vh] w-full object-contain border border-vc-border" />
+            ? <iframe src={previewPlan.file_url} title="Content plan" className="w-full h-[70vh] border border-white/[0.06]" />
+            : <img src={previewPlan.file_url} alt={previewPlan.title} className="max-h-[70vh] w-full object-contain border border-white/[0.06]" />
         )}
       </Modal>
     </div>

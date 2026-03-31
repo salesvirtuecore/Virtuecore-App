@@ -54,7 +54,7 @@ function RoleGate({ allowedRole, children }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-white/[0.08] border-t-vc-primary rounded-full animate-spin" />
       </div>
     )
   }
@@ -76,7 +76,7 @@ function PublicRoute({ children }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-white/[0.08] border-t-vc-primary rounded-full animate-spin" />
       </div>
     )
   }
@@ -160,7 +160,7 @@ function RootRedirect() {
   const { profile, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin" />
+      <div className="w-5 h-5 border-2 border-white/[0.08] border-t-vc-primary rounded-full animate-spin" />
     </div>
   )
   if (!profile) return <Navigate to="/login" replace />

@@ -39,7 +39,6 @@ export default function AcceptInvite() {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
 
-      // Get profile to redirect to correct portal
       const { data: { user } } = await supabase.auth.getUser()
       const { data: profile } = await supabase
         .from('profiles')
@@ -58,54 +57,54 @@ export default function AcceptInvite() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-vc-secondary">
+      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
         <div className="text-center">
-          <div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-vc-muted">Setting up your account...</p>
+          <div className="w-5 h-5 border-2 border-white/[0.08] border-t-vc-primary rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-secondary">Setting up your account...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-vc-secondary">
-      <div className="bg-white border border-vc-border rounded-md p-8 w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-bg-primary p-4">
+      <div className="bg-bg-elevated border border-white/[0.08] rounded-card p-8 w-full max-w-sm">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-vc-text">Welcome to VirtueCore</h1>
-          <p className="text-sm text-vc-muted mt-1">Set a password to access your portal</p>
+          <h1 className="text-xl font-semibold text-text-primary font-heading">Welcome to VirtueCore</h1>
+          <p className="text-sm text-text-secondary mt-1">Set a password to access your portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-vc-muted mb-1">New password</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">New password</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold"
+              className="bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary"
               placeholder="At least 8 characters"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-vc-muted mb-1">Confirm password</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Confirm password</label>
             <input
               type="password"
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
-              className="border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold"
+              className="bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary"
               placeholder="Repeat your password"
               required
             />
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-status-danger">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded w-full disabled:opacity-50"
+            className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn w-full disabled:opacity-50 font-medium transition-colors"
           >
             {loading ? 'Setting password...' : 'Set password & continue'}
           </button>

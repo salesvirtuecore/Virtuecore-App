@@ -268,12 +268,12 @@ export default function Academy() {
         <div>
           <button
             onClick={() => setView(VIEW.DETAIL)}
-            className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-3 transition-colors"
+            className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-3 transition-colors"
           >
             <ChevronLeft size={14} /> Back to module
           </button>
-          <h1 className="text-xl font-semibold text-vc-text">{selectedModule.title}</h1>
-          <p className="text-sm text-vc-muted mt-0.5">
+          <h1 className="text-h2 font-heading text-text-primary">{selectedModule.title}</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             Question {quizState.currentQ + 1} of {questions.length}
           </p>
         </div>
@@ -281,25 +281,25 @@ export default function Academy() {
         {/* Progress bar */}
         <div className="h-1.5 bg-vc-border">
           <div
-            className="h-full bg-gold transition-all duration-300"
+            className="h-full bg-vc-primary transition-all duration-300"
             style={{ width: `${((quizState.currentQ + 1) / questions.length) * 100}%` }}
           />
         </div>
 
         {/* Question */}
-        <div className="border border-vc-border p-6">
-          <p className="text-base font-medium text-vc-text mb-5">{q.question}</p>
+        <div className="border border-white/[0.06] p-6">
+          <p className="text-base font-medium text-text-primary mb-5">{q.question}</p>
 
           <div className="space-y-2">
             {q.options.map((opt) => {
-              let style = 'border border-vc-border text-vc-text hover:bg-vc-secondary'
+              let style = 'border border-white/[0.06] text-text-primary hover:bg-bg-tertiary'
               if (answered) {
                 if (opt.id === q.correct_option_id) {
-                  style = 'border border-green-400 bg-green-50 text-green-800'
+                  style = 'border border-green-400 bg-status-success/10 text-green-800'
                 } else if (opt.id === answered && answered !== q.correct_option_id) {
-                  style = 'border border-red-400 bg-red-50 text-red-800'
+                  style = 'border border-red-400 bg-status-danger/10 text-red-800'
                 } else {
-                  style = 'border border-vc-border text-vc-muted'
+                  style = 'border border-white/[0.06] text-text-secondary'
                 }
               }
 
@@ -321,7 +321,7 @@ export default function Academy() {
 
           {/* Explanation */}
           {answered && q.explanation && (
-            <div className={`mt-4 p-3 text-sm border ${isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+            <div className={`mt-4 p-3 text-sm border ${isCorrect ? 'bg-status-success/10 border-status-success/20 text-green-800' : 'bg-status-danger/10 border-status-danger/20 text-red-800'}`}>
               <span className="font-medium">{isCorrect ? 'Correct. ' : 'Incorrect. '}</span>
               {q.explanation}
             </div>
@@ -333,7 +333,7 @@ export default function Academy() {
           <div className="flex justify-end">
             <button
               onClick={nextQuestion}
-              className="flex items-center gap-2 bg-gold hover:bg-amber-600 text-white text-sm px-5 py-2.5 transition-colors"
+              className="flex items-center gap-2 bg-vc-primary hover:bg-amber-600 text-white text-sm px-5 py-2.5 transition-colors"
             >
               {quizState.currentQ < questions.length - 1 ? 'Next question' : 'See results'}
               <ChevronRight size={14} />
@@ -351,22 +351,22 @@ export default function Academy() {
       <div className="p-6 max-w-lg space-y-6">
         <button
           onClick={() => setView(VIEW.LIST)}
-          className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text transition-colors"
+          className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ChevronLeft size={14} /> Back to modules
         </button>
 
-        <div className="border border-vc-border p-8 text-center space-y-4">
-          <div className={`w-14 h-14 mx-auto flex items-center justify-center ${passed ? 'bg-green-100' : 'bg-red-50'}`}>
-            <Trophy size={26} className={passed ? 'text-green-600' : 'text-red-500'} />
+        <div className="border border-white/[0.06] p-8 text-center space-y-4">
+          <div className={`w-14 h-14 mx-auto flex items-center justify-center ${passed ? 'bg-status-success/10' : 'bg-status-danger/10'}`}>
+            <Trophy size={26} className={passed ? 'text-status-success' : 'text-status-danger'} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-vc-text">{score}%</h2>
-            <p className="text-sm text-vc-muted mt-0.5">
+            <h2 className="text-2xl font-bold text-text-primary">{score}%</h2>
+            <p className="text-sm text-text-secondary mt-0.5">
               {correct} out of {total} correct
             </p>
           </div>
-          <div className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 ${passed ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-700'}`}>
+          <div className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 ${passed ? 'bg-status-success/10 text-green-800' : 'bg-status-danger/10 text-red-700'}`}>
             {passed ? (
               <>
                 <CheckCircle size={14} />
@@ -379,7 +379,7 @@ export default function Academy() {
               </>
             )}
           </div>
-          <p className="text-sm text-vc-muted">
+          <p className="text-sm text-text-secondary">
             {passed
               ? 'Well done! This module is now marked as complete in your progress.'
               : "Don't worry — review the material and try again."}
@@ -389,14 +389,14 @@ export default function Academy() {
         <div className="flex items-center gap-3">
           <button
             onClick={retakeQuiz}
-            className="flex items-center gap-2 border border-vc-border text-vc-text text-sm px-4 py-2 hover:bg-vc-secondary transition-colors"
+            className="flex items-center gap-2 border border-white/[0.06] text-text-primary text-sm px-4 py-2 hover:bg-bg-tertiary transition-colors"
           >
             <RotateCcw size={14} />
             Retake quiz
           </button>
           <button
             onClick={() => setView(VIEW.LIST)}
-            className="flex items-center gap-2 bg-gold hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
+            className="flex items-center gap-2 bg-vc-primary hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
           >
             Back to modules
           </button>
@@ -414,20 +414,20 @@ export default function Academy() {
         <div>
           <button
             onClick={() => setView(VIEW.LIST)}
-            className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-3 transition-colors"
+            className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-3 transition-colors"
           >
             <ChevronLeft size={14} /> Back to modules
           </button>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-xl font-semibold text-vc-text">{selectedModule.title}</h1>
+              <h1 className="text-h2 font-heading text-text-primary">{selectedModule.title}</h1>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-vc-muted flex items-center gap-1">
+                <span className="text-xs text-text-secondary flex items-center gap-1">
                   <Clock size={12} />
                   {selectedModule.estimated_minutes} min
                 </span>
                 {completion?.completed && (
-                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                  <span className="flex items-center gap-1 text-xs text-status-success font-medium">
                     <CheckCircle size={12} />
                     Completed — {completion.score}%
                   </span>
@@ -438,26 +438,26 @@ export default function Academy() {
         </div>
 
         {/* Video placeholder */}
-        <div className="border border-vc-border bg-vc-secondary flex items-center justify-center h-44">
+        <div className="border border-white/[0.06] bg-bg-tertiary flex items-center justify-center h-44">
           {selectedModule.video_url ? (
             <video src={selectedModule.video_url} controls className="w-full h-full" />
           ) : (
             <div className="text-center">
               <div className="w-12 h-12 bg-vc-border flex items-center justify-center mx-auto mb-2">
-                <Play size={20} className="text-vc-muted ml-0.5" />
+                <Play size={20} className="text-text-secondary ml-0.5" />
               </div>
-              <p className="text-sm text-vc-muted">Video coming soon</p>
+              <p className="text-sm text-text-secondary">Video coming soon</p>
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="border border-vc-border p-5">
-          <h2 className="text-sm font-medium text-vc-text mb-3">Module Overview</h2>
-          <p className="text-sm text-vc-muted mb-4">{selectedModule.description}</p>
+        <div className="vc-card">
+          <h2 className="text-sm font-medium text-text-primary mb-3">Module Overview</h2>
+          <p className="text-sm text-text-secondary mb-4">{selectedModule.description}</p>
           {selectedModule.content_html && (
             <div
-              className="text-sm text-vc-text prose-sm space-y-2 [&_h3]:font-semibold [&_h3]:text-vc-text [&_h3]:mt-4 [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_li]:text-vc-muted [&_p]:text-vc-muted [&_strong]:text-vc-text"
+              className="text-sm text-text-primary prose-sm space-y-2 [&_h3]:font-semibold [&_h3]:text-text-primary [&_h3]:mt-4 [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_li]:text-text-secondary [&_p]:text-text-secondary [&_strong]:text-text-primary"
               dangerouslySetInnerHTML={{ __html: selectedModule.content_html }}
             />
           )}
@@ -465,16 +465,16 @@ export default function Academy() {
 
         {/* Quiz CTA */}
         {hasQuiz ? (
-          <div className="border border-vc-border p-5 flex items-center justify-between">
+          <div className="vc-card flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-vc-text">Module Quiz</p>
-              <p className="text-xs text-vc-muted mt-0.5">
+              <p className="text-sm font-medium text-text-primary">Module Quiz</p>
+              <p className="text-xs text-text-secondary mt-0.5">
                 {selectedModule.quiz_questions.length} questions · Pass mark: 70%
               </p>
             </div>
             <button
               onClick={startQuiz}
-              className="flex items-center gap-2 bg-gold hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
+              className="flex items-center gap-2 bg-vc-primary hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
             >
               {completion?.completed ? (
                 <>
@@ -490,8 +490,8 @@ export default function Academy() {
             </button>
           </div>
         ) : (
-          <div className="border border-vc-border p-5 bg-vc-secondary">
-            <p className="text-sm text-vc-muted">No quiz for this module — mark as complete when you have reviewed the content.</p>
+          <div className="vc-card bg-bg-tertiary">
+            <p className="text-sm text-text-secondary">No quiz for this module — mark as complete when you have reviewed the content.</p>
           </div>
         )}
       </div>
@@ -502,20 +502,20 @@ export default function Academy() {
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">VirtueCore Academy</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Your training hub — complete all modules to qualify for advanced client assignments</p>
+        <h1 className="text-h2 font-heading text-text-primary">VirtueCore Academy</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Your training hub — complete all modules to qualify for advanced client assignments</p>
       </div>
 
       {/* Overall progress */}
-      <div className="border border-vc-border p-5">
+      <div className="vc-card">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-vc-text">Overall progress</span>
-          <span className="text-sm font-semibold text-vc-text">{completedCount}/{totalModules} modules complete</span>
+          <span className="text-sm font-medium text-text-primary">Overall progress</span>
+          <span className="text-sm font-semibold text-text-primary">{completedCount}/{totalModules} modules complete</span>
         </div>
         <div className="h-2 bg-vc-border">
-          <div className="h-full bg-gold transition-all duration-500" style={{ width: `${overallPct}%` }} />
+          <div className="h-full bg-vc-primary transition-all duration-500" style={{ width: `${overallPct}%` }} />
         </div>
-        <p className="text-xs text-vc-muted mt-1">{overallPct}% complete</p>
+        <p className="text-xs text-text-secondary mt-1">{overallPct}% complete</p>
       </div>
 
       {/* Module list */}
@@ -529,13 +529,13 @@ export default function Academy() {
             <button
               key={mod.id}
               onClick={() => openModule(mod)}
-              className="w-full border border-vc-border p-4 text-left hover:bg-vc-secondary transition-colors"
+              className="w-full vc-card text-left hover:bg-bg-tertiary transition-colors"
             >
               <div className="flex items-start gap-3">
                 {/* Status icon */}
                 <div className="mt-0.5 flex-shrink-0">
                   {isComplete ? (
-                    <CheckCircle size={18} className="text-green-500" />
+                    <CheckCircle size={18} className="text-status-success" />
                   ) : (
                     <Circle size={18} className="text-vc-border" />
                   )}
@@ -544,11 +544,11 @@ export default function Academy() {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className={`text-sm font-medium ${isComplete ? 'text-vc-muted' : 'text-vc-text'}`}>
+                    <p className={`text-sm font-medium ${isComplete ? 'text-text-secondary' : 'text-text-primary'}`}>
                       {mod.title}
                     </p>
                     {isComplete && score !== undefined && (
-                      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 font-medium">
+                      <span className="text-xs bg-status-success/10 text-status-success px-1.5 py-0.5 font-medium">
                         {score}%
                       </span>
                     )}
@@ -556,7 +556,7 @@ export default function Academy() {
                       <Badge variant="default" size="xs">Quiz</Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-vc-muted">
+                  <div className="flex items-center gap-3 text-xs text-text-secondary">
                     <span className="flex items-center gap-1">
                       <Clock size={11} />
                       {mod.estimated_minutes} min
@@ -567,7 +567,7 @@ export default function Academy() {
                   </div>
                 </div>
 
-                <ChevronRight size={16} className="text-vc-muted flex-shrink-0 mt-0.5" />
+                <ChevronRight size={16} className="text-text-secondary flex-shrink-0 mt-0.5" />
               </div>
             </button>
           )

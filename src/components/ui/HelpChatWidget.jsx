@@ -112,10 +112,10 @@ export default function HelpChatWidget() {
       )}
 
       {open && (
-        <div className="w-[340px] max-w-[calc(100vw-2rem)] h-[460px] bg-white border border-vc-border shadow-2xl rounded-lg flex flex-col overflow-hidden">
+        <div className="w-[340px] max-w-[calc(100vw-2rem)] h-[460px] bg-bg-elevated border border-white/[0.08] shadow-2xl rounded-lg flex flex-col overflow-hidden">
           <div className="bg-vc-sidebar text-white px-3 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bot size={15} className="text-gold" />
+              <Bot size={15} className="text-vc-accent" />
               <div>
                 <p className="text-sm font-medium">VirtueCore Assistant</p>
                 <p className="text-[11px] text-white/60">Online</p>
@@ -130,25 +130,25 @@ export default function HelpChatWidget() {
             </button>
           </div>
 
-          <div className="p-3 border-b border-vc-border flex flex-wrap gap-1.5 bg-vc-secondary">
+          <div className="p-3 border-b border-white/[0.06] flex flex-wrap gap-1.5 bg-bg-tertiary">
             {quickPrompts.map((prompt) => (
               <button
                 key={prompt}
                 onClick={() => pushUserAndReply(prompt)}
-                className="text-[11px] px-2 py-1 border border-vc-border rounded bg-white text-vc-muted hover:text-vc-text hover:border-vc-text transition-colors"
+                className="text-[11px] px-2 py-1 border border-white/[0.06] rounded bg-bg-elevated text-text-secondary hover:text-text-primary hover:border-white/[0.16] transition-colors"
               >
                 {prompt}
               </button>
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-white">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-bg-elevated">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`max-w-[88%] text-sm px-3 py-2 rounded-lg ${
                   message.role === 'assistant'
-                    ? 'bg-vc-secondary text-vc-text'
+                    ? 'bg-bg-tertiary text-text-primary'
                     : 'ml-auto bg-vc-text text-white'
                 }`}
               >
@@ -156,7 +156,7 @@ export default function HelpChatWidget() {
               </div>
             ))}
             {sending && (
-              <div className="max-w-[88%] text-sm px-3 py-2 rounded-lg bg-vc-secondary text-vc-muted">
+              <div className="max-w-[88%] text-sm px-3 py-2 rounded-lg bg-bg-tertiary text-text-secondary">
                 Typing...
               </div>
             )}
@@ -167,18 +167,18 @@ export default function HelpChatWidget() {
               e.preventDefault()
               pushUserAndReply(input)
             }}
-            className="p-2 border-t border-vc-border flex items-center gap-2"
+            className="p-2 border-t border-white/[0.06] flex items-center gap-2"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask for help..."
-              className="flex-1 border border-vc-border rounded px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-gold"
+              className="flex-1 border border-white/[0.06] rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-vc-primary"
             />
             <button
               type="submit"
               disabled={!input.trim() || sending}
-              className="h-9 w-9 rounded bg-gold text-white flex items-center justify-center disabled:opacity-50"
+              className="h-9 w-9 rounded bg-vc-primary text-white flex items-center justify-center disabled:opacity-50"
               aria-label="Send message"
             >
               <Send size={14} />

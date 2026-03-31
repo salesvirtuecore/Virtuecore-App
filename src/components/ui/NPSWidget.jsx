@@ -9,14 +9,14 @@ function getMonthKey(userId) {
 }
 
 const SCORE_COLOR = (s) => {
-  if (s <= 6) return 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
-  if (s <= 8) return 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200'
-  return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'
+  if (s <= 6) return 'bg-status-danger/10 text-red-700 border-status-danger/20 hover:bg-red-200'
+  if (s <= 8) return 'bg-status-warning/10 text-status-warning border-status-warning/20 hover:bg-amber-200'
+  return 'bg-status-success/10 text-status-success border-status-success/20 hover:bg-green-200'
 }
 const SCORE_COLOR_ACTIVE = (s) => {
-  if (s <= 6) return 'bg-red-500 text-white border-red-500'
-  if (s <= 8) return 'bg-amber-400 text-white border-amber-400'
-  return 'bg-green-500 text-white border-green-500'
+  if (s <= 6) return 'bg-status-danger/100 text-white border-red-500'
+  if (s <= 8) return 'bg-status-warning text-white border-amber-400'
+  return 'bg-status-success/100 text-white border-green-500'
 }
 
 export default function NPSWidget() {
@@ -73,12 +73,12 @@ export default function NPSWidget() {
 
   return (
     <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-[60] w-[calc(100vw-2rem)] max-w-sm">
-      <div className="bg-white border border-vc-border shadow-xl p-5 animate-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-bg-elevated border border-white/[0.08] shadow-xl p-5 animate-in slide-in-from-bottom-4 duration-300">
         {submitted ? (
           <div className="text-center py-2">
             <p className="text-2xl mb-2">🎉</p>
-            <p className="text-sm font-semibold text-vc-text">Thanks for your feedback!</p>
-            <p className="text-xs text-vc-muted mt-1">
+            <p className="text-sm font-semibold text-text-primary">Thanks for your feedback!</p>
+            <p className="text-xs text-text-secondary mt-1">
               {score >= 9 ? "We're thrilled you're happy — we'll keep pushing." : score >= 7 ? "Noted — we'll keep working to improve." : "Thank you for being honest. We'll reach out soon."}
             </p>
           </div>
@@ -86,17 +86,17 @@ export default function NPSWidget() {
           <>
             <div className="flex items-start justify-between gap-2 mb-4">
               <div>
-                <p className="text-sm font-semibold text-vc-text">How are we doing?</p>
-                <p className="text-xs text-vc-muted mt-0.5">Monthly pulse check — takes 20 seconds</p>
+                <p className="text-sm font-semibold text-text-primary">How are we doing?</p>
+                <p className="text-xs text-text-secondary mt-0.5">Monthly pulse check — takes 20 seconds</p>
               </div>
-              <button onClick={dismiss} className="text-vc-muted hover:text-vc-text transition-colors flex-shrink-0 mt-0.5">
+              <button onClick={dismiss} className="text-text-secondary hover:text-text-primary transition-colors flex-shrink-0 mt-0.5">
                 <X size={14} />
               </button>
             </div>
 
             {/* Score buttons */}
             <div className="mb-1">
-              <p className="text-xs text-vc-muted mb-2">How likely are you to recommend VirtueCore? (1–10)</p>
+              <p className="text-xs text-text-secondary mb-2">How likely are you to recommend VirtueCore? (1–10)</p>
               <div className="grid grid-cols-10 gap-1">
                 {[1,2,3,4,5,6,7,8,9,10].map((s) => (
                   <button
@@ -110,7 +110,7 @@ export default function NPSWidget() {
                   </button>
                 ))}
               </div>
-              <div className="flex justify-between text-[10px] text-vc-muted mt-1">
+              <div className="flex justify-between text-[10px] text-text-secondary mt-1">
                 <span>Not likely</span>
                 <span>Very likely</span>
               </div>
@@ -124,7 +124,7 @@ export default function NPSWidget() {
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Optional: what could we do better? (or what's working well)"
                   rows={2}
-                  className="w-full border border-vc-border px-3 py-2 text-xs focus:outline-none focus:border-vc-text resize-none"
+                  className="w-full border border-white/[0.06] px-3 py-2 text-xs focus:outline-none focus:border-vc-primary resize-none"
                 />
               </div>
             )}
@@ -133,13 +133,13 @@ export default function NPSWidget() {
               <button
                 onClick={handleSubmit}
                 disabled={!score || submitting}
-                className="flex-1 bg-gold hover:bg-amber-600 text-white text-xs py-2 font-medium disabled:opacity-40 transition-colors"
+                className="flex-1 bg-vc-primary hover:bg-amber-600 text-white text-xs py-2 font-medium disabled:opacity-40 transition-colors"
               >
                 {submitting ? 'Sending…' : 'Submit feedback'}
               </button>
               <button
                 onClick={dismiss}
-                className="text-xs text-vc-muted hover:text-vc-text border border-vc-border px-3 py-2 transition-colors"
+                className="text-xs text-text-secondary hover:text-text-primary border border-white/[0.06] px-3 py-2 transition-colors"
               >
                 Not now
               </button>

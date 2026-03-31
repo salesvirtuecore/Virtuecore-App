@@ -152,19 +152,19 @@ export default function TimeTracker() {
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Time Tracker</h1>
-        <p className="text-sm text-vc-muted mt-0.5">{totalHours}h logged this week</p>
+        <h1 className="text-h2 font-heading text-text-primary">Time Tracker</h1>
+        <p className="text-sm text-text-secondary mt-0.5">{totalHours}h logged this week</p>
       </div>
 
       {/* Timer */}
-      <div className="border border-vc-border p-6">
-        <h2 className="text-sm font-medium text-vc-text mb-4">Clock In</h2>
+      <div className="border border-white/[0.06] p-6">
+        <h2 className="text-sm font-medium text-text-primary mb-4">Clock In</h2>
         <div className="flex items-center gap-3 mb-4">
           <select
             value={activeTask}
             onChange={(e) => setActiveTask(e.target.value)}
             disabled={running}
-            className="flex-1 border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-vc-text bg-white disabled:bg-vc-secondary"
+            className="flex-1 border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary bg-bg-elevated disabled:bg-bg-tertiary"
           >
             <option value="">Select a task...</option>
             {tasks.map((t) => (
@@ -174,7 +174,7 @@ export default function TimeTracker() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="text-3xl font-mono font-semibold text-vc-text tabular-nums">
+          <div className="text-3xl font-mono font-semibold text-text-primary tabular-nums">
             {formatDuration(elapsed)}
           </div>
           {!running ? (
@@ -198,7 +198,7 @@ export default function TimeTracker() {
           )}
         </div>
         {running && elapsed < 60 && (
-          <p className="text-xs text-vc-muted mt-3">
+          <p className="text-xs text-text-secondary mt-3">
             Log at least 1 minute before stopping to save an entry.
           </p>
         )}
@@ -206,50 +206,50 @@ export default function TimeTracker() {
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="border border-vc-border p-4">
-          <p className="text-xs text-vc-muted">This week</p>
-          <p className="text-2xl font-semibold text-vc-text mt-1">{totalHours}h</p>
+        <div className="vc-card">
+          <p className="text-xs text-text-secondary">This week</p>
+          <p className="text-2xl font-semibold text-text-primary mt-1">{totalHours}h</p>
         </div>
-        <div className="border border-vc-border p-4">
-          <p className="text-xs text-vc-muted">Total entries</p>
-          <p className="text-2xl font-semibold text-vc-text mt-1">{entries.length}</p>
+        <div className="vc-card">
+          <p className="text-xs text-text-secondary">Total entries</p>
+          <p className="text-2xl font-semibold text-text-primary mt-1">{entries.length}</p>
         </div>
-        <div className="border border-vc-border p-4">
-          <p className="text-xs text-vc-muted">Avg per session</p>
-          <p className="text-2xl font-semibold text-vc-text mt-1">
+        <div className="vc-card">
+          <p className="text-xs text-text-secondary">Avg per session</p>
+          <p className="text-2xl font-semibold text-text-primary mt-1">
             {entries.length ? Math.round(totalMinutes / entries.length) : 0}m
           </p>
         </div>
       </div>
 
       {/* Log */}
-      <div className="border border-vc-border overflow-x-auto">
-        <div className="px-5 py-3 border-b border-vc-border">
-          <h2 className="text-sm font-medium text-vc-text">Time Log</h2>
+      <div className="border border-white/[0.06] overflow-x-auto">
+        <div className="px-5 py-3 border-b border-white/[0.06]">
+          <h2 className="text-sm font-medium text-text-primary">Time Log</h2>
         </div>
         {entries.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-vc-muted">No entries this week.</p>
+          <p className="px-5 py-4 text-sm text-text-secondary">No entries this week.</p>
         ) : (
           <table className="w-full text-sm min-w-[400px]">
             <thead>
-              <tr className="border-b border-vc-border bg-vc-secondary">
-                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Task</th>
-                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Client</th>
-                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Duration</th>
-                <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Date</th>
+              <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+                <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Task</th>
+                <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Client</th>
+                <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Duration</th>
+                <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Date</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((e, i) => (
-                <tr key={e.id ?? i} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
-                  <td className="px-5 py-3 text-vc-text">{e.task_name}</td>
-                  <td className="px-5 py-3 text-vc-muted">{e.client_name}</td>
-                  <td className="px-5 py-3 text-vc-text">
+                <tr key={e.id ?? i} className="border-b border-white/[0.06] last:border-0 hover:bg-bg-tertiary transition-colors">
+                  <td className="px-5 py-3 text-text-primary">{e.task_name}</td>
+                  <td className="px-5 py-3 text-text-secondary">{e.client_name}</td>
+                  <td className="px-5 py-3 text-text-primary">
                     {e.duration_minutes >= 60
                       ? `${Math.floor(e.duration_minutes / 60)}h ${e.duration_minutes % 60}m`
                       : `${e.duration_minutes}m`}
                   </td>
-                  <td className="px-5 py-3 text-vc-muted">
+                  <td className="px-5 py-3 text-text-secondary">
                     {e.started_at ? new Date(e.started_at).toLocaleDateString('en-GB') : '—'}
                   </td>
                 </tr>

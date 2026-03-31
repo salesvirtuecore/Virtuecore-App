@@ -70,20 +70,20 @@ export default function OnboardingChecklist({ calendlyUrl }) {
   const pct = Math.round((doneCount / STEPS.length) * 100)
 
   return (
-    <div className="border border-gold/40 bg-amber-50 p-4 space-y-3">
+    <div className="border border-vc-primary/40 bg-status-warning/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-vc-text">Get started with VirtueCore</p>
-          <p className="text-xs text-vc-muted mt-0.5">{doneCount} of {STEPS.length} steps complete</p>
+          <p className="text-sm font-semibold text-text-primary">Get started with VirtueCore</p>
+          <p className="text-xs text-text-secondary mt-0.5">{doneCount} of {STEPS.length} steps complete</p>
         </div>
-        <button onClick={dismiss} className="text-vc-muted hover:text-vc-text transition-colors">
+        <button onClick={dismiss} className="text-text-secondary hover:text-text-primary transition-colors">
           <X size={14} />
         </button>
       </div>
 
       {/* Progress bar */}
-      <div className="h-1.5 bg-white border border-vc-border rounded-full overflow-hidden">
-        <div className="h-full bg-gold transition-all duration-500" style={{ width: `${pct}%` }} />
+      <div className="h-1.5 bg-bg-elevated border border-white/[0.08] rounded-full overflow-hidden">
+        <div className="h-full bg-vc-primary transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
 
       <div className="space-y-2">
@@ -91,20 +91,20 @@ export default function OnboardingChecklist({ calendlyUrl }) {
           const done = completed[step.id]
           return (
             <div key={step.id} className="flex items-center gap-3">
-              <div className={`w-4 h-4 flex-shrink-0 flex items-center justify-center border ${done ? 'bg-green-500 border-green-500' : 'border-vc-border bg-white'}`}>
+              <div className={`w-4 h-4 flex-shrink-0 flex items-center justify-center border ${done ? 'bg-status-success/100 border-status-success' : 'border-white/[0.12] bg-bg-tertiary'}`}>
                 {done && <Check size={10} className="text-white" strokeWidth={3} />}
               </div>
-              <span className={`text-xs flex-1 ${done ? 'line-through text-vc-muted' : 'text-vc-text'}`}>
+              <span className={`text-xs flex-1 ${done ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                 {step.label}
-                {!step.required && <span className="ml-1 text-vc-muted">(optional)</span>}
+                {!step.required && <span className="ml-1 text-text-secondary">(optional)</span>}
               </span>
               {!done && step.link && (
-                <Link to={step.link} className="text-xs text-gold hover:underline flex items-center gap-1">
+                <Link to={step.link} className="text-xs text-vc-accent hover:underline flex items-center gap-1">
                   Go <ExternalLink size={10} />
                 </Link>
               )}
               {!done && step.external && calendlyUrl && (
-                <a href={calendlyUrl} target="_blank" rel="noreferrer" className="text-xs text-gold hover:underline flex items-center gap-1">
+                <a href={calendlyUrl} target="_blank" rel="noreferrer" className="text-xs text-vc-accent hover:underline flex items-center gap-1">
                   Book <ExternalLink size={10} />
                 </a>
               )}

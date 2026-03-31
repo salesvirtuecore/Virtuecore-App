@@ -1,30 +1,32 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { CheckSquare, Clock, BookOpen, FolderOpen, MessageCircle, LogOut, Menu, X } from 'lucide-react'
+import { CheckSquare, Clock, BookOpen, FolderOpen, MessageCircle, LogOut, Menu, X, BarChart2, HelpCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
 
 const NAV = [
-  { to: '/va', label: 'Task Board', icon: CheckSquare, end: true },
-  { to: '/va/time', label: 'Time Tracker', icon: Clock },
-  { to: '/va/academy', label: 'VC Academy', icon: BookOpen },
-  { to: '/va/sops', label: 'SOPs & Docs', icon: FolderOpen },
-  { to: '/va/standup', label: 'Daily Standup', icon: MessageCircle },
+  { to: '/va',          label: 'My Tasks',     icon: CheckSquare, end: true },
+  { to: '/va/time',     label: 'Time Tracker', icon: Clock },
+  { to: '/va/academy',  label: 'VC Academy',   icon: BookOpen },
+  { to: '/va/sops',     label: 'SOPs & Docs',  icon: FolderOpen },
+  { to: '/va/standup',  label: 'Daily Standup',icon: MessageCircle },
 ]
 
 function SidebarContent({ profile, onLogout, onNavClick }) {
   return (
-    <>
+    <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-gold flex items-center justify-center">
-            <span className="text-white text-sm font-bold">V</span>
+      <div className="px-5 py-5 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-vc-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-sm font-bold font-heading">V</span>
           </div>
-          <span className="text-white font-semibold text-sm tracking-wide">VirtueCore</span>
+          <div>
+            <span className="text-text-primary font-semibold text-sm tracking-wide font-heading">VirtueCore</span>
+            <p className="text-text-tertiary text-xs mt-0.5">VA Portal</p>
+          </div>
         </div>
-        <p className="text-white/40 text-xs mt-1">VA Portal</p>
       </div>
 
       {/* Nav */}
@@ -35,42 +37,41 @@ function SidebarContent({ profile, onLogout, onNavClick }) {
             to={to}
             end={end}
             onClick={onNavClick}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors ${
-                isActive
-                  ? 'bg-white/10 text-white font-medium'
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
-              }`
-            }
+            className={({ isActive }) => `vc-nav-item ${isActive ? 'active' : ''}`}
           >
-            <Icon size={16} />
-            {label}
+            <Icon size={18} className="flex-shrink-0" />
+            <span>{label}</span>
           </NavLink>
         ))}
+        <hr className="vc-divider my-2 mx-3" />
+        <a href="#" className="vc-nav-item" onClick={onNavClick}>
+          <HelpCircle size={18} className="flex-shrink-0" />
+          <span>Support</span>
+        </a>
       </nav>
 
       {/* User */}
-      <div className="px-3 py-4 border-t border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+      <div className="flex-shrink-0 border-t border-white/[0.06] px-3 py-3">
+        <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
+          <div className="w-7 h-7 rounded-full bg-status-info flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">
-              {profile?.full_name?.[0] ?? 'V'}
+              {profile?.full_name?.[0]?.toUpperCase() ?? 'V'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-medium truncate">{profile?.full_name ?? 'VA'}</p>
-            <p className="text-white/40 text-xs">Virtual Assistant</p>
+            <p className="text-text-primary text-xs font-medium truncate">{profile?.full_name ?? 'VA'}</p>
+            <p className="text-text-tertiary text-xs">Virtual Assistant</p>
           </div>
         </div>
         <button
           onClick={onLogout}
-          className="flex items-center gap-2 w-full px-3 py-2 text-white/60 hover:text-white text-sm mt-1 rounded hover:bg-white/5 transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2 text-text-secondary hover:text-text-primary text-sm rounded hover:bg-bg-tertiary transition-colors"
         >
-          <LogOut size={14} />
+          <LogOut size={16} />
           Sign out
         </button>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -79,13 +80,9 @@ export default function VALayout() {
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Prevent body scroll when drawer is open
   useEffect(() => {
-    if (drawerOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    if (drawerOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
   }, [drawerOpen])
 
@@ -96,55 +93,43 @@ export default function VALayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      {/* Sidebar - desktop only */}
-      <aside className="hidden md:flex w-56 flex-shrink-0 bg-vc-sidebar flex-col">
+    <div className="flex h-screen overflow-hidden bg-bg-primary">
+      {/* Sidebar — desktop */}
+      <aside className="hidden md:flex w-[260px] flex-shrink-0 bg-bg-secondary border-r border-white/[0.06] flex-col">
         <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => {}} />
       </aside>
 
       {/* Mobile drawer overlay */}
       {drawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setDrawerOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
       )}
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-vc-sidebar flex flex-col z-50 md:hidden transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-[260px] bg-bg-secondary border-r border-white/[0.06] flex flex-col z-50 md:hidden transform transition-transform duration-300 ease-in-out ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Close button */}
         <button
           onClick={() => setDrawerOpen(false)}
-          className="absolute top-4 right-4 text-white/60 hover:text-white p-1"
+          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary p-1 rounded transition-colors"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
-        <SidebarContent
-          profile={profile}
-          onLogout={handleLogout}
-          onNavClick={() => setDrawerOpen(false)}
-        />
+        <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => setDrawerOpen(false)} />
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-vc-border bg-vc-sidebar flex-shrink-0">
-          {/* Hamburger - mobile only */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] bg-bg-secondary flex-shrink-0 h-14">
           <button
-            className="md:hidden text-white p-1 -ml-1"
+            className="md:hidden text-text-secondary hover:text-text-primary p-1 -ml-1 transition-colors"
             onClick={() => setDrawerOpen(true)}
             aria-label="Open menu"
           >
-            <Menu size={22} />
+            <Menu size={20} />
           </button>
-
-          {/* Desktop spacer */}
           <div className="hidden md:block" />
-
           <NotificationBell />
         </div>
 

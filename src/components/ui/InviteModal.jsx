@@ -85,8 +85,8 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
   }
 
   const inputClass =
-    'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
-  const labelClass = 'block text-xs font-medium text-vc-muted mb-1'
+    'bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary'
+  const labelClass = 'block text-xs font-medium text-text-secondary mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -97,15 +97,15 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
       />
 
       {/* Modal */}
-      <div className="relative bg-white w-full max-w-md mx-4 rounded p-6 shadow-sm">
+      <div className="relative bg-bg-elevated border border-white/[0.08] w-full max-w-md mx-4 rounded-card p-6 shadow-elevated">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold text-vc-text">
+          <h2 className="text-base font-semibold text-text-primary">
             {role === 'client' ? 'Invite Client' : 'Invite VA'}
           </h2>
           <button
             onClick={handleClose}
-            className="text-vc-muted hover:text-vc-text transition-colors"
+            className="text-text-secondary hover:text-text-primary transition-colors"
           >
             <X size={16} />
           </button>
@@ -113,14 +113,14 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
 
         {success ? (
           <div className="space-y-4">
-            <div className="bg-vc-secondary border border-vc-border rounded p-4">
+            <div className="bg-bg-tertiary border border-white/[0.06] rounded-card p-4">
               {isDemoMode ? (
-                <p className="text-sm text-vc-text">
+                <p className="text-sm text-text-primary">
                   In live mode, this would send an invite email to{' '}
                   <span className="font-medium">{formData.email}</span>.
                 </p>
               ) : (
-                <p className="text-sm text-vc-text">
+                <p className="text-sm text-text-primary">
                   Invite sent to <span className="font-medium">{formData.email}</span>. They'll
                   receive an email to set their password and access the portal.
                 </p>
@@ -128,7 +128,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
             </div>
             <button
               onClick={handleClose}
-              className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary w-full"
+              className="border border-white/[0.08] text-text-secondary text-sm px-4 py-2 rounded-btn hover:bg-bg-tertiary transition-colors w-full"
             >
               Close
             </button>
@@ -234,14 +234,14 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60 flex-1"
+                className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn disabled:opacity-60 transition-colors flex-1"
               >
                 {loading ? 'Sending...' : 'Send Invite'}
               </button>
               <button
                 type="button"
                 onClick={handleClose}
-                className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary"
+                className="border border-white/[0.08] text-text-secondary text-sm px-4 py-2 rounded-btn hover:bg-bg-tertiary transition-colors"
               >
                 Cancel
               </button>

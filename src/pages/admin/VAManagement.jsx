@@ -160,7 +160,7 @@ export default function VAManagement() {
     }
   }
 
-  const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
+  const inputClass = 'bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary'
   const selectClass = inputClass
   const textareaClass = `${inputClass} resize-none`
 
@@ -168,12 +168,12 @@ export default function VAManagement() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-vc-text">VA Management</h1>
-          <p className="text-sm text-vc-muted mt-0.5">{vas.length} virtual assistants</p>
+          <h1 className="text-h2 font-heading text-text-primary">VA Management</h1>
+          <p className="text-sm text-text-secondary mt-0.5">{vas.length} virtual assistants</p>
         </div>
         <button
           onClick={() => setShowInvite(true)}
-          className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded flex items-center gap-2"
+          className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded flex items-center gap-2"
         >
           <UserPlus size={14} />
           Invite VA
@@ -185,27 +185,27 @@ export default function VAManagement() {
       {/* VA Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {vas.map((va) => (
-          <div key={va.id} className="border border-vc-border p-5">
+          <div key={va.id} className="vc-card">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 bg-vc-text flex items-center justify-center flex-shrink-0">
-                <span className="text-gold font-semibold text-sm">{va.full_name[0]}</span>
+                <span className="text-vc-accent font-semibold text-sm">{va.full_name[0]}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-vc-text">{va.full_name}</p>
-                <p className="text-xs text-vc-muted">{va.email}</p>
+                <p className="font-medium text-text-primary">{va.full_name}</p>
+                <p className="text-xs text-text-secondary">{va.email}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="green" size="xs">Active</Badge>
                 <button
                   onClick={() => openEditVA(va)}
-                  className="text-vc-muted hover:text-vc-text transition-colors"
+                  className="text-text-secondary hover:text-text-primary transition-colors"
                   title="Edit VA"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => openAssignTask(va)}
-                  className="flex items-center gap-1 text-xs border border-vc-border text-vc-muted hover:text-vc-text px-2 py-1 rounded transition-colors"
+                  className="flex items-center gap-1 text-xs border border-white/[0.06] text-text-secondary hover:text-text-primary px-2 py-1 rounded transition-colors"
                   title="Assign task"
                 >
                   <ClipboardList size={12} />
@@ -215,25 +215,25 @@ export default function VAManagement() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-vc-secondary p-3">
-                <p className="text-xs text-vc-muted">Tasks This Week</p>
-                <p className="text-lg font-semibold text-vc-text mt-0.5">
-                  {va.tasks_completed_this_week}<span className="text-vc-muted text-sm font-normal">/{va.tasks_assigned}</span>
+              <div className="bg-bg-tertiary p-3">
+                <p className="text-xs text-text-secondary">Tasks This Week</p>
+                <p className="text-lg font-semibold text-text-primary mt-0.5">
+                  {va.tasks_completed_this_week}<span className="text-text-secondary text-sm font-normal">/{va.tasks_assigned}</span>
                 </p>
               </div>
-              <div className="bg-vc-secondary p-3">
-                <p className="text-xs text-vc-muted">Hours Logged</p>
-                <p className="text-lg font-semibold text-vc-text mt-0.5">{va.hours_this_week}h</p>
+              <div className="bg-bg-tertiary p-3">
+                <p className="text-xs text-text-secondary">Hours Logged</p>
+                <p className="text-lg font-semibold text-text-primary mt-0.5">{va.hours_this_week}h</p>
               </div>
-              <div className="bg-vc-secondary p-3">
-                <p className="text-xs text-vc-muted">Performance Score</p>
-                <p className={`text-lg font-semibold mt-0.5 ${va.performance_score >= 90 ? 'text-green-600' : va.performance_score >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+              <div className="bg-bg-tertiary p-3">
+                <p className="text-xs text-text-secondary">Performance Score</p>
+                <p className={`text-lg font-semibold mt-0.5 ${va.performance_score >= 90 ? 'text-status-success' : va.performance_score >= 70 ? 'text-status-warning' : 'text-status-danger'}`}>
                   {va.performance_score}
                 </p>
               </div>
-              <div className="bg-vc-secondary p-3">
-                <p className="text-xs text-vc-muted">Training Complete</p>
-                <p className="text-lg font-semibold text-vc-text mt-0.5">{va.training_completion}%</p>
+              <div className="bg-bg-tertiary p-3">
+                <p className="text-xs text-text-secondary">Training Complete</p>
+                <p className="text-lg font-semibold text-text-primary mt-0.5">{va.training_completion}%</p>
               </div>
             </div>
 
@@ -243,18 +243,18 @@ export default function VAManagement() {
               return (
                 <div className="space-y-2">
                   <div>
-                    <div className="flex justify-between text-xs text-vc-muted mb-1">
+                    <div className="flex justify-between text-xs text-text-secondary mb-1">
                       <span>Training progress</span>
                       <span>{training ? `${training.modules_completed}/${training.modules_total} modules` : `${va.training_completion}%`}</span>
                     </div>
                     <div className="h-1.5 bg-vc-border">
-                      <div className="h-full bg-gold transition-all" style={{ width: `${va.training_completion}%` }} />
+                      <div className="h-full bg-vc-primary transition-all" style={{ width: `${va.training_completion}%` }} />
                     </div>
                   </div>
                   {training && (
-                    <div className="flex items-center justify-between text-xs text-vc-muted pt-1">
+                    <div className="flex items-center justify-between text-xs text-text-secondary pt-1">
                       <span>Avg. quiz score</span>
-                      <span className={`font-medium ${training.avg_score >= 80 ? 'text-green-600' : training.avg_score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                      <span className={`font-medium ${training.avg_score >= 80 ? 'text-status-success' : training.avg_score >= 60 ? 'text-status-warning' : 'text-status-danger'}`}>
                         {training.avg_score}%
                       </span>
                     </div>
@@ -267,19 +267,19 @@ export default function VAManagement() {
       </div>
 
       {/* All Tasks */}
-      <div className="border border-vc-border">
-        <div className="px-5 py-3 border-b border-vc-border">
-          <h2 className="text-sm font-medium text-vc-text">Current Task Queue</h2>
+      <div className="border border-white/[0.06]">
+        <div className="px-5 py-3 border-b border-white/[0.06]">
+          <h2 className="text-sm font-medium text-text-primary">Current Task Queue</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-vc-border bg-vc-secondary">
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Task</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Client</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Assigned VA</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Priority</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Deadline</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
+            <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Task</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Client</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Assigned VA</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Priority</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Deadline</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -289,14 +289,14 @@ export default function VAManagement() {
               const statusVariant = { complete: 'green', in_progress: 'blue', not_started: 'default' }
               const statusLabel = { complete: 'Complete', in_progress: 'In Progress', not_started: 'Not Started' }
               return (
-                <tr key={t.id} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
-                  <td className="px-5 py-3 font-medium text-vc-text">{t.title}</td>
-                  <td className="px-5 py-3 text-vc-muted">{t.client_name ?? '—'}</td>
-                  <td className="px-5 py-3 text-vc-muted">{vaName}</td>
+                <tr key={t.id} className="border-b border-white/[0.06] last:border-0 hover:bg-bg-tertiary transition-colors">
+                  <td className="px-5 py-3 font-medium text-text-primary">{t.title}</td>
+                  <td className="px-5 py-3 text-text-secondary">{t.client_name ?? '—'}</td>
+                  <td className="px-5 py-3 text-text-secondary">{vaName}</td>
                   <td className="px-5 py-3">
                     <Badge variant={priorityVariant[t.priority]}>{t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}</Badge>
                   </td>
-                  <td className="px-5 py-3 text-vc-muted">{t.deadline}</td>
+                  <td className="px-5 py-3 text-text-secondary">{t.deadline}</td>
                   <td className="px-5 py-3">
                     <Badge variant={statusVariant[t.status]}>{statusLabel[t.status]}</Badge>
                   </td>
@@ -305,7 +305,7 @@ export default function VAManagement() {
             })}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-6 text-center text-sm text-vc-muted">No tasks yet.</td>
+                <td colSpan={6} className="px-5 py-6 text-center text-sm text-text-secondary">No tasks yet.</td>
               </tr>
             )}
           </tbody>
@@ -378,10 +378,10 @@ export default function VAManagement() {
             </FormField>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setAssignTarget(null)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+              <button onClick={() => setAssignTarget(null)} className="border border-white/[0.06] text-text-primary text-sm px-4 py-2 rounded hover:bg-bg-tertiary">
                 Cancel
               </button>
-              <button onClick={handleSaveTask} disabled={savingTask} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+              <button onClick={handleSaveTask} disabled={savingTask} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded disabled:opacity-60">
                 {savingTask ? 'Assigning…' : 'Assign Task'}
               </button>
             </div>
@@ -408,7 +408,7 @@ export default function VAManagement() {
 
             <FormField label="Email">
               <input
-                className={`${inputClass} bg-vc-secondary cursor-not-allowed`}
+                className={`${inputClass} bg-bg-tertiary cursor-not-allowed`}
                 value={editVA.email}
                 readOnly
               />
@@ -416,17 +416,17 @@ export default function VAManagement() {
 
             <FormField label="Role">
               <input
-                className={`${inputClass} bg-vc-secondary cursor-not-allowed`}
+                className={`${inputClass} bg-bg-tertiary cursor-not-allowed`}
                 value="Virtual Assistant"
                 readOnly
               />
             </FormField>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEditVA(null)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+              <button onClick={() => setEditVA(null)} className="border border-white/[0.06] text-text-primary text-sm px-4 py-2 rounded hover:bg-bg-tertiary">
                 Cancel
               </button>
-              <button onClick={handleSaveVA} disabled={savingVA} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+              <button onClick={handleSaveVA} disabled={savingVA} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded disabled:opacity-60">
                 {savingVA ? 'Saving…' : 'Save Changes'}
               </button>
             </div>

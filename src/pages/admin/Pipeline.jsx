@@ -26,7 +26,7 @@ const EMPTY_LEAD_FORM = {
 }
 
 function ScoreDot({ score }) {
-  const color = score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500'
+  const color = score >= 80 ? 'bg-status-success' : score >= 60 ? 'bg-status-warning' : 'bg-status-danger'
   return <div className={`w-1.5 h-1.5 rounded-full ${color} flex-shrink-0`} />
 }
 
@@ -50,7 +50,6 @@ export default function Pipeline() {
         return { ...l, stage: STAGES[newIdx].id }
       })
     )
-    // In live mode, persist stage change
     if (!isDemoMode) {
       const lead = leads.find((l) => l.id === leadId)
       if (lead) {
@@ -63,7 +62,6 @@ export default function Pipeline() {
         }
       }
     }
-    // Keep selected in sync
     if (selected?.id === leadId) {
       setSelected((prev) => {
         if (!prev) return null
@@ -165,20 +163,20 @@ export default function Pipeline() {
     }
   }
 
-  const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
+  const inputClass = 'bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary'
   const selectClass = inputClass
   const textareaClass = `${inputClass} resize-none`
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-w-[1440px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-vc-text">Sales Pipeline</h1>
-          <p className="text-sm text-vc-muted mt-0.5">{leads.length} leads tracked</p>
+          <h1 className="text-h2 font-heading text-text-primary">Sales Pipeline</h1>
+          <p className="text-sm text-text-secondary mt-0.5">{leads.length} leads tracked</p>
         </div>
         <button
           onClick={openAdd}
-          className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded flex items-center gap-2"
+          className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn flex items-center gap-2 transition-colors"
         >
           <Plus size={14} />
           Add Lead
@@ -192,47 +190,46 @@ export default function Pipeline() {
           return (
             <div key={stage.id} className="flex-shrink-0 w-56">
               <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-xs font-medium text-vc-text">{stage.label}</span>
-                <span className="text-xs text-vc-muted bg-vc-secondary px-1.5 py-0.5">{stageLeads.length}</span>
+                <span className="text-xs font-medium text-text-primary">{stage.label}</span>
+                <span className="text-xs text-text-tertiary bg-bg-tertiary px-1.5 py-0.5 rounded">{stageLeads.length}</span>
               </div>
               <div className="space-y-2 min-h-20">
                 {stageLeads.map((lead) => (
                   <div
                     key={lead.id}
                     onClick={() => setSelected(selected?.id === lead.id ? null : lead)}
-                    className="bg-white border border-vc-border p-3 cursor-pointer hover:border-vc-text transition-colors"
+                    className="bg-bg-elevated border border-white/[0.08] rounded-card p-3 cursor-pointer hover:border-white/[0.16] transition-colors"
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <ScoreDot score={lead.score} />
-                      <span className="text-xs font-medium text-vc-text truncate flex-1">{lead.name}</span>
+                      <span className="text-xs font-medium text-text-primary truncate flex-1">{lead.name}</span>
                     </div>
-                    <p className="text-xs text-vc-muted truncate">{lead.company}</p>
+                    <p className="text-xs text-text-tertiary truncate">{lead.company}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-vc-muted">{lead.source}</span>
-                      <span className="text-xs font-medium text-vc-text">{lead.score}</span>
+                      <span className="text-xs text-text-tertiary">{lead.source}</span>
+                      <span className="text-xs font-medium text-text-primary">{lead.score}</span>
                     </div>
-                    {/* Move + Edit + Delete buttons */}
                     <div className="flex gap-1 mt-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); moveStage(lead.id, -1) }}
-                        className="text-xs px-1.5 py-0.5 border border-vc-border text-vc-muted hover:text-vc-text transition-colors"
+                        className="text-xs px-1.5 py-0.5 border border-white/[0.08] text-text-tertiary hover:text-text-primary transition-colors rounded"
                         title="Move left"
                       >←</button>
                       <button
                         onClick={(e) => { e.stopPropagation(); moveStage(lead.id, 1) }}
-                        className="text-xs px-1.5 py-0.5 border border-vc-border text-vc-muted hover:text-vc-text transition-colors"
+                        className="text-xs px-1.5 py-0.5 border border-white/[0.08] text-text-tertiary hover:text-text-primary transition-colors rounded"
                         title="Move right"
                       >→</button>
                       <button
                         onClick={(e) => { e.stopPropagation(); openEdit(lead) }}
-                        className="ml-auto text-vc-muted hover:text-vc-text transition-colors p-0.5"
+                        className="ml-auto text-text-tertiary hover:text-text-primary transition-colors p-0.5"
                         title="Edit lead"
                       >
                         <Pencil size={11} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteLead(lead.id) }}
-                        className="text-vc-muted hover:text-red-500 transition-colors p-0.5"
+                        className="text-text-tertiary hover:text-status-danger transition-colors p-0.5"
                         title="Delete lead"
                       >
                         <Trash2 size={11} />
@@ -248,68 +245,43 @@ export default function Pipeline() {
 
       {/* Detail panel */}
       {selected && (
-        <div className="border border-vc-border p-5 bg-vc-secondary">
+        <div className="vc-card">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h3 className="font-medium text-vc-text">{selected.name}</h3>
-              <p className="text-sm text-vc-muted">{selected.company} · {selected.email}</p>
+              <h3 className="font-medium text-text-primary">{selected.name}</h3>
+              <p className="text-sm text-text-secondary">{selected.company} · {selected.email}</p>
             </div>
-            <button onClick={() => setSelected(null)} className="text-vc-muted hover:text-vc-text text-xs">✕</button>
+            <button onClick={() => setSelected(null)} className="text-text-tertiary hover:text-text-primary text-xs transition-colors">✕</button>
           </div>
           <div className="grid grid-cols-3 gap-3 text-sm mb-3">
-            <div><p className="text-xs text-vc-muted">Source</p><p className="font-medium">{selected.source}</p></div>
-            <div><p className="text-xs text-vc-muted">Score</p><p className="font-medium">{selected.score}/100</p></div>
-            <div><p className="text-xs text-vc-muted">Added</p><p className="font-medium">{selected.created_at}</p></div>
+            <div><p className="vc-section-label mb-1">Source</p><p className="font-medium text-text-primary">{selected.source}</p></div>
+            <div><p className="vc-section-label mb-1">Score</p><p className="font-medium text-text-primary">{selected.score}/100</p></div>
+            <div><p className="vc-section-label mb-1">Added</p><p className="font-medium text-text-primary">{selected.created_at}</p></div>
           </div>
-          <p className="text-sm text-vc-muted">{selected.notes}</p>
+          <p className="text-sm text-text-secondary">{selected.notes}</p>
         </div>
       )}
 
-      {/* ── Add / Edit Lead Modal ──────────────────────────────────────── */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title={editLead ? 'Edit Lead' : 'Add Lead'}
-        size="md"
-      >
+      {/* Add / Edit Lead Modal */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title={editLead ? 'Edit Lead' : 'Add Lead'} size="md">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Name" required error={leadErrors.name}>
-              <input
-                className={inputClass}
-                value={leadForm.name}
-                onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
-                placeholder="Gary Ellis"
-              />
+              <input className={inputClass} value={leadForm.name} onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })} placeholder="Gary Ellis" />
             </FormField>
 
             <FormField label="Email" required error={leadErrors.email}>
-              <input
-                type="email"
-                className={inputClass}
-                value={leadForm.email}
-                onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                placeholder="gary@example.co.uk"
-              />
+              <input type="email" className={inputClass} value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} placeholder="gary@example.co.uk" />
             </FormField>
           </div>
 
           <FormField label="Company">
-            <input
-              className={inputClass}
-              value={leadForm.company}
-              onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })}
-              placeholder="Ellis Electrical"
-            />
+            <input className={inputClass} value={leadForm.company} onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })} placeholder="Ellis Electrical" />
           </FormField>
 
           <div className="grid grid-cols-3 gap-3">
             <FormField label="Source" required>
-              <select
-                className={selectClass}
-                value={leadForm.source}
-                onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}
-              >
+              <select className={selectClass} value={leadForm.source} onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}>
                 <option value="organic">Organic</option>
                 <option value="referral">Referral</option>
                 <option value="paid">Paid</option>
@@ -319,22 +291,11 @@ export default function Pipeline() {
             </FormField>
 
             <FormField label="Score (0–100)" required error={leadErrors.score}>
-              <input
-                type="number"
-                className={inputClass}
-                value={leadForm.score}
-                onChange={(e) => setLeadForm({ ...leadForm, score: e.target.value })}
-                min="0"
-                max="100"
-              />
+              <input type="number" className={inputClass} value={leadForm.score} onChange={(e) => setLeadForm({ ...leadForm, score: e.target.value })} min="0" max="100" />
             </FormField>
 
             <FormField label="Stage" required>
-              <select
-                className={selectClass}
-                value={leadForm.stage}
-                onChange={(e) => setLeadForm({ ...leadForm, stage: e.target.value })}
-              >
+              <select className={selectClass} value={leadForm.stage} onChange={(e) => setLeadForm({ ...leadForm, stage: e.target.value })}>
                 {STAGES.map((s) => (
                   <option key={s.id} value={s.id}>{s.label}</option>
                 ))}
@@ -343,20 +304,14 @@ export default function Pipeline() {
           </div>
 
           <FormField label="Notes">
-            <textarea
-              className={textareaClass}
-              rows={3}
-              value={leadForm.notes}
-              onChange={(e) => setLeadForm({ ...leadForm, notes: e.target.value })}
-              placeholder="Any additional notes..."
-            />
+            <textarea className={textareaClass} rows={3} value={leadForm.notes} onChange={(e) => setLeadForm({ ...leadForm, notes: e.target.value })} placeholder="Any additional notes..." />
           </FormField>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowAddModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+            <button onClick={() => setShowAddModal(false)} className="border border-white/[0.08] text-text-secondary text-sm px-4 py-2 rounded-btn hover:bg-bg-tertiary transition-colors">
               Cancel
             </button>
-            <button onClick={handleSaveLead} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+            <button onClick={handleSaveLead} disabled={saving} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn disabled:opacity-60 transition-colors">
               {saving ? 'Saving…' : editLead ? 'Save Changes' : 'Add Lead'}
             </button>
           </div>

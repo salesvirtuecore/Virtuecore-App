@@ -52,7 +52,7 @@ export default function Clients() {
   const [showInvite, setShowInvite] = useState(false)
   const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
   const [loadingClients, setLoadingClients] = useState(!isDemoMode)
-  const [editClient, setEditClient] = useState(null) // the client being edited
+  const [editClient, setEditClient] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -65,14 +65,8 @@ export default function Clients() {
     setLoadingClients(true)
     try {
       const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('profiles')
-          .select('client_id, created_at')
-          .not('client_id', 'is', null),
+        supabase.from('clients').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       ])
 
       if (clientError) throw clientError
@@ -86,43 +80,22 @@ export default function Clients() {
     }
   }, [showToast])
 
-  useEffect(() => {
-    loadClients()
-  }, [loadClients])
+  useEffect(() => { loadClients() }, [loadClients])
 
   useEffect(() => {
     if (isDemoMode || !supabase) return undefined
 
     const channel = supabase
       .channel('admin-clients-live')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'clients' },
-        () => loadClients()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        (payload) => {
-          const nextClientId = payload?.new?.client_id
-          const prevClientId = payload?.old?.client_id
-          if (nextClientId || prevClientId) {
-            loadClients()
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => loadClients())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+        if (payload?.new?.client_id || payload?.old?.client_id) loadClients()
+      })
       .subscribe()
 
-    const pollId = window.setInterval(() => {
-      loadClients()
-    }, 15000)
-
+    const pollId = window.setInterval(() => loadClients(), 15000)
     const refreshOnFocus = () => loadClients()
-    const refreshOnVisible = () => {
-      if (document.visibilityState === 'visible') {
-        loadClients()
-      }
-    }
+    const refreshOnVisible = () => { if (document.visibilityState === 'visible') loadClients() }
 
     window.addEventListener('focus', refreshOnFocus)
     document.addEventListener('visibilitychange', refreshOnVisible)
@@ -191,18 +164,11 @@ export default function Clients() {
       }
 
       if (isDemoMode) {
-        setClients((prev) =>
-          prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c))
-        )
+        setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
       } else {
-        const { error } = await supabase
-          .from('clients')
-          .update(updates)
-          .eq('id', editClient.id)
+        const { error } = await supabase.from('clients').update(updates).eq('id', editClient.id)
         if (error) throw error
-        setClients((prev) =>
-          prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c))
-        )
+        setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
       }
 
       showToast(`${updates.company_name} updated successfully`)
@@ -249,21 +215,21 @@ export default function Clients() {
     }
   }
 
-  const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
+  const inputClass = 'bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary'
   const selectClass = inputClass
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-w-[1440px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-vc-text">Clients</h1>
-          <p className="text-sm text-vc-muted mt-0.5">
+          <h1 className="text-h2 font-heading text-text-primary">Clients</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             {clients.filter((c) => c.status === 'active').length} active clients
           </p>
         </div>
         <button
           onClick={() => setShowInvite(true)}
-          className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded flex items-center gap-2"
+          className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn flex items-center gap-2 transition-colors"
         >
           <UserPlus size={14} />
           Invite Client
@@ -275,22 +241,22 @@ export default function Clients() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-vc-muted" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-vc-border focus:outline-none focus:border-vc-text"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-bg-tertiary border border-white/[0.08] rounded-btn text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary"
           />
         </div>
         {['all', 'active', 'onboarding', 'churned'].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 text-xs font-medium transition-colors capitalize ${
+            className={`px-3 py-1.5 text-xs font-medium transition-colors capitalize rounded-btn ${
               filter === s
-                ? 'bg-vc-text text-white'
-                : 'bg-white border border-vc-border text-vc-muted hover:text-vc-text'
+                ? 'bg-vc-primary text-white'
+                : 'bg-bg-tertiary border border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/[0.16]'
             }`}
           >
             {s === 'all' ? 'All' : STATUS_LABELS[s]}
@@ -299,96 +265,76 @@ export default function Clients() {
       </div>
 
       {/* Table */}
-      <div className="border border-vc-border">
-        <table className="w-full text-sm">
+      <div className="vc-card p-0 overflow-hidden">
+        <table className="vc-table">
           <thead>
-            <tr className="border-b border-vc-border bg-vc-secondary">
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Company</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Package</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">MRR</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Ad Spend</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Stripe</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Portal</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Health</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Payment</th>
-              <th className="px-5 py-2.5" />
+            <tr>
+              <th>Company</th>
+              <th>Package</th>
+              <th>MRR</th>
+              <th>Ad Spend</th>
+              <th>Stripe</th>
+              <th>Status</th>
+              <th>Portal</th>
+              <th>Health</th>
+              <th>Payment</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {loadingClients && filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-5 py-8 text-center text-sm text-vc-muted">
+                <td colSpan={9} className="px-5 py-8 text-center text-sm text-text-secondary">
                   Loading clients...
                 </td>
               </tr>
             )}
             {filtered.map((c) => (
-              <tr key={c.id} className="border-b border-vc-border last:border-0 hover:bg-vc-secondary transition-colors">
-                <td className="px-5 py-3">
-                  <p className="font-medium text-vc-text">{c.company_name}</p>
-                  <p className="text-xs text-vc-muted">{c.contact_email}</p>
+              <tr key={c.id}>
+                <td>
+                  <p className="font-medium text-text-primary">{c.company_name}</p>
+                  <p className="text-xs text-text-tertiary">{c.contact_email}</p>
                 </td>
-                <td className="px-5 py-3 text-vc-muted">{c.package_tier}</td>
-                <td className="px-5 py-3 text-vc-text font-medium">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
-                <td className="px-5 py-3 text-vc-text">
+                <td className="text-text-secondary">{c.package_tier}</td>
+                <td className="mono">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
+                <td className="mono">
                   {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
                 </td>
-                <td className="px-5 py-3">
+                <td>
                   {c.stripe_account_id ? (
-                    <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded">Connected</span>
+                    <Badge variant="green" dot>Connected</Badge>
                   ) : (
                     <button
                       onClick={() => handleStripeConnect(c)}
-                      className="text-vc-muted hover:text-vc-text text-xs"
+                      className="text-text-tertiary hover:text-text-primary text-xs transition-colors"
                       disabled={saving}
                     >
                       Connect Stripe
                     </button>
                   )}
                 </td>
-                <td className="px-5 py-3">
-                  <Badge variant={STATUS_BADGE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
-                </td>
-                <td className="px-5 py-3">
-                  <Badge variant={PORTAL_BADGE[c.portal_joined ? 'joined' : 'invited']}>
+                <td><Badge variant={STATUS_BADGE[c.status]}>{STATUS_LABELS[c.status]}</Badge></td>
+                <td>
+                  <Badge variant={PORTAL_BADGE[c.portal_joined ? 'joined' : 'invited']} dot>
                     {c.portal_joined ? 'Joined' : 'Invited'}
                   </Badge>
                 </td>
-                <td className="px-5 py-3">
-                  <Badge variant={HEALTH_BADGE[c.health_score] ?? 'default'}>
+                <td>
+                  <Badge variant={HEALTH_BADGE[c.health_score] ?? 'default'} dot>
                     {c.health_score ? c.health_score.charAt(0).toUpperCase() + c.health_score.slice(1) : '—'}
                   </Badge>
                 </td>
-                <td className="px-5 py-3">
-                  <Badge
-                    variant={
-                      c.payment_status === 'paid'
-                        ? 'green'
-                        : c.payment_status === 'overdue'
-                        ? 'red'
-                        : c.payment_status
-                        ? 'amber'
-                        : 'default'
-                    }
-                  >
+                <td>
+                  <Badge variant={c.payment_status === 'paid' ? 'green' : c.payment_status === 'overdue' ? 'red' : c.payment_status ? 'amber' : 'default'} dot>
                     {c.payment_status ? c.payment_status.charAt(0).toUpperCase() + c.payment_status.slice(1) : '—'}
                   </Badge>
                 </td>
-                <td className="px-5 py-3">
+                <td>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEdit(c)}
-                      className="text-vc-muted hover:text-vc-text transition-colors"
-                      title="Edit client"
-                    >
+                    <button onClick={() => openEdit(c)} className="text-text-tertiary hover:text-text-primary transition-colors" title="Edit client">
                       <Pencil size={14} />
                     </button>
-                    <button
-                      onClick={() => navigate(`/admin/clients/${c.id}`)}
-                      className="text-vc-muted hover:text-vc-text transition-colors"
-                      title="View client"
-                    >
+                    <button onClick={() => navigate(`/admin/clients/${c.id}`)} className="text-text-tertiary hover:text-text-primary transition-colors" title="View client">
                       <ExternalLink size={14} />
                     </button>
                   </div>
@@ -397,7 +343,7 @@ export default function Clients() {
             ))}
             {!loadingClients && filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-5 py-8 text-center text-sm text-vc-muted">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-text-secondary">
                   No clients match your search.
                 </td>
               </tr>
@@ -411,37 +357,20 @@ export default function Clients() {
         {editClient && (
           <div className="space-y-4">
             <FormField label="Company Name" required error={errors.company_name}>
-              <input
-                className={inputClass}
-                value={form.company_name}
-                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              />
+              <input className={inputClass} value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
             </FormField>
 
             <FormField label="Contact Name" required error={errors.contact_name}>
-              <input
-                className={inputClass}
-                value={form.contact_name}
-                onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-              />
+              <input className={inputClass} value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
             </FormField>
 
             <FormField label="Contact Email" required error={errors.contact_email}>
-              <input
-                type="email"
-                className={inputClass}
-                value={form.contact_email}
-                onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-              />
+              <input type="email" className={inputClass} value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} />
             </FormField>
 
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Package Tier" required>
-                <select
-                  className={selectClass}
-                  value={form.package_tier}
-                  onChange={(e) => setForm({ ...form, package_tier: e.target.value })}
-                >
+                <select className={selectClass} value={form.package_tier} onChange={(e) => setForm({ ...form, package_tier: e.target.value })}>
                   <option>Starter</option>
                   <option>Growth</option>
                   <option>Premium</option>
@@ -449,11 +378,7 @@ export default function Clients() {
               </FormField>
 
               <FormField label="Status" required>
-                <select
-                  className={selectClass}
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
+                <select className={selectClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option value="active">Active</option>
                   <option value="onboarding">Onboarding</option>
                   <option value="churned">Churned</option>
@@ -463,34 +388,16 @@ export default function Clients() {
 
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Monthly Retainer (£)" required error={errors.monthly_retainer}>
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={form.monthly_retainer}
-                  onChange={(e) => setForm({ ...form, monthly_retainer: e.target.value })}
-                  min="0"
-                />
+                <input type="number" className={inputClass} value={form.monthly_retainer} onChange={(e) => setForm({ ...form, monthly_retainer: e.target.value })} min="0" />
               </FormField>
 
               <FormField label="Revenue Share %" required error={errors.revenue_share_percentage}>
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={form.revenue_share_percentage}
-                  onChange={(e) => setForm({ ...form, revenue_share_percentage: e.target.value })}
-                  min="0"
-                  max="100"
-                  step="0.1"
-                />
+                <input type="number" className={inputClass} value={form.revenue_share_percentage} onChange={(e) => setForm({ ...form, revenue_share_percentage: e.target.value })} min="0" max="100" step="0.1" />
               </FormField>
             </div>
 
             <FormField label="Health Score" required>
-              <select
-                className={selectClass}
-                value={form.health_score}
-                onChange={(e) => setForm({ ...form, health_score: e.target.value })}
-              >
+              <select className={selectClass} value={form.health_score} onChange={(e) => setForm({ ...form, health_score: e.target.value })}>
                 <option value="green">Green</option>
                 <option value="amber">Amber</option>
                 <option value="red">Red</option>
@@ -498,17 +405,10 @@ export default function Clients() {
             </FormField>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={closeEdit}
-                className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary"
-              >
+              <button onClick={closeEdit} className="border border-white/[0.08] text-text-secondary text-sm px-4 py-2 rounded-btn hover:bg-bg-tertiary transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60"
-              >
+              <button onClick={handleSave} disabled={saving} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn disabled:opacity-60 transition-colors">
                 {saving ? 'Saving…' : 'Save Changes'}
               </button>
             </div>

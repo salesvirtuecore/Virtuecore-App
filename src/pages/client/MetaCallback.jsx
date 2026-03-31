@@ -73,33 +73,33 @@ export default function MetaCallback() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-6">
+    <div className="min-h-screen flex items-center justify-center bg-bg-elevated p-6">
       <div className="w-full max-w-sm text-center space-y-4">
 
         {step === 'exchanging' && (
           <>
-            <div className="w-8 h-8 border-2 border-vc-border border-t-gold rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-vc-muted">Connecting your Meta Ads account…</p>
+            <div className="w-8 h-8 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-text-secondary">Connecting your Meta Ads account…</p>
           </>
         )}
 
         {step === 'pick' && (
           <>
-            <div className="w-10 h-10 bg-gold flex items-center justify-center mx-auto">
+            <div className="w-10 h-10 bg-vc-primary flex items-center justify-center mx-auto">
               <span className="text-white font-bold text-lg">V</span>
             </div>
-            <h2 className="text-lg font-semibold text-vc-text">Choose your Ad Account</h2>
-            <p className="text-sm text-vc-muted">We found {accounts.length} ad accounts. Select the one you'd like to connect.</p>
+            <h2 className="text-lg font-semibold text-text-primary">Choose your Ad Account</h2>
+            <p className="text-sm text-text-secondary">We found {accounts.length} ad accounts. Select the one you'd like to connect.</p>
             <div className="space-y-2 text-left mt-4">
               {accounts.map((acc) => (
                 <button
                   key={acc.id}
                   onClick={() => selectAccount(acc.id)}
                   disabled={saving}
-                  className="w-full border border-vc-border px-4 py-3 text-left hover:border-gold hover:bg-amber-50 transition-colors disabled:opacity-50"
+                  className="w-full border border-white/[0.06] px-4 py-3 text-left hover:border-vc-primary hover:bg-status-warning/10 transition-colors disabled:opacity-50"
                 >
-                  <p className="text-sm font-medium text-vc-text">{acc.name}</p>
-                  <p className="text-xs text-vc-muted mt-0.5">{acc.id} · {acc.currency}</p>
+                  <p className="text-sm font-medium text-text-primary">{acc.name}</p>
+                  <p className="text-xs text-text-secondary mt-0.5">{acc.id} · {acc.currency}</p>
                 </button>
               ))}
             </div>
@@ -108,20 +108,20 @@ export default function MetaCallback() {
 
         {step === 'done' && (
           <>
-            <CheckCircle size={40} className="text-green-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-vc-text">Meta Ads Connected!</h2>
-            <p className="text-sm text-vc-muted">Your ad data will now sync automatically. Redirecting to your dashboard…</p>
+            <CheckCircle size={40} className="text-status-success mx-auto" />
+            <h2 className="text-lg font-semibold text-text-primary">Meta Ads Connected!</h2>
+            <p className="text-sm text-text-secondary">Your ad data will now sync automatically. Redirecting to your dashboard…</p>
           </>
         )}
 
         {step === 'error' && (
           <>
-            <AlertCircle size={40} className="text-red-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-vc-text">Connection failed</h2>
-            <p className="text-sm text-vc-muted">{error}</p>
+            <AlertCircle size={40} className="text-status-danger mx-auto" />
+            <h2 className="text-lg font-semibold text-text-primary">Connection failed</h2>
+            <p className="text-sm text-text-secondary">{error}</p>
             <button
               onClick={() => navigate('/client')}
-              className="text-sm text-gold underline mt-2"
+              className="text-sm text-vc-accent underline mt-2"
             >
               Back to dashboard
             </button>

@@ -1,24 +1,30 @@
-export default function StatCard({ label, value, sub, trend, icon: Icon }) {
-  const trendPositive = trend > 0
+export default function StatCard({ label, value, sub, trend, icon: Icon, prefix = '', suffix = '' }) {
+  const isPositive = trend > 0
+  const isNegative = trend < 0
+
   return (
-    <div className="bg-white border border-vc-border p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs text-vc-muted uppercase tracking-wide font-medium">{label}</p>
-          <p className="text-2xl font-semibold text-vc-text mt-1">{value}</p>
-          {sub && <p className="text-xs text-vc-muted mt-0.5">{sub}</p>}
-          {trend !== undefined && (
-            <p className={`text-xs mt-1 font-medium ${trendPositive ? 'text-green-600' : 'text-red-500'}`}>
-              {trendPositive ? '▲' : '▼'} {Math.abs(trend)}% vs last month
-            </p>
-          )}
-        </div>
+    <div className="vc-card flex flex-col gap-3 min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <p className="vc-section-label">{label}</p>
         {Icon && (
-          <div className="p-2 bg-vc-secondary">
-            <Icon size={18} className="text-vc-muted" />
+          <div className="p-1.5 rounded bg-bg-tertiary flex-shrink-0">
+            <Icon size={14} className="text-text-tertiary" />
           </div>
         )}
       </div>
+
+      <div>
+        <p className="vc-metric">
+          {prefix}{value}{suffix}
+        </p>
+        {sub && <p className="text-text-tertiary text-xs mt-1">{sub}</p>}
+      </div>
+
+      {trend !== undefined && (
+        <p className={`text-xs font-medium ${isPositive ? 'delta-up' : isNegative ? 'delta-down' : 'delta-flat'}`}>
+          {isPositive ? '▲' : isNegative ? '▼' : '—'} {Math.abs(trend)}% vs last week
+        </p>
+      )}
     </div>
   )
 }

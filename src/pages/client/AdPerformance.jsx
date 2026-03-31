@@ -10,11 +10,11 @@ import { format, parseISO } from 'date-fns'
 const PLATFORM_COLOR = { Meta: '#1877F2', Google: '#34A853', TikTok: '#000000' }
 
 function Trend({ value, unit = '', inverted = false }) {
-  if (value == null || value === 0) return <span className="text-xs text-vc-muted">—</span>
+  if (value == null || value === 0) return <span className="text-xs text-text-secondary">—</span>
   const isGood = inverted ? value < 0 : value > 0
   const Icon = value > 0 ? TrendingUp : TrendingDown
   return (
-    <span className={`flex items-center gap-0.5 text-xs font-medium ${isGood ? 'text-green-600' : 'text-red-500'}`}>
+    <span className={`flex items-center gap-0.5 text-xs font-medium ${isGood ? 'text-status-success' : 'text-status-danger'}`}>
       <Icon size={11} />
       {Math.abs(value)}{unit}%
     </span>
@@ -23,10 +23,10 @@ function Trend({ value, unit = '', inverted = false }) {
 
 function StatCard({ label, value, sub }) {
   return (
-    <div className="border border-vc-border p-4">
-      <p className="text-xs text-vc-muted font-medium uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-2xl font-semibold text-vc-text">{value}</p>
-      {sub && <p className="text-xs text-vc-muted mt-0.5">{sub}</p>}
+    <div className="vc-card">
+      <p className="vc-section-label mb-1">{label}</p>
+      <p className="text-2xl font-semibold text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -68,8 +68,8 @@ export default function AdPerformance() {
       })
   }, [profile?.client_id, useDemo])
 
-  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin" /></div>
-  if (!data) return <div className="p-6 text-sm text-vc-muted">No ad performance data yet. Connect your ad account to see live data here.</div>
+  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin" /></div>
+  if (!data) return <div className="p-6 text-sm text-text-secondary">No ad performance data yet. Connect your ad account to see live data here.</div>
 
   const s = data.week_summary
   const maxLeads = Math.max(...(data.daily_feed?.map((d) => d.leads) || [1]), 1)
@@ -80,13 +80,13 @@ export default function AdPerformance() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-vc-text">Live Ad Performance</h1>
-            <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <h1 className="text-h2 font-heading text-text-primary">Live Ad Performance</h1>
+            <span className="flex items-center gap-1 text-xs bg-status-success/10 text-status-success border border-status-success/20 px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-success/100 animate-pulse" />
               Live
             </span>
           </div>
-          <p className="text-sm text-vc-muted mt-0.5">
+          <p className="text-sm text-text-secondary mt-0.5">
             Updated {data.last_updated ? format(parseISO(data.last_updated), 'd MMM yyyy, HH:mm') : 'today'} · Last 7 days
           </p>
         </div>
@@ -102,21 +102,21 @@ export default function AdPerformance() {
 
       {/* What's winning */}
       {data.winning_ad && (
-        <div className="border border-gold/30 bg-amber-50/50 p-4">
+        <div className="border border-vc-primary/30 bg-status-warning/10/50 p-4">
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-gold flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-vc-primary flex items-center justify-center flex-shrink-0">
               <Zap size={14} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gold mb-0.5">What's Winning Right Now</p>
-              <p className="text-sm font-medium text-vc-text">{data.winning_ad.name}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-vc-accent mb-0.5">What's Winning Right Now</p>
+              <p className="text-sm font-medium text-text-primary">{data.winning_ad.name}</p>
               <div className="flex items-center gap-4 mt-1 flex-wrap">
-                <span className="text-xs text-vc-muted">{data.winning_ad.platform}</span>
-                <span className="text-xs text-vc-text font-medium">£{data.winning_ad.cpl} CPL</span>
-                <span className="text-xs text-green-600 font-medium">
+                <span className="text-xs text-text-secondary">{data.winning_ad.platform}</span>
+                <span className="text-xs text-text-primary font-medium">£{data.winning_ad.cpl} CPL</span>
+                <span className="text-xs text-status-success font-medium">
                   {Math.abs(data.winning_ad.vs_avg_pct)}% below average CPL
                 </span>
-                <span className="text-xs text-vc-muted">{data.winning_ad.leads} leads · £{data.winning_ad.spend?.toLocaleString()} spent</span>
+                <span className="text-xs text-text-secondary">{data.winning_ad.leads} leads · £{data.winning_ad.spend?.toLocaleString()} spent</span>
               </div>
             </div>
           </div>
@@ -125,30 +125,30 @@ export default function AdPerformance() {
 
       {/* A/B Tests */}
       {data.ab_tests?.length > 0 && (
-        <div className="border border-vc-border">
-          <div className="px-4 py-3 border-b border-vc-border">
-            <p className="text-sm font-medium text-vc-text">A/B Tests Running</p>
+        <div className="border border-white/[0.06]">
+          <div className="px-4 py-3 border-b border-white/[0.06]">
+            <p className="text-sm font-medium text-text-primary">A/B Tests Running</p>
           </div>
           {data.ab_tests.map((test) => {
             const open = expandedTest === test.id
             const aDiff = test.variant_b.cpl > 0 ? Math.round((test.variant_b.cpl - test.variant_a.cpl) / test.variant_b.cpl * 100) : 0
             return (
-              <div key={test.id} className="border-t border-vc-border first:border-0">
+              <div key={test.id} className="border-t border-white/[0.06] first:border-0">
                 <button
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-vc-secondary transition-colors text-left"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-tertiary transition-colors text-left"
                   onClick={() => setExpandedTest(open ? null : test.id)}
                 >
                   <div>
-                    <span className="text-sm font-medium text-vc-text">{test.test_name}</span>
-                    <span className="ml-2 text-xs text-vc-muted">{test.platform} · Day {test.days_running}</span>
+                    <span className="text-sm font-medium text-text-primary">{test.test_name}</span>
+                    <span className="ml-2 text-xs text-text-secondary">{test.platform} · Day {test.days_running}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     {test.winner && (
-                      <span className="text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 font-medium">
+                      <span className="text-xs bg-status-success/10 text-status-success border border-status-success/20 px-2 py-0.5 font-medium">
                         Hook {test.winner.toUpperCase()} winning by {Math.abs(aDiff)}%
                       </span>
                     )}
-                    {open ? <ChevronUp size={14} className="text-vc-muted" /> : <ChevronDown size={14} className="text-vc-muted" />}
+                    {open ? <ChevronUp size={14} className="text-text-secondary" /> : <ChevronDown size={14} className="text-text-secondary" />}
                   </div>
                 </button>
                 {open && (
@@ -156,17 +156,17 @@ export default function AdPerformance() {
                     {[test.variant_a, test.variant_b].map((v, i) => {
                       const isWinner = (i === 0 && test.winner === 'a') || (i === 1 && test.winner === 'b')
                       return (
-                        <div key={i} className={`border p-4 ${isWinner ? 'border-green-300 bg-green-50/30' : 'border-vc-border'}`}>
+                        <div key={i} className={`border p-4 ${isWinner ? 'border-status-success/30 bg-status-success/10/30' : 'border-white/[0.06]'}`}>
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xs font-bold text-vc-muted uppercase">Hook {i === 0 ? 'A' : 'B'}</span>
-                            {isWinner && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 font-medium">Leading</span>}
+                            <span className="text-xs font-bold text-text-secondary uppercase">Hook {i === 0 ? 'A' : 'B'}</span>
+                            {isWinner && <span className="text-xs bg-status-success/10 text-status-success px-1.5 py-0.5 font-medium">Leading</span>}
                           </div>
-                          <p className="text-sm text-vc-text font-medium mb-3">{v.name}</p>
+                          <p className="text-sm text-text-primary font-medium mb-3">{v.name}</p>
                           <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div><p className="text-vc-muted">CPL</p><p className="font-semibold text-vc-text">£{v.cpl}</p></div>
-                            <div><p className="text-vc-muted">Leads</p><p className="font-semibold text-vc-text">{v.leads}</p></div>
-                            <div><p className="text-vc-muted">Spend</p><p className="font-semibold text-vc-text">£{v.spend}</p></div>
-                            <div><p className="text-vc-muted">CTR</p><p className="font-semibold text-vc-text">{v.ctr}%</p></div>
+                            <div><p className="text-text-secondary">CPL</p><p className="font-semibold text-text-primary">£{v.cpl}</p></div>
+                            <div><p className="text-text-secondary">Leads</p><p className="font-semibold text-text-primary">{v.leads}</p></div>
+                            <div><p className="text-text-secondary">Spend</p><p className="font-semibold text-text-primary">£{v.spend}</p></div>
+                            <div><p className="text-text-secondary">CTR</p><p className="font-semibold text-text-primary">{v.ctr}%</p></div>
                           </div>
                         </div>
                       )
@@ -181,29 +181,29 @@ export default function AdPerformance() {
 
       {/* Active Campaigns */}
       {data.campaigns?.length > 0 && (
-        <div className="border border-vc-border">
-          <div className="px-4 py-3 border-b border-vc-border flex items-center gap-2">
-            <Target size={14} className="text-vc-muted" />
-            <p className="text-sm font-medium text-vc-text">Active Campaigns</p>
+        <div className="border border-white/[0.06]">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <Target size={14} className="text-text-secondary" />
+            <p className="text-sm font-medium text-text-primary">Active Campaigns</p>
           </div>
-          <div className="divide-y divide-vc-border">
+          <div className="divide-y divide-white/[0.06]">
             {data.campaigns.map((c, i) => (
               <div key={i} className="px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PLATFORM_COLOR[c.platform] ?? '#888' }} />
                   <div className="min-w-0">
-                    <p className="text-sm text-vc-text font-medium truncate">{c.name}</p>
-                    <p className="text-xs text-vc-muted">{c.platform} · £{c.daily_budget}/day budget</p>
+                    <p className="text-sm text-text-primary font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-text-secondary">{c.platform} · £{c.daily_budget}/day budget</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs flex-shrink-0">
                   <div className="text-right">
-                    <p className="text-vc-muted">Today spend</p>
-                    <p className="font-medium text-vc-text">£{c.spend_today}</p>
+                    <p className="text-text-secondary">Today spend</p>
+                    <p className="font-medium text-text-primary">£{c.spend_today}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-vc-muted">Leads today</p>
-                    <p className="font-medium text-vc-text">{c.leads_today}</p>
+                    <p className="text-text-secondary">Leads today</p>
+                    <p className="font-medium text-text-primary">{c.leads_today}</p>
                   </div>
                   <Badge variant={c.status === 'active' ? 'green' : c.status === 'testing' ? 'blue' : 'default'} size="xs">
                     {c.status}
@@ -217,24 +217,24 @@ export default function AdPerformance() {
 
       {/* Daily performance feed */}
       {data.daily_feed?.length > 0 && (
-        <div className="border border-vc-border">
-          <div className="px-4 py-3 border-b border-vc-border flex items-center gap-2">
-            <Activity size={14} className="text-vc-muted" />
-            <p className="text-sm font-medium text-vc-text">Daily Performance Feed</p>
+        <div className="border border-white/[0.06]">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <Activity size={14} className="text-text-secondary" />
+            <p className="text-sm font-medium text-text-primary">Daily Performance Feed</p>
           </div>
 
           {/* Mini bar chart */}
           <div className="px-4 pt-3 pb-1">
-            <p className="text-xs text-vc-muted mb-2">Leads per day</p>
+            <p className="text-xs text-text-secondary mb-2">Leads per day</p>
             <div className="flex items-end gap-1.5 h-12">
               {[...data.daily_feed].reverse().map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                   <div
-                    className="w-full bg-gold/80 rounded-sm transition-all"
+                    className="w-full bg-vc-primary/80 rounded-sm transition-all"
                     style={{ height: `${Math.max((d.leads / maxLeads) * 40, d.leads > 0 ? 4 : 2)}px` }}
                     title={`${d.date}: ${d.leads} leads`}
                   />
-                  <span className="text-[9px] text-vc-muted hidden md:block">
+                  <span className="text-[9px] text-text-secondary hidden md:block">
                     {format(parseISO(d.date), 'd/M')}
                   </span>
                 </div>
@@ -246,12 +246,12 @@ export default function AdPerformance() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[400px]">
               <thead>
-                <tr className="border-t border-vc-border">
-                  <th className="text-left px-4 py-2 text-vc-muted font-medium">Date</th>
-                  <th className="text-right px-4 py-2 text-vc-muted font-medium">Spend</th>
-                  <th className="text-right px-4 py-2 text-vc-muted font-medium">Leads</th>
-                  <th className="text-right px-4 py-2 text-vc-muted font-medium">CPL</th>
-                  <th className="text-right px-4 py-2 text-vc-muted font-medium">CTR</th>
+                <tr className="border-t border-white/[0.06]">
+                  <th className="text-left px-4 py-2 text-text-secondary font-medium">Date</th>
+                  <th className="text-right px-4 py-2 text-text-secondary font-medium">Spend</th>
+                  <th className="text-right px-4 py-2 text-text-secondary font-medium">Leads</th>
+                  <th className="text-right px-4 py-2 text-text-secondary font-medium">CPL</th>
+                  <th className="text-right px-4 py-2 text-text-secondary font-medium">CTR</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,19 +259,19 @@ export default function AdPerformance() {
                   const prev = data.daily_feed[i + 1]
                   const cplChange = prev?.cpl > 0 && d.cpl > 0 ? Math.round((d.cpl - prev.cpl) / prev.cpl * 100) : null
                   return (
-                    <tr key={d.date} className="border-t border-vc-border hover:bg-vc-secondary transition-colors">
-                      <td className="px-4 py-2.5 text-vc-text font-medium">{format(parseISO(d.date), 'EEE d MMM')}</td>
-                      <td className="px-4 py-2.5 text-right text-vc-text">£{d.spend}</td>
+                    <tr key={d.date} className="border-t border-white/[0.06] hover:bg-bg-tertiary transition-colors">
+                      <td className="px-4 py-2.5 text-text-primary font-medium">{format(parseISO(d.date), 'EEE d MMM')}</td>
+                      <td className="px-4 py-2.5 text-right text-text-primary">£{d.spend}</td>
                       <td className="px-4 py-2.5 text-right">
-                        <span className="text-vc-text font-medium">{d.leads}</span>
+                        <span className="text-text-primary font-medium">{d.leads}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <span className={d.cpl > 0 ? 'text-vc-text' : 'text-vc-muted'}>{d.cpl > 0 ? `£${d.cpl}` : '—'}</span>
+                          <span className={d.cpl > 0 ? 'text-text-primary' : 'text-text-secondary'}>{d.cpl > 0 ? `£${d.cpl}` : '—'}</span>
                           {cplChange !== null && <Trend value={cplChange} inverted />}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-right text-vc-muted">{d.ctr ? `${d.ctr}%` : '—'}</td>
+                      <td className="px-4 py-2.5 text-right text-text-secondary">{d.ctr ? `${d.ctr}%` : '—'}</td>
                     </tr>
                   )
                 })}

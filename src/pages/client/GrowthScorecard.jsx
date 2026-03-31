@@ -17,27 +17,27 @@ function MetricCard({ metric }) {
   const fmt = (v) => `${metric.prefix ? metric.unit : ''}${typeof v === 'number' && v > 100 ? v.toLocaleString() : v}${metric.suffix ? metric.unit : ''}`
 
   return (
-    <div className="border border-vc-border p-4">
-      <p className="text-xs text-vc-muted font-medium uppercase tracking-wide mb-3">{metric.label}</p>
+    <div className="vc-card">
+      <p className="vc-section-label mb-3">{metric.label}</p>
       <div className="flex items-end justify-between gap-2">
         <div>
-          <p className="text-xs text-vc-muted mb-1">When you started</p>
-          <p className="text-lg font-medium text-vc-muted">{metric.start === 0 ? '—' : fmt(metric.start)}</p>
+          <p className="text-xs text-text-secondary mb-1">When you started</p>
+          <p className="text-lg font-medium text-text-secondary">{metric.start === 0 ? '—' : fmt(metric.start)}</p>
         </div>
-        <div className="text-vc-muted/30 text-lg font-light">→</div>
+        <div className="text-text-secondary/30 text-lg font-light">→</div>
         <div className="text-right">
-          <p className="text-xs text-vc-muted mb-1">Now</p>
-          <p className="text-2xl font-bold text-vc-text">{fmt(metric.now)}</p>
+          <p className="text-xs text-text-secondary mb-1">Now</p>
+          <p className="text-2xl font-bold text-text-primary">{fmt(metric.now)}</p>
         </div>
       </div>
       {change && (
-        <div className={`mt-3 flex items-center gap-1.5 text-sm font-semibold ${change.isGood ? 'text-green-600' : 'text-red-500'}`}>
+        <div className={`mt-3 flex items-center gap-1.5 text-sm font-semibold ${change.isGood ? 'text-status-success' : 'text-status-danger'}`}>
           {change.isGood ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           {change.isGood ? '+' : ''}{change.pct}% {change.isGood ? 'improvement' : 'change'}
         </div>
       )}
       {metric.start === 0 && (
-        <div className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-green-600">
+        <div className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-status-success">
           <TrendingUp size={14} />
           +{metric.now} {metric.unit || 'total'}
         </div>
@@ -100,8 +100,8 @@ export default function GrowthScorecard() {
       })
   }, [profile?.client_id, useDemo])
 
-  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-vc-border border-t-gold rounded-full animate-spin" /></div>
-  if (!data) return <div className="p-6 text-sm text-vc-muted">No data available yet. Your scorecard will populate as we start tracking results.</div>
+  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin" /></div>
+  if (!data) return <div className="p-6 text-sm text-text-secondary">No data available yet. Your scorecard will populate as we start tracking results.</div>
 
   const chartData = data.monthly_leads || []
   const maxLeads = Math.max(...chartData.map((d) => d.leads), 1)
@@ -114,10 +114,10 @@ export default function GrowthScorecard() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-vc-text">Growth Scorecard</h1>
-            <Award size={16} className="text-gold" />
+            <h1 className="text-h2 font-heading text-text-primary">Growth Scorecard</h1>
+            <Award size={16} className="text-vc-accent" />
           </div>
-          <p className="text-sm text-vc-muted mt-0.5">
+          <p className="text-sm text-text-secondary mt-0.5">
             Client since {data.client_since ? format(parseISO(data.client_since), 'MMMM yyyy') : '—'} · {data.months_active} months active · Updated monthly
           </p>
         </div>
@@ -130,15 +130,15 @@ export default function GrowthScorecard() {
 
       {/* Monthly trend chart */}
       {chartData.length > 0 && (
-        <div className="border border-vc-border p-4">
+        <div className="vc-card">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-vc-text">Monthly Progression</p>
+            <p className="text-sm font-medium text-text-primary">Monthly Progression</p>
             <div className="flex gap-1">
               {['leads', 'cpl'].map((k) => (
                 <button
                   key={k}
                   onClick={() => setActiveChart(k)}
-                  className={`text-xs px-3 py-1 border transition-colors ${activeChart === k ? 'bg-vc-text text-white border-vc-text' : 'border-vc-border text-vc-muted hover:text-vc-text'}`}
+                  className={`text-xs px-3 py-1 border transition-colors ${activeChart === k ? 'bg-vc-text text-white border-text-primary' : 'border-white/[0.06] text-text-secondary hover:text-text-primary'}`}
                 >
                   {k === 'leads' ? 'Leads' : 'CPL'}
                 </button>
@@ -155,44 +155,44 @@ export default function GrowthScorecard() {
                 : d.cpl < (chartData[0]?.cpl || Infinity)
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[10px] text-vc-muted font-medium">{activeChart === 'leads' ? val : `£${val}`}</span>
+                  <span className="text-[10px] text-text-secondary font-medium">{activeChart === 'leads' ? val : `£${val}`}</span>
                   <div className="w-full flex items-end justify-center">
                     <div
-                      className={`w-full rounded-sm transition-all ${isLast ? 'bg-gold' : isImprovement && i > 0 ? 'bg-green-400' : 'bg-vc-border'}`}
+                      className={`w-full rounded-sm transition-all ${isLast ? 'bg-vc-primary' : isImprovement && i > 0 ? 'bg-status-success' : 'bg-vc-border'}`}
                       style={{ height: `${pct * 0.7}px` }}
                       title={`${d.month}: ${val}`}
                     />
                   </div>
-                  <span className="text-[10px] text-vc-muted">{d.month}</span>
+                  <span className="text-[10px] text-text-secondary">{d.month}</span>
                 </div>
               )
             })}
           </div>
-          <p className="text-xs text-vc-muted mt-2 text-right">
+          <p className="text-xs text-text-secondary mt-2 text-right">
             {activeChart === 'leads' ? '↑ Higher is better' : '↓ Lower is better (lower cost per lead)'}
           </p>
         </div>
       )}
 
       {/* Total impact */}
-      <div className="border border-vc-border p-5 bg-vc-secondary">
-        <p className="text-xs font-semibold uppercase tracking-wider text-vc-muted mb-3">Total Impact Since You Started</p>
+      <div className="vc-card bg-bg-tertiary">
+        <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">Total Impact Since You Started</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-2xl font-bold text-vc-text">{data.totals.leads_generated.toLocaleString()}</p>
-            <p className="text-xs text-vc-muted mt-0.5">Total leads generated</p>
+            <p className="text-2xl font-bold text-text-primary">{data.totals.leads_generated.toLocaleString()}</p>
+            <p className="text-xs text-text-secondary mt-0.5">Total leads generated</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-vc-text">£{data.totals.ad_spend_managed.toLocaleString()}</p>
-            <p className="text-xs text-vc-muted mt-0.5">Ad spend managed</p>
+            <p className="text-2xl font-bold text-text-primary">£{data.totals.ad_spend_managed.toLocaleString()}</p>
+            <p className="text-xs text-text-secondary mt-0.5">Ad spend managed</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-vc-text">£{data.totals.estimated_pipeline.toLocaleString()}</p>
-            <p className="text-xs text-vc-muted mt-0.5">Estimated pipeline created</p>
+            <p className="text-2xl font-bold text-text-primary">£{data.totals.estimated_pipeline.toLocaleString()}</p>
+            <p className="text-xs text-text-secondary mt-0.5">Estimated pipeline created</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-vc-text">{data.totals.tasks_completed || data.metrics.find(m => m.key === 'tasks')?.now || 47}</p>
-            <p className="text-xs text-vc-muted mt-0.5">Tasks delegated</p>
+            <p className="text-2xl font-bold text-text-primary">{data.totals.tasks_completed || data.metrics.find(m => m.key === 'tasks')?.now || 47}</p>
+            <p className="text-xs text-text-secondary mt-0.5">Tasks delegated</p>
           </div>
         </div>
       </div>

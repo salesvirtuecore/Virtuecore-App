@@ -2,68 +2,199 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Fonts ─────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,600,500,400&display=swap');
+
+/* ── Base ───────────────────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  *, *::before, *::after { box-sizing: border-box; }
 
   html {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
-    max-width: 100%;
+    color-scheme: dark;
   }
 
   body {
     margin: 0;
-    background: #ffffff;
-    color: #1A1A1A;
+    background: #0A0A0B;
+    color: #EDEDEF;
     overflow-x: hidden;
-    max-width: 100%;
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   #root {
     min-height: 100svh;
     width: 100%;
-    max-width: 100%;
     overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Satoshi', 'Inter', sans-serif;
+    color: #EDEDEF;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #222225; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2e2e32; }
+
+  input, textarea, select {
+    background: #111113;
+    color: #EDEDEF;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: #6C5CE7;
+    box-shadow: 0 0 0 3px rgba(108,92,231,0.15);
+  }
+  input::placeholder, textarea::placeholder { color: #5A5A5E; }
+  select option { background: #111113; color: #EDEDEF; }
+}
+
+/* ── Components ─────────────────────────────────────────────────────────────── */
+@layer components {
+  .vc-card {
+    background: #111113;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .vc-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5A5A5E;
+  }
+
+  .vc-metric {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: #EDEDEF;
+    line-height: 1;
+  }
+
+  .vc-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 0;
+  }
+
+  .vc-table { width: 100%; border-collapse: collapse; }
+  .vc-table th {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8E8E93;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: transparent;
+  }
+  .vc-table td {
+    padding: 12px;
+    font-size: 14px;
+    color: #EDEDEF;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .vc-table tbody tr:hover td { background: #1A1A1D; }
+  .vc-table td.mono { font-family: 'JetBrains Mono', monospace; text-align: right; }
+
+  .vc-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #8E8E93;
+    cursor: pointer;
+    transition: background 150ms, color 150ms;
+    position: relative;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .vc-nav-item:hover { background: #1A1A1D; color: #EDEDEF; }
+  .vc-nav-item.active { color: #EDEDEF; background: rgba(108,92,231,0.12); }
+  .vc-nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 2px;
+    background: #6C5CE7;
+    border-radius: 0 2px 2px 0;
   }
 }
 
+/* ── Utilities ──────────────────────────────────────────────────────────────── */
 @layer utilities {
-  button[class*='bg-gold'] {
-    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
-    box-shadow: 0 2px 6px rgba(178, 135, 64, 0.16);
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  .skeleton {
+    background: linear-gradient(90deg, #1A1A1D 25%, #222225 50%, #1A1A1D 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
   }
 
-  button[class*='bg-gold']:hover:not(:disabled) {
+  @keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .delta-up   { color: #34D399; }
+  .delta-down { color: #F87171; }
+  .delta-flat { color: #8E8E93; }
+
+  .font-mono-data { font-family: 'JetBrains Mono', monospace; }
+  .font-heading   { font-family: 'Satoshi', 'Inter', sans-serif; }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .status-dot-green  { background: #34D399; }
+  .status-dot-amber  { background: #FBBF24; }
+  .status-dot-red    { background: #F87171; }
+  .status-dot-blue   { background: #60A5FA; }
+  .status-dot-purple { background: #6C5CE7; }
+
+  /* Primary button glow */
+  button.btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 16px rgba(108,92,231,0.4);
     transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(178, 135, 64, 0.22);
   }
-
-  button[class*='bg-gold']:active:not(:disabled) {
+  button.btn-primary:active:not(:disabled) {
     transform: translateY(0) scale(0.99);
-    box-shadow: 0 3px 8px rgba(178, 135, 64, 0.18);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    button[class*='bg-gold'] {
-      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-      transform: none !important;
-    }
-  }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* iPhone home indicator safe area */
-  .safe-area-pb {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    button { transition: background-color 150ms, color 150ms !important; transform: none !important; }
   }
 }

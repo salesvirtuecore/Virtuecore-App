@@ -78,26 +78,26 @@ export default function Meetings() {
   return (
     <div className="p-4 md:p-6 space-y-6 w-full overflow-x-hidden">
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">Meetings</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Book a call and view your scheduled sessions</p>
+        <h1 className="text-h2 font-heading text-text-primary">Meetings</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Book a call and view your scheduled sessions</p>
       </div>
 
       {/* Upcoming meetings */}
       {!loading && upcoming.length > 0 && (
-        <div className="border border-vc-border">
-          <div className="px-5 py-3 border-b border-vc-border flex items-center gap-2">
-            <CheckCircle size={14} className="text-green-500" />
-            <h2 className="text-sm font-medium text-vc-text">Upcoming</h2>
-            <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{upcoming.length} booked</span>
+        <div className="border border-white/[0.06]">
+          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <CheckCircle size={14} className="text-status-success" />
+            <h2 className="text-sm font-medium text-text-primary">Upcoming</h2>
+            <span className="ml-auto text-xs bg-status-success/10 text-status-success px-2 py-0.5 rounded-full">{upcoming.length} booked</span>
           </div>
-          <div className="divide-y divide-vc-border">
+          <div className="divide-y divide-white/[0.06]">
             {upcoming.map((m) => (
-              <div key={m.id} className="px-4 py-4 flex items-start justify-between gap-4 hover:bg-vc-secondary transition-colors">
+              <div key={m.id} className="px-4 py-4 flex items-start justify-between gap-4 hover:bg-bg-tertiary transition-colors">
                 <div>
-                  <p className="text-sm font-medium text-vc-text">{m.event_type_name || 'Meeting'}</p>
+                  <p className="text-sm font-medium text-text-primary">{m.event_type_name || 'Meeting'}</p>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <Clock size={12} className="text-gold" />
-                    <p className="text-xs text-vc-muted">{formatDateTime(m.start_time)}</p>
+                    <Clock size={12} className="text-vc-accent" />
+                    <p className="text-xs text-text-secondary">{formatDateTime(m.start_time)}</p>
                   </div>
                 </div>
                 {m.join_url && (
@@ -105,7 +105,7 @@ export default function Meetings() {
                     href={m.join_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0 text-xs px-3 py-1.5 bg-gold text-white rounded hover:bg-gold-dark transition-colors flex items-center gap-1"
+                    className="flex-shrink-0 text-xs px-3 py-1.5 bg-vc-primary text-white rounded hover:bg-vc-accent transition-colors flex items-center gap-1"
                   >
                     <ExternalLink size={11} />
                     Join
@@ -118,10 +118,10 @@ export default function Meetings() {
       )}
 
       {/* Calendly inline embed */}
-      <div className="border border-vc-border">
-        <div className="px-5 py-3 border-b border-vc-border flex items-center gap-2">
-          <Calendar size={14} className="text-gold" />
-          <h2 className="text-sm font-medium text-vc-text">Book a Call</h2>
+      <div className="border border-white/[0.06]">
+        <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
+          <Calendar size={14} className="text-vc-accent" />
+          <h2 className="text-sm font-medium text-text-primary">Book a Call</h2>
         </div>
 
         {calendlyUrl ? (
@@ -131,11 +131,11 @@ export default function Meetings() {
             style={{ height: '700px' }}
           />
         ) : (
-          <div className="bg-vc-secondary h-48 flex items-center justify-center">
+          <div className="bg-bg-tertiary h-48 flex items-center justify-center">
             <div className="text-center px-6">
-              <Calendar size={28} className="text-vc-muted mx-auto mb-2" />
-              <p className="text-sm font-medium text-vc-text">Calendar not yet configured</p>
-              <p className="text-xs text-vc-muted mt-1">Add <code className="bg-vc-secondary px-1">VITE_CALENDLY_URL</code> to your Vercel environment variables to enable booking.</p>
+              <Calendar size={28} className="text-text-secondary mx-auto mb-2" />
+              <p className="text-sm font-medium text-text-primary">Calendar not yet configured</p>
+              <p className="text-xs text-text-secondary mt-1">Add <code className="bg-bg-tertiary px-1">VITE_CALENDLY_URL</code> to your Vercel environment variables to enable booking.</p>
             </div>
           </div>
         )}
@@ -143,17 +143,17 @@ export default function Meetings() {
 
       {/* Past meetings */}
       {past.length > 0 && (
-        <div className="border border-vc-border">
-          <div className="px-5 py-3 border-b border-vc-border flex items-center gap-2">
-            <Video size={14} className="text-vc-muted" />
-            <h2 className="text-sm font-medium text-vc-text">Past Meetings</h2>
+        <div className="border border-white/[0.06]">
+          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <Video size={14} className="text-text-secondary" />
+            <h2 className="text-sm font-medium text-text-primary">Past Meetings</h2>
           </div>
-          <div className="divide-y divide-vc-border">
+          <div className="divide-y divide-white/[0.06]">
             {past.map((m) => (
-              <div key={m.id} className="px-5 py-3 flex items-center justify-between hover:bg-vc-secondary transition-colors">
+              <div key={m.id} className="px-5 py-3 flex items-center justify-between hover:bg-bg-tertiary transition-colors">
                 <div>
-                  <p className="text-sm font-medium text-vc-text">{m.event_type_name || 'Meeting'}</p>
-                  <p className="text-xs text-vc-muted mt-0.5">{formatDateTime(m.start_time)}</p>
+                  <p className="text-sm font-medium text-text-primary">{m.event_type_name || 'Meeting'}</p>
+                  <p className="text-xs text-text-secondary mt-0.5">{formatDateTime(m.start_time)}</p>
                 </div>
               </div>
             ))}
@@ -163,16 +163,16 @@ export default function Meetings() {
 
       {/* Canceled */}
       {canceled.length > 0 && (
-        <div className="border border-vc-border opacity-60">
-          <div className="px-5 py-3 border-b border-vc-border flex items-center gap-2">
-            <XCircle size={14} className="text-vc-muted" />
-            <h2 className="text-sm font-medium text-vc-muted">Canceled</h2>
+        <div className="border border-white/[0.06] opacity-60">
+          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <XCircle size={14} className="text-text-secondary" />
+            <h2 className="text-sm font-medium text-text-secondary">Canceled</h2>
           </div>
-          <div className="divide-y divide-vc-border">
+          <div className="divide-y divide-white/[0.06]">
             {canceled.map((m) => (
               <div key={m.id} className="px-5 py-3">
-                <p className="text-sm text-vc-muted line-through">{m.event_type_name || 'Meeting'}</p>
-                <p className="text-xs text-vc-muted mt-0.5">{formatDateTime(m.start_time)}</p>
+                <p className="text-sm text-text-secondary line-through">{m.event_type_name || 'Meeting'}</p>
+                <p className="text-xs text-text-secondary mt-0.5">{formatDateTime(m.start_time)}</p>
               </div>
             ))}
           </div>
@@ -181,7 +181,7 @@ export default function Meetings() {
 
       {/* Empty state when no meetings yet */}
       {!loading && meetings.length === 0 && (
-        <p className="text-xs text-vc-muted text-center py-4">
+        <p className="text-xs text-text-secondary text-center py-4">
           No meetings booked yet — use the calendar above to schedule a call.
         </p>
       )}

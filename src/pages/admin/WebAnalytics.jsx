@@ -167,12 +167,12 @@ export default function WebAnalytics() {
     <div className="p-4 md:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-vc-text">Web Analytics</h1>
-          <p className="text-sm text-vc-muted mt-0.5">Websites hosted and maintained for clients</p>
+          <h1 className="text-h2 font-heading text-text-primary">Web Analytics</h1>
+          <p className="text-sm text-text-secondary mt-0.5">Websites hosted and maintained for clients</p>
         </div>
         <button
           onClick={() => { setForm(EMPTY_FORM); setShowModal(true) }}
-          className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
+          className="flex items-center gap-1.5 bg-vc-primary hover:bg-amber-600 text-white text-sm px-4 py-2 transition-colors"
         >
           <Plus size={14} />
           Add Website
@@ -180,50 +180,50 @@ export default function WebAnalytics() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-vc-muted">Loading websites...</p>
+        <p className="text-sm text-text-secondary">Loading websites...</p>
       ) : websites.length === 0 ? (
-        <div className="border border-dashed border-vc-border p-10 text-center text-sm text-vc-muted">
+        <div className="border border-dashed border-white/[0.06] p-10 text-center text-sm text-text-secondary">
           No websites added yet. Click <span className="font-medium">Add Website</span> to track a client site.
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(byClient).map(([clientName, sites]) => (
             <div key={clientName}>
-              <p className="text-xs font-semibold text-vc-muted uppercase tracking-wide mb-2">{clientName}</p>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">{clientName}</p>
               <div className="space-y-3">
                 {sites.map((site) => (
-                  <div key={site.id} className="border border-vc-border">
+                  <div key={site.id} className="border border-white/[0.06]">
                     <div className="p-4 flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-8 h-8 bg-vc-secondary border border-vc-border flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Globe size={15} className="text-vc-muted" />
+                        <div className="w-8 h-8 bg-bg-tertiary border border-white/[0.06] flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Globe size={15} className="text-text-secondary" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-vc-text">{site.name}</p>
+                          <p className="text-sm font-medium text-text-primary">{site.name}</p>
                           <a
                             href={site.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-gold hover:underline mt-0.5"
+                            className="flex items-center gap-1 text-xs text-vc-accent hover:underline mt-0.5"
                           >
                             {site.url}
                             <ExternalLink size={10} />
                           </a>
                           {site.notes && (
-                            <p className="text-xs text-vc-muted mt-1">{site.notes}</p>
+                            <p className="text-xs text-text-secondary mt-1">{site.notes}</p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => setScriptSiteId(scriptSiteId === site.id ? null : site.id)}
-                          className="text-xs text-vc-muted hover:text-vc-text border border-vc-border px-2 py-1 transition-colors"
+                          className="text-xs text-text-secondary hover:text-text-primary border border-white/[0.06] px-2 py-1 transition-colors"
                         >
                           Tracking
                         </button>
                         <button
                           onClick={() => handleDelete(site)}
-                          className="text-vc-muted hover:text-red-500 transition-colors"
+                          className="text-text-secondary hover:text-status-danger transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -231,36 +231,36 @@ export default function WebAnalytics() {
                     </div>
 
                     {/* Tracking IDs row */}
-                    <div className="border-t border-vc-border px-4 py-2.5 flex flex-wrap gap-4 bg-vc-secondary">
+                    <div className="border-t border-white/[0.06] px-4 py-2.5 flex flex-wrap gap-4 bg-bg-tertiary">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-vc-muted">GA4:</span>
-                        <span className="text-xs font-mono text-vc-text">
-                          {site.ga_measurement_id || <span className="text-vc-muted italic">Not set</span>}
+                        <span className="text-xs text-text-secondary">GA4:</span>
+                        <span className="text-xs font-mono text-text-primary">
+                          {site.ga_measurement_id || <span className="text-text-secondary italic">Not set</span>}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-vc-muted">Meta Pixel:</span>
-                        <span className="text-xs font-mono text-vc-text">
-                          {site.meta_pixel_id || <span className="text-vc-muted italic">Not set</span>}
+                        <span className="text-xs text-text-secondary">Meta Pixel:</span>
+                        <span className="text-xs font-mono text-text-primary">
+                          {site.meta_pixel_id || <span className="text-text-secondary italic">Not set</span>}
                         </span>
                       </div>
                     </div>
 
                     {/* Tracking snippet panel */}
                     {scriptSiteId === site.id && (
-                      <div className="border-t border-vc-border p-4 space-y-3">
+                      <div className="border-t border-white/[0.06] p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-medium text-vc-text">GA4 Tracking Snippet</p>
+                          <p className="text-xs font-medium text-text-primary">GA4 Tracking Snippet</p>
                           <button
                             onClick={() => copyTrackingSnippet(site)}
-                            className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+                            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
                           >
-                            {copiedId === site.id ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                            {copiedId === site.id ? <Check size={12} className="text-status-success" /> : <Copy size={12} />}
                             {copiedId === site.id ? 'Copied!' : 'Copy'}
                           </button>
                         </div>
                         {site.ga_measurement_id ? (
-                          <pre className="text-xs font-mono bg-vc-secondary border border-vc-border p-3 overflow-x-auto text-vc-muted leading-relaxed">{`<!-- Google Analytics (${site.name}) -->
+                          <pre className="text-xs font-mono bg-bg-tertiary border border-white/[0.06] p-3 overflow-x-auto text-text-secondary leading-relaxed">{`<!-- Google Analytics (${site.name}) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=${site.ga_measurement_id}"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -269,7 +269,7 @@ export default function WebAnalytics() {
   gtag('config', '${site.ga_measurement_id}');
 </script>`}</pre>
                         ) : (
-                          <p className="text-xs text-vc-muted">
+                          <p className="text-xs text-text-secondary">
                             Add a GA4 Measurement ID to generate the tracking snippet.
                           </p>
                         )}
@@ -278,7 +278,7 @@ export default function WebAnalytics() {
                             href={`https://analytics.google.com/analytics/web/#/p${site.ga_measurement_id.replace('G-', '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-gold hover:underline"
+                            className="flex items-center gap-1 text-xs text-vc-accent hover:underline"
                           >
                             Open in Google Analytics
                             <ExternalLink size={10} />
@@ -299,7 +299,7 @@ export default function WebAnalytics() {
         <form onSubmit={handleSave} className="space-y-4">
           <FormField label="Client" required>
             <select
-              className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold bg-white"
+              className="w-full bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary"
               value={form.client_id}
               onChange={(e) => setForm((p) => ({ ...p, client_id: e.target.value }))}
               required
@@ -313,7 +313,7 @@ export default function WebAnalytics() {
 
           <FormField label="Website name" required>
             <input
-              className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold"
+              className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="e.g. Hartley Roofing Website"
@@ -323,7 +323,7 @@ export default function WebAnalytics() {
 
           <FormField label="URL" required>
             <input
-              className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold"
+              className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
               value={form.url}
               onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
               placeholder="https://example.co.uk"
@@ -334,7 +334,7 @@ export default function WebAnalytics() {
           <div className="grid grid-cols-2 gap-3">
             <FormField label="GA4 Measurement ID">
               <input
-                className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold"
+                className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
                 value={form.ga_measurement_id}
                 onChange={(e) => setForm((p) => ({ ...p, ga_measurement_id: e.target.value }))}
                 placeholder="G-XXXXXXXXXX"
@@ -342,7 +342,7 @@ export default function WebAnalytics() {
             </FormField>
             <FormField label="Meta Pixel ID">
               <input
-                className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold"
+                className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
                 value={form.meta_pixel_id}
                 onChange={(e) => setForm((p) => ({ ...p, meta_pixel_id: e.target.value }))}
                 placeholder="1234567890"
@@ -352,7 +352,7 @@ export default function WebAnalytics() {
 
           <FormField label="Notes">
             <input
-              className="w-full border border-vc-border px-3 py-2 text-sm focus:outline-none focus:border-gold"
+              className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
               value={form.notes}
               onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
               placeholder="Platform, host, anything useful..."
@@ -363,14 +363,14 @@ export default function WebAnalytics() {
             <button
               type="button"
               onClick={() => setShowModal(false)}
-              className="px-4 py-2 text-sm text-vc-muted hover:text-vc-text border border-vc-border transition-colors"
+              className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary border border-white/[0.06] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving || !form.client_id || !form.name.trim() || !form.url.trim()}
-              className="px-4 py-2 text-sm bg-gold hover:bg-amber-600 text-white disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm bg-vc-primary hover:bg-amber-600 text-white disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving...' : 'Add website'}
             </button>

@@ -212,10 +212,10 @@ export default function ClientView() {
   if (loadingClient) {
     return (
       <div className="p-6">
-        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-4">
+        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4">
           <ArrowLeft size={14} /> Back to Clients
         </button>
-        <p className="text-sm text-vc-muted">Loading client...</p>
+        <p className="text-sm text-text-secondary">Loading client...</p>
       </div>
     )
   }
@@ -223,10 +223,10 @@ export default function ClientView() {
   if (!client) {
     return (
       <div className="p-6">
-        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-4">
+        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4">
           <ArrowLeft size={14} /> Back to Clients
         </button>
-        <p className="text-sm text-vc-muted">Client not found.</p>
+        <p className="text-sm text-text-secondary">Client not found.</p>
       </div>
     )
   }
@@ -593,7 +593,7 @@ export default function ClientView() {
     }
   }
 
-  const inputClass = 'border border-vc-border rounded px-3 py-2 w-full text-sm text-vc-text focus:outline-none focus:border-gold'
+  const inputClass = 'bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary'
   const selectClass = inputClass
 
   return (
@@ -601,7 +601,7 @@ export default function ClientView() {
       {/* Report toast */}
       {reportToast && (
         <div className="fixed top-4 right-4 z-50 bg-vc-text text-white text-sm px-4 py-3 shadow-md flex items-center gap-2">
-          <Sparkles size={14} className="text-gold" />
+          <Sparkles size={14} className="text-vc-accent" />
           Report generated and saved to deliverables.
         </div>
       )}
@@ -610,22 +610,22 @@ export default function ClientView() {
       {reportModal && (
         <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" onClick={() => setReportModal(null)}>
           <div
-            className="bg-white w-full max-w-2xl max-h-[80vh] flex flex-col border border-vc-border shadow-md"
+            className="bg-bg-elevated w-full max-w-2xl max-h-[80vh] flex flex-col border border-white/[0.08] rounded-card shadow-elevated"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-vc-border flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
               <div>
-                <h3 className="text-sm font-semibold text-vc-text">AI-Generated Report Preview</h3>
+                <h3 className="text-sm font-semibold text-text-primary">AI-Generated Report Preview</h3>
                 {reportModal.saved && (
-                  <p className="text-xs text-green-600 mt-0.5">Saved to deliverables as draft</p>
+                  <p className="text-xs text-status-success mt-0.5">Saved to deliverables as draft</p>
                 )}
               </div>
-              <button onClick={() => setReportModal(null)} className="text-vc-muted hover:text-vc-text">
+              <button onClick={() => setReportModal(null)} className="text-text-secondary hover:text-text-primary">
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
-              <pre className="text-sm text-vc-text whitespace-pre-wrap font-sans leading-relaxed">
+              <pre className="text-sm text-text-primary whitespace-pre-wrap font-sans leading-relaxed">
                 {reportModal.text}
               </pre>
             </div>
@@ -635,13 +635,13 @@ export default function ClientView() {
 
       {/* Back + header */}
       <div>
-        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-vc-muted hover:text-vc-text mb-3 transition-colors">
+        <button onClick={() => navigate('/admin/clients')} className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-3 transition-colors">
           <ArrowLeft size={14} /> Back to Clients
         </button>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-vc-text">{client.company_name}</h1>
-            <p className="text-sm text-vc-muted">{client.contact_name} · {client.contact_email}</p>
+            <h1 className="text-h2 font-heading text-text-primary">{client.company_name}</h1>
+            <p className="text-sm text-text-secondary">{client.contact_name} · {client.contact_email}</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={HEALTH_BADGE[client.health_score]}>
@@ -656,12 +656,12 @@ export default function ClientView() {
                 value={reportPeriod}
                 onChange={(e) => setReportPeriod(e.target.value)}
                 placeholder="e.g. March 2026"
-                className="border border-vc-border px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-gold w-36"
+                className="border border-white/[0.06] px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-vc-primary w-36"
               />
               <button
                 onClick={handleGenerateReport}
                 disabled={reportLoading || !reportPeriod.trim()}
-                className="flex items-center gap-1.5 bg-gold hover:bg-amber-600 disabled:opacity-60 text-white text-sm px-4 py-2 transition-colors whitespace-nowrap"
+                className="flex items-center gap-1.5 bg-vc-primary hover:bg-amber-600 disabled:opacity-60 text-white text-sm px-4 py-2 transition-colors whitespace-nowrap"
               >
                 <Sparkles size={14} />
                 {reportLoading ? 'Generating…' : 'Generate AI Report'}
@@ -672,7 +672,7 @@ export default function ClientView() {
       </div>
 
       {/* Admin-only note */}
-      <div className="bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+      <div className="bg-status-warning/10 border border-status-warning/20 px-4 py-3 text-sm text-amber-800">
         <span className="font-medium">Admin view:</span> You are viewing this client's portal. Internal notes and full data visible.
       </div>
 
@@ -685,13 +685,13 @@ export default function ClientView() {
       </div>
 
       {/* Performance chart */}
-      <div className="border border-vc-border p-5">
-        <h2 className="text-sm font-medium text-vc-text mb-4">Performance Trend (6 months)</h2>
+      <div className="vc-card">
+        <h2 className="text-sm font-medium text-text-primary mb-4">Performance Trend (6 months)</h2>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#5A5A5E" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#5A5A5E" }} axisLine={false} tickLine={false} />
             <Tooltip />
             <Line type="monotone" dataKey="leads" stroke="#D4A843" strokeWidth={2} name="Leads" dot={{ r: 3 }} />
             <Line type="monotone" dataKey="cpl" stroke="#1A1A1A" strokeWidth={2} name="CPL (£)" dot={{ r: 3 }} />
@@ -703,27 +703,27 @@ export default function ClientView() {
       {npsData.length > 0 && (() => {
         const latest = npsData[0]
         const avg = Math.round(npsData.reduce((s, r) => s + r.score, 0) / npsData.length * 10) / 10
-        const sentimentColor = (s) => s >= 9 ? 'text-green-600 bg-green-50 border-green-200' : s >= 7 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-600 bg-red-50 border-red-200'
+        const sentimentColor = (s) => s >= 9 ? 'text-status-success bg-status-success/10 border-status-success/20' : s >= 7 ? 'text-status-warning bg-status-warning/10 border-status-warning/20' : 'text-status-danger bg-status-danger/10 border-status-danger/20'
         const sentimentLabel = (s) => s >= 9 ? 'Promoter' : s >= 7 ? 'Passive' : 'Detractor'
         return (
-          <div className="border border-vc-border">
-            <div className="px-4 py-3 border-b border-vc-border flex items-center justify-between">
-              <h2 className="text-sm font-medium text-vc-text">Client Feedback (NPS)</h2>
+          <div className="border border-white/[0.06]">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+              <h2 className="text-sm font-medium text-text-primary">Client Feedback (NPS)</h2>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-vc-muted">{npsData.length} response{npsData.length !== 1 ? 's' : ''}</span>
-                <span className="text-xs font-semibold text-vc-text">Avg: {avg}/10</span>
+                <span className="text-xs text-text-secondary">{npsData.length} response{npsData.length !== 1 ? 's' : ''}</span>
+                <span className="text-xs font-semibold text-text-primary">Avg: {avg}/10</span>
               </div>
             </div>
-            <div className="divide-y divide-vc-border">
+            <div className="divide-y divide-white/[0.06]">
               {npsData.map((r, i) => (
                 <div key={i} className="px-4 py-3 flex items-start gap-3">
                   <span className={`text-xs font-bold border px-2 py-1 flex-shrink-0 rounded ${sentimentColor(r.score)}`}>{r.score}/10</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className={`text-xs font-medium ${sentimentColor(r.score).split(' ')[0]}`}>{sentimentLabel(r.score)}</span>
-                      <span className="text-xs text-vc-muted">{new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span className="text-xs text-text-secondary">{new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
-                    {r.comment ? <p className="text-sm text-vc-text">{r.comment}</p> : <p className="text-xs text-vc-muted italic">No comment left</p>}
+                    {r.comment ? <p className="text-sm text-text-primary">{r.comment}</p> : <p className="text-xs text-text-secondary italic">No comment left</p>}
                   </div>
                 </div>
               ))}
@@ -735,39 +735,39 @@ export default function ClientView() {
       {/* Deliverables + Messages */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Deliverables */}
-        <div className="border border-vc-border">
-          <div className="px-4 py-3 border-b border-vc-border flex items-center justify-between">
-            <h2 className="text-sm font-medium text-vc-text">Deliverables</h2>
+        <div className="border border-white/[0.06]">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+            <h2 className="text-sm font-medium text-text-primary">Deliverables</h2>
             <button
               onClick={openAddDeliverable}
-              className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+              className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
             >
               <Plus size={13} /> Add
             </button>
           </div>
-          <div className="divide-y divide-vc-border">
+          <div className="divide-y divide-white/[0.06]">
             {deliverables.length === 0 && (
-              <p className="px-4 py-4 text-sm text-vc-muted">No deliverables yet.</p>
+              <p className="px-4 py-4 text-sm text-text-secondary">No deliverables yet.</p>
             )}
             {deliverables.map((d) => (
               <div key={d.id} className="px-4 py-3 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-vc-text truncate">{d.title}</p>
-                  <p className="text-xs text-vc-muted capitalize">{d.type.replace(/_/g, ' ')}</p>
+                  <p className="text-sm font-medium text-text-primary truncate">{d.title}</p>
+                  <p className="text-xs text-text-secondary capitalize">{d.type.replace(/_/g, ' ')}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {d.file_url && (
-                    <a href={d.file_url} target="_blank" rel="noreferrer" className="text-vc-muted hover:text-vc-text">
+                    <a href={d.file_url} target="_blank" rel="noreferrer" className="text-text-secondary hover:text-text-primary">
                       <ExternalLink size={13} />
                     </a>
                   )}
                   <Badge variant={d.status === 'approved' ? 'green' : d.status === 'changes_requested' ? 'red' : d.status === 'pending_review' ? 'amber' : 'default'}>
                     {d.status.replace(/_/g, ' ')}
                   </Badge>
-                  <button onClick={() => openEditDeliverable(d)} className="text-vc-muted hover:text-vc-text">
+                  <button onClick={() => openEditDeliverable(d)} className="text-text-secondary hover:text-text-primary">
                     <Pencil size={13} />
                   </button>
-                  <button onClick={() => handleDeleteDeliverable(d.id)} className="text-vc-muted hover:text-red-500">
+                  <button onClick={() => handleDeleteDeliverable(d.id)} className="text-text-secondary hover:text-status-danger">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -777,40 +777,40 @@ export default function ClientView() {
         </div>
 
         {/* Messages */}
-        <div className="border border-vc-border flex flex-col">
-          <div className="px-4 py-3 border-b border-vc-border">
-            <h2 className="text-sm font-medium text-vc-text">Messages</h2>
+        <div className="border border-white/[0.06] flex flex-col">
+          <div className="px-4 py-3 border-b border-white/[0.06]">
+            <h2 className="text-sm font-medium text-text-primary">Messages</h2>
           </div>
-          <div className="divide-y divide-vc-border max-h-72 overflow-y-auto flex-1">
+          <div className="divide-y divide-white/[0.06] max-h-72 overflow-y-auto flex-1">
             {messages.length === 0 && (
-              <p className="px-4 py-4 text-sm text-vc-muted">No messages yet.</p>
+              <p className="px-4 py-4 text-sm text-text-secondary">No messages yet.</p>
             )}
             {messages.map((msg) => (
-              <div key={msg.id} className={`px-4 py-3 ${msg.sender?.role === 'admin' ? 'bg-vc-secondary' : ''}`}>
+              <div key={msg.id} className={`px-4 py-3 ${msg.sender?.role === 'admin' ? 'bg-bg-tertiary' : ''}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-vc-text">{msg.sender?.full_name ?? (msg.sender_id === profile?.id ? profile?.full_name : 'Client')}</span>
-                  <span className="text-xs text-vc-muted">
+                  <span className="text-xs font-medium text-text-primary">{msg.sender?.full_name ?? (msg.sender_id === profile?.id ? profile?.full_name : 'Client')}</span>
+                  <span className="text-xs text-text-secondary">
                     {new Date(msg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p className="text-sm text-vc-text">{msg.content}</p>
+                <p className="text-sm text-text-primary">{msg.content}</p>
               </div>
             ))}
             <div ref={messagesBottomRef} />
           </div>
           {/* Send message */}
-          <div className="px-4 py-3 border-t border-vc-border flex gap-2">
+          <div className="px-4 py-3 border-t border-white/[0.06] flex gap-2">
             <input
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
               placeholder="Write a message…"
-              className="flex-1 border border-vc-border rounded px-3 py-2 text-sm text-vc-text focus:outline-none focus:border-gold"
+              className="flex-1 border border-white/[0.06] rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-vc-primary"
             />
             <button
               onClick={handleSendMessage}
               disabled={!messageText.trim() || saving}
-              className="bg-gold hover:bg-gold-dark text-white text-sm px-3 py-2 rounded disabled:opacity-50 flex items-center gap-1"
+              className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-3 py-2 rounded disabled:opacity-50 flex items-center gap-1"
             >
               <Send size={13} />
             </button>
@@ -819,44 +819,44 @@ export default function ClientView() {
       </div>
 
       {/* Invoices */}
-      <div className="border border-vc-border">
-        <div className="px-5 py-3 border-b border-vc-border flex items-center justify-between">
-          <h2 className="text-sm font-medium text-vc-text">Invoices</h2>
+      <div className="border border-white/[0.06]">
+        <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+          <h2 className="text-sm font-medium text-text-primary">Invoices</h2>
           <button
             onClick={openAddInvoice}
-            className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
           >
             <Plus size={13} /> Add Invoice
           </button>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-vc-border bg-vc-secondary">
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Type</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Amount</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Due</th>
-              <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Status</th>
+            <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Type</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Amount</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Due</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Status</th>
               <th className="px-5 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {invoices.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-4 text-sm text-vc-muted">No invoices yet.</td>
+                <td colSpan={5} className="px-5 py-4 text-sm text-text-secondary">No invoices yet.</td>
               </tr>
             )}
             {invoices.map((inv) => (
-              <tr key={inv.id} className="border-b border-vc-border last:border-0">
-                <td className="px-5 py-3 capitalize text-vc-text">{inv.type}</td>
-                <td className="px-5 py-3 font-medium text-vc-text">£{inv.amount.toLocaleString()}</td>
-                <td className="px-5 py-3 text-vc-muted">{inv.due_date}</td>
+              <tr key={inv.id} className="border-b border-white/[0.06] last:border-0">
+                <td className="px-5 py-3 capitalize text-text-primary">{inv.type}</td>
+                <td className="px-5 py-3 font-medium text-text-primary">£{inv.amount.toLocaleString()}</td>
+                <td className="px-5 py-3 text-text-secondary">{inv.due_date}</td>
                 <td className="px-5 py-3">
                   <Badge variant={inv.status === 'paid' ? 'green' : inv.status === 'overdue' ? 'red' : inv.status === 'sent' ? 'blue' : 'default'}>
                     {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
                   </Badge>
                 </td>
                 <td className="px-5 py-3">
-                  <button onClick={() => openEditInvoice(inv)} className="text-vc-muted hover:text-vc-text">
+                  <button onClick={() => openEditInvoice(inv)} className="text-text-secondary hover:text-text-primary">
                     <Pencil size={13} />
                   </button>
                 </td>
@@ -867,42 +867,42 @@ export default function ClientView() {
       </div>
 
       {/* Ad Performance */}
-      <div className="border border-vc-border">
-        <div className="px-5 py-3 border-b border-vc-border flex items-center justify-between">
-          <h2 className="text-sm font-medium text-vc-text">Ad Performance — Manual Entry</h2>
+      <div className="border border-white/[0.06]">
+        <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+          <h2 className="text-sm font-medium text-text-primary">Ad Performance — Manual Entry</h2>
           <button
             onClick={() => { setAdForm(EMPTY_AD); setAdErrors({}); setShowAdModal(true) }}
-            className="flex items-center gap-1 text-xs text-vc-muted hover:text-vc-text transition-colors"
+            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
           >
             <Plus size={13} /> Log Entry
           </button>
         </div>
         {adEntries.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-vc-muted">No manual entries yet. Click Log Entry to add performance data.</p>
+          <p className="px-5 py-4 text-sm text-text-secondary">No manual entries yet. Click Log Entry to add performance data.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-vc-border bg-vc-secondary">
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Platform</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Date</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Spend</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">Leads</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">CPL</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">ROAS</th>
-                  <th className="text-left px-5 py-2.5 text-xs text-vc-muted font-medium">CTR</th>
+                <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Platform</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Date</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Spend</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Leads</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">CPL</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">ROAS</th>
+                  <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">CTR</th>
                 </tr>
               </thead>
               <tbody>
                 {adEntries.map((a) => (
-                  <tr key={a.id} className="border-b border-vc-border last:border-0">
-                    <td className="px-5 py-3 capitalize text-vc-text">{a.platform}</td>
-                    <td className="px-5 py-3 text-vc-muted">{a.date}</td>
-                    <td className="px-5 py-3 text-vc-text">£{Number(a.spend).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-vc-text">{a.leads}</td>
-                    <td className="px-5 py-3 text-vc-text">{a.cpl ? `£${a.cpl}` : '—'}</td>
-                    <td className="px-5 py-3 text-vc-text">{a.roas ? `${a.roas}x` : '—'}</td>
-                    <td className="px-5 py-3 text-vc-text">{a.ctr ? `${a.ctr}%` : '—'}</td>
+                  <tr key={a.id} className="border-b border-white/[0.06] last:border-0">
+                    <td className="px-5 py-3 capitalize text-text-primary">{a.platform}</td>
+                    <td className="px-5 py-3 text-text-secondary">{a.date}</td>
+                    <td className="px-5 py-3 text-text-primary">£{Number(a.spend).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-text-primary">{a.leads}</td>
+                    <td className="px-5 py-3 text-text-primary">{a.cpl ? `£${a.cpl}` : '—'}</td>
+                    <td className="px-5 py-3 text-text-primary">{a.roas ? `${a.roas}x` : '—'}</td>
+                    <td className="px-5 py-3 text-text-primary">{a.ctr ? `${a.ctr}%` : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -967,7 +967,7 @@ export default function ClientView() {
           </FormField>
 
           <FormField label="Upload File (PDF, image, zip, etc.)">
-            <label className="flex items-center justify-center gap-2 border border-dashed border-vc-border rounded px-3 py-3 text-sm text-vc-muted hover:text-vc-text cursor-pointer">
+            <label className="flex items-center justify-center gap-2 border border-dashed border-white/[0.06] rounded px-3 py-3 text-sm text-text-secondary hover:text-text-primary cursor-pointer">
               <Upload size={14} />
               <span>{deliverableFile ? deliverableFile.name : 'Choose file'}</span>
               <input
@@ -976,14 +976,14 @@ export default function ClientView() {
                 onChange={(e) => setDeliverableFile(e.target.files?.[0] || null)}
               />
             </label>
-            <p className="text-xs text-vc-muted mt-1">If you upload a file, it will be stored in-app and used instead of the URL above.</p>
+            <p className="text-xs text-text-secondary mt-1">If you upload a file, it will be stored in-app and used instead of the URL above.</p>
           </FormField>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowDeliverableModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+            <button onClick={() => setShowDeliverableModal(false)} className="border border-white/[0.06] text-text-primary text-sm px-4 py-2 rounded hover:bg-bg-tertiary">
               Cancel
             </button>
-            <button onClick={handleSaveDeliverable} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+            <button onClick={handleSaveDeliverable} disabled={saving} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded disabled:opacity-60">
               {saving ? (uploadingFile ? 'Uploading…' : 'Saving…') : editDeliverable ? 'Save Changes' : 'Add Deliverable'}
             </button>
           </div>
@@ -1055,10 +1055,10 @@ export default function ClientView() {
           </FormField>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowInvoiceModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+            <button onClick={() => setShowInvoiceModal(false)} className="border border-white/[0.06] text-text-primary text-sm px-4 py-2 rounded hover:bg-bg-tertiary">
               Cancel
             </button>
-            <button onClick={handleSaveInvoice} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+            <button onClick={handleSaveInvoice} disabled={saving} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded disabled:opacity-60">
               {saving ? 'Saving…' : editInvoice ? 'Save Changes' : 'Add Invoice'}
             </button>
           </div>
@@ -1129,10 +1129,10 @@ export default function ClientView() {
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setShowAdModal(false)} className="border border-vc-border text-vc-text text-sm px-4 py-2 rounded hover:bg-vc-secondary">
+            <button onClick={() => setShowAdModal(false)} className="border border-white/[0.06] text-text-primary text-sm px-4 py-2 rounded hover:bg-bg-tertiary">
               Cancel
             </button>
-            <button onClick={handleSaveAd} disabled={saving} className="bg-gold hover:bg-gold-dark text-white text-sm px-4 py-2 rounded disabled:opacity-60">
+            <button onClick={handleSaveAd} disabled={saving} className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded disabled:opacity-60">
               {saving ? 'Saving…' : 'Save Entry'}
             </button>
           </div>

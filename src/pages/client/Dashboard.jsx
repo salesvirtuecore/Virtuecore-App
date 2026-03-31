@@ -233,6 +233,32 @@ function buildDashboardMetrics({ performanceRows, invoices, fallbackMetrics, use
   }
 }
 
+const PIE_COLORS = ['#6C5CE7', '#34D399', '#FBBF24']
+
+const CustomPieTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated">
+      <p className="text-text-secondary mb-1">{payload[0].name}</p>
+      <p className="text-text-primary font-mono-data font-semibold">{formatCurrency(payload[0].value)}</p>
+    </div>
+  )
+}
+
+const CustomLineTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated space-y-1">
+      <p className="text-text-secondary">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="font-mono-data font-semibold" style={{ color: p.color }}>
+          {p.name}: {p.name === 'Leads' ? p.value : formatCurrency(p.value)}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 export default function ClientDashboard() {
   const { profile } = useAuth()
   const fallbackMetrics = DEMO_CLIENT_METRICS
@@ -240,7 +266,7 @@ export default function ClientDashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(!isDemoMode)
   const [adPerformance, setAdPerformance] = useState(isDemoMode ? DEMO_AD_PERFORMANCE : [])
   const [invoiceRows, setInvoiceRows] = useState(isDemoMode ? DEMO_INVOICES.filter((invoice) => invoice.client_id === DEMO_CLIENT_ID) : [])
-  const [metaConnected, setMetaConnected] = useState(null) // null = unknown, true/false
+  const [metaConnected, setMetaConnected] = useState(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
 
@@ -254,7 +280,6 @@ export default function ClientDashboard() {
 
     async function loadDashboardData() {
       setDashboardLoading(true)
-
       try {
         const [
           { data: adData, error: adError },
@@ -265,10 +290,8 @@ export default function ClientDashboard() {
           supabase.from('invoices').select('*').order('created_at', { ascending: false }),
           supabase.from('clients').select('meta_ad_account_id').eq('id', clientId).maybeSingle(),
         ])
-
         if (adError) throw adError
         if (invoiceError) throw invoiceError
-
         setAdPerformance(adData || [])
         setInvoiceRows(invoiceData || [])
         setMetaConnected(Boolean(clientRow?.meta_ad_account_id))
@@ -297,7 +320,6 @@ export default function ClientDashboard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setSyncMessage(`Synced ${data.rows_synced} entries`)
-      // Reload ad data
       const { data: adData } = await supabase.from('ad_performance').select('*').order('date', { ascending: true })
       setAdPerformance(adData || [])
     } catch (err) {
@@ -322,44 +344,49 @@ export default function ClientDashboard() {
   ]
   const hasPieValues = pieDataRaw.some((item) => item.value > 0)
   const pieData = hasPieValues ? pieDataRaw : [{ name: 'Revenue Mix', value: Math.max(metrics.revenuePrimary, 1) }]
-  const pieColors = hasPieValues ? ['#6D28D9', '#1A1A1A', '#D4A843'] : ['#6D28D9']
+  const pieColors = hasPieValues ? PIE_COLORS : [PIE_COLORS[0]]
 
   return (
-    <div className="p-4 md:p-6 space-y-6 w-full overflow-x-hidden">
+    <div className="p-4 md:p-6 space-y-6 max-w-[1440px] mx-auto">
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold text-vc-text">
+        <h1 className="text-h2 font-heading text-text-primary">
           Hello, {profile?.full_name?.split(' ')[0] ?? 'there'}
         </h1>
-        <p className="text-sm text-vc-muted mt-0.5">
+        <p className="text-text-secondary text-sm mt-1">
           Revenue view for {metrics.periodLabel}.
         </p>
       </div>
 
       <OnboardingChecklist calendlyUrl="https://calendly.com/virtuecore" />
 
-      {/* Meta Ads connect / sync banner */}
+      {/* Meta connect banner */}
       {!isDemoMode && metaConnected === false && (
-        <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-4">
+        <div className="vc-card border-status-warning/20 bg-status-warning/5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-amber-900">Connect your Facebook Ads account</p>
-            <p className="text-xs text-amber-700 mt-0.5">Link your Facebook Ads Manager to see live campaign data here.</p>
+            <p className="text-sm font-medium text-status-warning">Connect your Facebook Ads account</p>
+            <p className="text-xs text-text-secondary mt-0.5">Link your Facebook Ads Manager to see live campaign data here.</p>
           </div>
           <Link
             to="/client/integrations"
-            className="flex-shrink-0 bg-gold hover:bg-gold-dark text-white text-xs font-medium px-4 py-2"
+            className="flex-shrink-0 bg-status-warning/10 hover:bg-status-warning/20 text-status-warning border border-status-warning/20 text-xs font-medium px-4 py-2 rounded-btn transition-colors"
           >
             Connect
           </Link>
         </div>
       )}
 
+      {/* Meta connected status */}
       {!isDemoMode && metaConnected === true && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-green-700 font-medium">● Facebook Ads connected</p>
+          <p className="text-xs text-status-success font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-status-success inline-block" />
+            Facebook Ads connected
+          </p>
           <button
             onClick={handleSyncMeta}
             disabled={syncing}
-            className="flex items-center gap-1.5 text-xs text-vc-muted hover:text-vc-text disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Syncing…' : syncMessage ?? 'Sync now'}
@@ -367,21 +394,22 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      <div className="border border-vc-border bg-white p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
+      {/* Revenue hero + pie */}
+      <div className="vc-card grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-vc-muted">Primary KPI</p>
-          <h2 className="text-sm font-medium text-vc-muted mt-3">Revenue</h2>
-          <p className="text-5xl lg:text-6xl font-semibold text-vc-text mt-2 tracking-tight">
+          <p className="vc-section-label">Primary KPI</p>
+          <h2 className="text-sm font-medium text-text-secondary mt-3">Revenue</h2>
+          <p className="text-5xl lg:text-6xl font-heading font-semibold text-text-primary mt-2 tracking-tight font-mono-data">
             {formatCurrency(metrics.revenuePrimary)}
           </p>
           <div className="grid grid-cols-2 gap-3 mt-6 max-w-xl">
-            <div className="border border-vc-border px-4 py-3">
-              <p className="text-[11px] uppercase tracking-wide text-vc-muted">Collected</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{formatCurrency(metrics.collectedRevenue)}</p>
+            <div className="bg-bg-tertiary border border-white/[0.06] rounded-card px-4 py-3">
+              <p className="vc-section-label">Collected</p>
+              <p className="text-xl font-semibold text-text-primary mt-1 font-mono-data">{formatCurrency(metrics.collectedRevenue)}</p>
             </div>
-            <div className="border border-vc-border px-4 py-3">
-              <p className="text-[11px] uppercase tracking-wide text-vc-muted">Outstanding</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{formatCurrency(metrics.outstandingRevenue)}</p>
+            <div className="bg-bg-tertiary border border-white/[0.06] rounded-card px-4 py-3">
+              <p className="vc-section-label">Outstanding</p>
+              <p className="text-xl font-semibold text-status-warning mt-1 font-mono-data">{formatCurrency(metrics.outstandingRevenue)}</p>
             </div>
           </div>
         </div>
@@ -389,21 +417,21 @@ export default function ClientDashboard() {
         <button
           type="button"
           onClick={() => setAnalysisModal('mix')}
-          className="border border-vc-border p-4 text-left hover:border-vc-text transition-colors"
+          className="bg-bg-tertiary border border-white/[0.06] hover:border-white/[0.12] rounded-card p-4 text-left transition-colors"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-vc-text">Revenue Mix</h2>
-            <span className="text-xs text-vc-muted">Click for analysis</span>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-text-primary font-heading">Revenue Mix</h2>
+            <span className="text-xs text-text-tertiary">Click for analysis</span>
           </div>
-          <div className="h-[280px] mt-2">
+          <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={58}
-                  outerRadius={96}
+                  innerRadius={52}
+                  outerRadius={88}
                   paddingAngle={3}
                   dataKey="value"
                 >
@@ -411,50 +439,52 @@ export default function ClientDashboard() {
                     <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Tooltip content={<CustomPieTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-1 gap-2 mt-2">
+          <div className="space-y-1.5 mt-1">
             {pieDataRaw.map((item, index) => (
               <div key={item.name} className="flex items-center justify-between text-xs">
-                <span className="text-vc-muted flex items-center gap-2">
-                  <span className="inline-block w-2.5 h-2.5" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
+                <span className="text-text-secondary flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
                   {item.name}
                 </span>
-                <span className="text-vc-text font-medium">{formatCurrency(item.value)}</span>
+                <span className="text-text-primary font-mono-data font-medium">{formatCurrency(item.value)}</span>
               </div>
             ))}
           </div>
         </button>
       </div>
 
+      {/* Trend chart */}
       <button
         type="button"
         onClick={() => setAnalysisModal('trend')}
-        className="w-full border border-vc-border p-5 bg-white text-left hover:border-vc-text transition-colors"
+        className="vc-card w-full text-left hover:border-white/[0.12] transition-colors"
       >
-        <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center justify-between gap-4 mb-5">
           <div>
-            <h2 className="text-sm font-medium text-vc-text">Revenue and Lead Trend</h2>
-            <p className="text-xs text-vc-muted mt-1">Click chart for deeper analysis.</p>
+            <h2 className="text-sm font-semibold text-text-primary font-heading">Revenue & Lead Trend</h2>
+            <p className="text-xs text-text-tertiary mt-0.5">Click chart for deeper analysis.</p>
           </div>
           {dashboardLoading && !isDemoMode && (
-            <span className="text-xs text-vc-muted">Refreshing live data...</span>
+            <span className="text-xs text-text-tertiary">Refreshing live data...</span>
           )}
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#666666' }} axisLine={false} tickLine={false} />
-            <Tooltip />
-            <Line type="monotone" dataKey="leads" stroke="#E8DCC0" strokeWidth={2} dot={{ r: 3, fill: '#E8DCC0' }} name="Leads" />
-            <Line type="monotone" dataKey="revenueEstimate" stroke="#6D28D9" strokeWidth={2.5} dot={{ r: 3, fill: '#6D28D9' }} name="Revenue Estimate" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
+            <Tooltip content={<CustomLineTooltip />} />
+            <Line type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} dot={{ r: 3, fill: '#A29BFE' }} name="Leads" />
+            <Line type="monotone" dataKey="revenueEstimate" stroke="#6C5CE7" strokeWidth={2.5} dot={{ r: 3, fill: '#6C5CE7' }} name="Revenue Estimate" />
           </LineChart>
         </ResponsiveContainer>
       </button>
 
+      {/* Quick links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'View Deliverables', sub: 'Review work in progress', href: '/client/deliverables' },
@@ -465,14 +495,15 @@ export default function ClientDashboard() {
           <a
             key={item.href}
             href={item.href}
-            className="border border-vc-border p-4 hover:border-vc-text transition-colors block bg-white"
+            className="vc-card hover:border-white/[0.12] transition-colors block"
           >
-            <p className="text-sm font-medium text-vc-text">{item.label}</p>
-            <p className="text-xs text-vc-muted mt-0.5">{item.sub}</p>
+            <p className="text-sm font-medium text-text-primary">{item.label}</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{item.sub}</p>
           </a>
         ))}
       </div>
 
+      {/* Revenue Mix Modal */}
       <Modal
         isOpen={analysisModal === 'mix'}
         onClose={() => setAnalysisModal(null)}
@@ -482,21 +513,22 @@ export default function ClientDashboard() {
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {pieDataRaw.map((item, index) => (
-              <div key={item.name} className="border border-vc-border p-4">
-                <p className="text-xs uppercase tracking-wide text-vc-muted flex items-center gap-2">
-                  <span className="inline-block w-2.5 h-2.5" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
+              <div key={item.name} className="bg-bg-tertiary border border-white/[0.06] rounded-card p-4">
+                <p className="vc-section-label flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
                   {item.name}
                 </p>
-                <p className="text-xl font-semibold text-vc-text mt-1">{formatCurrency(item.value)}</p>
+                <p className="text-xl font-semibold text-text-primary mt-2 font-mono-data">{formatCurrency(item.value)}</p>
               </div>
             ))}
           </div>
-          <p className="text-sm text-vc-muted leading-6">
+          <p className="text-sm text-text-secondary leading-6">
             Great foundation overall. Retainer income is giving the account stability, and commission is adding upside. A light improvement area is the outstanding balance: if you can tighten follow-up slightly, total revenue quality improves without needing more ad spend.
           </p>
         </div>
       </Modal>
 
+      {/* Trend Analysis Modal */}
       <Modal
         isOpen={analysisModal === 'trend'}
         onClose={() => setAnalysisModal(null)}
@@ -505,24 +537,19 @@ export default function ClientDashboard() {
       >
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="border border-vc-border p-4">
-              <p className="text-xs uppercase tracking-wide text-vc-muted">Ad Spend</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{formatCurrency(metrics.adSpend)}</p>
-            </div>
-            <div className="border border-vc-border p-4">
-              <p className="text-xs uppercase tracking-wide text-vc-muted">Leads</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{metrics.leads}</p>
-            </div>
-            <div className="border border-vc-border p-4">
-              <p className="text-xs uppercase tracking-wide text-vc-muted">ROAS</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{metrics.roas.toFixed(1)}x</p>
-            </div>
-            <div className="border border-vc-border p-4">
-              <p className="text-xs uppercase tracking-wide text-vc-muted">CPL</p>
-              <p className="text-xl font-semibold text-vc-text mt-1">{formatCurrency(metrics.cpl)}</p>
-            </div>
+            {[
+              { label: 'Ad Spend', value: formatCurrency(metrics.adSpend) },
+              { label: 'Leads', value: metrics.leads },
+              { label: 'ROAS', value: `${metrics.roas.toFixed(1)}x` },
+              { label: 'CPL', value: formatCurrency(metrics.cpl) },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-bg-tertiary border border-white/[0.06] rounded-card p-4">
+                <p className="vc-section-label">{stat.label}</p>
+                <p className="text-xl font-semibold text-text-primary mt-2 font-mono-data">{stat.value}</p>
+              </div>
+            ))}
           </div>
-          <p className="text-sm text-vc-muted leading-6">
+          <p className="text-sm text-text-secondary leading-6">
             Momentum is positive: lead volume and revenue trend are moving in the right direction together. A light area to watch is efficiency drift; if spend grows faster than conversions for too long, CPL can rise. Right now you are still in a strong zone, so this is more of a tuning note than a warning.
           </p>
         </div>

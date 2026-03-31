@@ -88,12 +88,12 @@ export default function Integrations() {
   return (
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-vc-text">Integrations</h1>
-        <p className="text-sm text-vc-muted mt-0.5">Connect third-party accounts to pull live data into your dashboard.</p>
+        <h1 className="text-h2 font-heading text-text-primary">Integrations</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Connect third-party accounts to pull live data into your dashboard.</p>
       </div>
 
       {/* Meta / Facebook Ads */}
-      <div className="border border-vc-border p-5">
+      <div className="vc-card">
         <div className="flex items-start gap-4">
           {/* Facebook icon */}
           <div className="w-10 h-10 flex-shrink-0 bg-[#1877F2] flex items-center justify-center">
@@ -104,45 +104,45 @@ export default function Integrations() {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm font-semibold text-vc-text">Facebook Ads Manager</h2>
+              <h2 className="text-sm font-semibold text-text-primary">Facebook Ads Manager</h2>
               {metaConnected === true && (
-                <span className="flex items-center gap-1 text-xs text-green-700 font-medium">
+                <span className="flex items-center gap-1 text-xs text-status-success font-medium">
                   <CheckCircle size={12} />
                   Connected
                 </span>
               )}
               {metaConnected === false && (
-                <span className="flex items-center gap-1 text-xs text-vc-muted">
+                <span className="flex items-center gap-1 text-xs text-text-secondary">
                   <XCircle size={12} />
                   Not connected
                 </span>
               )}
             </div>
-            <p className="text-xs text-vc-muted mt-1 leading-relaxed">
+            <p className="text-xs text-text-secondary mt-1 leading-relaxed">
               Link your Facebook Ads Manager account to display live campaign data — spend, leads, clicks, ROAS, and more — directly on your dashboard.
             </p>
 
             {metaConnected === true && metaAccountId && (
-              <p className="text-xs text-vc-muted mt-2">
-                Account ID: <span className="font-mono text-vc-text">{metaAccountId}</span>
+              <p className="text-xs text-text-secondary mt-2">
+                Account ID: <span className="font-mono text-text-primary">{metaAccountId}</span>
               </p>
             )}
 
             {syncMessage && (
-              <p className="text-xs mt-2 text-vc-muted">{syncMessage}</p>
+              <p className="text-xs mt-2 text-text-secondary">{syncMessage}</p>
             )}
             {connectError && (
-              <p className="text-xs mt-2 text-red-600">{connectError}</p>
+              <p className="text-xs mt-2 text-status-danger">{connectError}</p>
             )}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-vc-border pt-4">
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
           {metaConnected === false && (
             <button
               onClick={handleConnect}
               disabled={connecting || isDemoMode}
-              className="bg-gold text-white text-xs font-medium px-4 py-2 hover:bg-gold-dark disabled:opacity-60 flex items-center gap-1.5"
+              className="bg-vc-primary text-white text-xs font-medium px-4 py-2 hover:bg-vc-accent disabled:opacity-60 flex items-center gap-1.5"
             >
               <ExternalLink size={12} />
               {connecting ? 'Redirecting to Facebook…' : 'Connect Facebook Ads'}
@@ -154,7 +154,7 @@ export default function Integrations() {
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex items-center gap-1.5 text-xs px-4 py-2 border border-vc-border text-vc-text hover:border-vc-text disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs px-4 py-2 border border-white/[0.06] text-text-primary hover:border-white/[0.16] disabled:opacity-50"
               >
                 <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
                 {syncing ? 'Syncing…' : 'Sync now'}
@@ -162,7 +162,7 @@ export default function Integrations() {
               <button
                 onClick={handleDisconnect}
                 disabled={disconnecting}
-                className="text-xs px-4 py-2 border border-vc-border text-red-600 hover:border-red-400 disabled:opacity-50"
+                className="text-xs px-4 py-2 border border-white/[0.06] text-status-danger hover:border-status-danger/40 disabled:opacity-50"
               >
                 {disconnecting ? 'Disconnecting…' : 'Disconnect'}
               </button>
@@ -170,7 +170,7 @@ export default function Integrations() {
           )}
 
           {isDemoMode && (
-            <p className="text-xs text-vc-muted self-center">Integration unavailable in demo mode.</p>
+            <p className="text-xs text-text-secondary self-center">Integration unavailable in demo mode.</p>
           )}
         </div>
       </div>

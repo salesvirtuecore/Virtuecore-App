@@ -30,7 +30,7 @@ export default function Billing() {
 
   const statusPillClass = useMemo(() => {
     return status.connected
-      ? 'text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded'
+      ? 'text-xs font-medium text-status-success bg-status-success/10 px-2 py-1 rounded'
       : 'text-xs font-medium text-[#4338ca] bg-[#e0e7ff] px-2 py-1 rounded'
   }, [status.connected])
 
@@ -156,8 +156,8 @@ export default function Billing() {
           <span className="text-xs font-semibold uppercase tracking-wider text-[#635bff]">Stripe</span>
           <span className="text-xs text-[#4f46e5] bg-[#eef2ff] border border-[#c7d2fe] px-2 py-0.5 rounded">Client Billing</span>
         </div>
-        <h1 className="text-xl font-semibold text-vc-text mt-1">Billing</h1>
-        <p className="text-sm text-vc-muted mt-0.5">
+        <h1 className="text-h2 font-heading text-text-primary mt-1">Billing</h1>
+        <p className="text-sm text-text-secondary mt-0.5">
           Connect your Stripe account to sync revenue and payment performance into VirtueCore.
         </p>
       </div>
@@ -169,7 +169,7 @@ export default function Billing() {
             <p className="text-xs text-[#4338ca] mt-1">Last sync check: {formatDateTime(status.lastCheckedAt)}</p>
           </div>
           {isDemoMode ? (
-            <span className="text-xs font-medium text-vc-muted bg-vc-secondary px-2 py-1 rounded">Demo</span>
+            <span className="text-xs font-medium text-text-secondary bg-bg-tertiary px-2 py-1 rounded">Demo</span>
           ) : (
             <span className={statusPillClass}>
               {status.connected ? (status.onboardingComplete ? 'Connected' : 'Setup incomplete') : 'Not connected'}
@@ -178,37 +178,37 @@ export default function Billing() {
         </div>
 
         {status.companyName && (
-          <div className="text-sm text-vc-text">
+          <div className="text-sm text-text-primary">
             <span className="text-[#4f46e5]">Company:</span> {status.companyName}
           </div>
         )}
 
         {!isDemoMode && status.stripeAccountId && (
-          <div className="text-sm text-vc-text">
+          <div className="text-sm text-text-primary">
             <span className="text-[#4f46e5]">Stripe Account ID:</span> {status.stripeAccountId}
           </div>
         )}
 
         {!isDemoMode && status.connected && !status.onboardingComplete && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+          <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 px-3 py-2 rounded">
             Your Stripe account exists, but onboarding is not finished yet. Use the button below to continue setup.
           </p>
         )}
 
         {!isDemoMode && status.onboardingComplete && !status.chargesEnabled && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">
+          <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 px-3 py-2 rounded">
             Stripe onboarding is submitted, but charges are not enabled yet. Stripe may still be reviewing the account.
           </p>
         )}
 
-        {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{error}</p>}
+        {error && <p className="text-xs text-status-danger bg-status-danger/10 border border-status-danger/20 px-3 py-2">{error}</p>}
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={refreshStatus}
             disabled={loading || isDemoMode}
-            className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-white hover:bg-[#eef2ff] rounded transition-colors disabled:opacity-60"
+            className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-bg-elevated hover:bg-[#eef2ff] rounded transition-colors disabled:opacity-60"
           >
             {loading ? 'Refreshing...' : 'Refresh Status'}
           </button>
@@ -224,9 +224,9 @@ export default function Billing() {
         </div>
       </div>
 
-      <div className="border border-vc-border p-5">
-        <h2 className="text-sm font-medium text-vc-text mb-2">What happens after you connect</h2>
-        <p className="text-sm text-vc-muted">
+      <div className="vc-card">
+        <h2 className="text-sm font-medium text-text-primary mb-2">What happens after you connect</h2>
+        <p className="text-sm text-text-secondary">
           Once connected, your Stripe account can be used to reconcile invoice payments and track client revenue performance directly in your portal.
         </p>
       </div>
