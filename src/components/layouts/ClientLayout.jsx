@@ -11,6 +11,7 @@ import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
 import NPSWidget from '../ui/NPSWidget'
+import InstallBanner from '../ui/InstallBanner'
 
 const NAV = [
   { to: '/client',                label: 'Dashboard',       icon: LayoutDashboard, end: true },
@@ -175,6 +176,7 @@ export default function ClientLayout() {
 
       <HelpChatWidget />
       <NPSWidget />
+      <InstallBanner />
     </div>
   )
 }
