@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BookOpen, CheckCircle, Circle, Clock, ChevronRight, ChevronLeft, Trophy, RotateCcw, Play } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 // ── Demo module data ──────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ const DEMO_ACADEMY_MODULES = [
 const VIEW = { LIST: 'list', DETAIL: 'detail', QUIZ: 'quiz', RESULTS: 'results' }
 
 export default function Academy() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [view, setView] = useState(VIEW.LIST)
   const [selectedModule, setSelectedModule] = useState(null)
   const [completions, setCompletions] = useState({}) // { moduleId: { score, completed } }
@@ -236,7 +236,7 @@ export default function Academy() {
       setQuizState((prev) => ({ ...prev, finished: true, score, correct, total: questions.length, passed }))
 
       // Persist to Supabase if not demo mode
-      if (!isDemoMode && profile?.id) {
+      if (!isDemo && profile?.id) {
         supabase.from('module_completions').upsert({
           va_id: profile.id,
           module_id: selectedModule.id,

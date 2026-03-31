@@ -6,7 +6,7 @@ import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { DEMO_CLIENTS } from '../../data/placeholder'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
@@ -50,8 +50,8 @@ export default function Clients() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
-  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
-  const [loadingClients, setLoadingClients] = useState(!isDemoMode)
+  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
+  const [loadingClients, setLoadingClients] = useState(!isDemo)
   const [editClient, setEditClient] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -60,7 +60,7 @@ export default function Clients() {
   const { showToast } = useToast()
 
   const loadClients = useCallback(async () => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
 
     setLoadingClients(true)
     try {
@@ -83,7 +83,7 @@ export default function Clients() {
   useEffect(() => { loadClients() }, [loadClients])
 
   useEffect(() => {
-    if (isDemoMode || !supabase) return undefined
+    if (isDemo || !supabase) return undefined
 
     const channel = supabase
       .channel('admin-clients-live')
@@ -163,7 +163,7 @@ export default function Clients() {
         health_score: form.health_score,
       }
 
-      if (isDemoMode) {
+      if (isDemo) {
         setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
       } else {
         const { error } = await supabase.from('clients').update(updates).eq('id', editClient.id)
@@ -181,7 +181,7 @@ export default function Clients() {
   }
 
   async function handleStripeConnect(client) {
-    if (isDemoMode) {
+    if (isDemo) {
       showToast('Stripe connect not available in demo mode', 'info')
       return
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Globe, Plus, ExternalLink, Trash2, Copy, Check } from 'lucide-react'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
@@ -44,9 +44,9 @@ const EMPTY_FORM = {
 
 export default function WebAnalytics() {
   const { showToast } = useToast()
-  const [websites, setWebsites] = useState(isDemoMode ? DEMO_WEBSITES : [])
+  const [websites, setWebsites] = useState(isDemo ? DEMO_WEBSITES : [])
   const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(!isDemoMode)
+  const [loading, setLoading] = useState(!isDemo)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -54,7 +54,7 @@ export default function WebAnalytics() {
   const [scriptSiteId, setScriptSiteId] = useState(null)
 
   useEffect(() => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
 
     setLoading(true)
     Promise.all([
@@ -84,7 +84,7 @@ export default function WebAnalytics() {
 
     setSaving(true)
     try {
-      if (isDemoMode) {
+      if (isDemo) {
         const client = clients.find((c) => c.id === form.client_id)
         setWebsites((prev) => [
           {
@@ -131,7 +131,7 @@ export default function WebAnalytics() {
   async function handleDelete(site) {
     if (!confirm(`Remove ${site.name}?`)) return
 
-    if (isDemoMode) {
+    if (isDemo) {
       setWebsites((prev) => prev.filter((s) => s.id !== site.id))
       return
     }
@@ -305,7 +305,7 @@ export default function WebAnalytics() {
               required
             >
               <option value="">Select client...</option>
-              {(isDemoMode ? DEMO_CLIENTS : clients).map((c) => (
+              {(isDemo ? DEMO_CLIENTS : clients).map((c) => (
                 <option key={c.id} value={c.id}>{c.company_name}</option>
               ))}
             </select>

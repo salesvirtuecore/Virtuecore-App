@@ -4,7 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import StatCard from '../../components/ui/StatCard'
 import Badge from '../../components/ui/Badge'
 import { DEMO_BUSINESS_METRICS, DEMO_MRR_CHART, DEMO_CLIENTS } from '../../data/placeholder'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
@@ -37,12 +37,12 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function AdminDashboard() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const m = DEMO_BUSINESS_METRICS
-  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
+  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
 
   const loadClients = useCallback(async () => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
     const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
       supabase.from('clients').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   useEffect(() => { loadClients() }, [loadClients])
 
   useEffect(() => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
     const channel = supabase
       .channel('admin-dashboard-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => loadClients())

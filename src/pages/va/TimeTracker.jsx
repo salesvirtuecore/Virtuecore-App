@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Play, Square } from 'lucide-react'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_TASKS } from '../../data/placeholder'
 
@@ -18,9 +18,9 @@ const DEMO_ENTRIES = [
 ]
 
 export default function TimeTracker() {
-  const { profile } = useAuth()
-  const [tasks, setTasks] = useState(isDemoMode ? DEMO_TASKS.filter((t) => t.status !== 'complete') : [])
-  const [entries, setEntries] = useState(isDemoMode ? DEMO_ENTRIES : [])
+  const { profile, isDemo } = useAuth()
+  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS.filter((t) => t.status !== 'complete') : [])
+  const [entries, setEntries] = useState(isDemo ? DEMO_ENTRIES : [])
   const [activeTask, setActiveTask] = useState('')
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -28,7 +28,7 @@ export default function TimeTracker() {
   const startedAtRef = useRef(null)
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !profile?.id) return
+    if (isDemo || !supabase || !profile?.id) return
 
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
@@ -81,7 +81,7 @@ export default function TimeTracker() {
     const startedAt = startedAtRef.current ?? new Date().toISOString()
     const endedAt = new Date().toISOString()
 
-    if (isDemoMode) {
+    if (isDemo) {
       const task = tasks.find((t) => t.id === activeTask)
       setEntries((prev) => [
         {

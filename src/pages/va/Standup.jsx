@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CheckSquare } from 'lucide-react'
 import Button from '../../components/ui/Button'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const DEMO_HISTORY = [
@@ -31,17 +31,17 @@ const FIELDS = [
 ]
 
 export default function Standup() {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
 
-  const [history, setHistory] = useState(isDemoMode ? DEMO_HISTORY : [])
+  const [history, setHistory] = useState(isDemo ? DEMO_HISTORY : [])
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(!isDemoMode)
+  const [loading, setLoading] = useState(!isDemo)
   const [saving, setSaving] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [form, setForm] = useState({ yesterday: '', today: '', blockers: '' })
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !profile?.id) return
+    if (isDemo || !supabase || !profile?.id) return
 
     setLoading(true)
     supabase
@@ -71,7 +71,7 @@ export default function Standup() {
     e.preventDefault()
     if (!form.yesterday.trim() || !form.today.trim()) return
 
-    if (isDemoMode) {
+    if (isDemo) {
       setSubmitted(true)
       return
     }

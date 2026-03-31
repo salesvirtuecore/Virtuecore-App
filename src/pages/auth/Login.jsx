@@ -22,7 +22,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(searchParams.get('email') ? 'You already have an account — sign in below.' : '')
   const [loading, setLoading] = useState(false)
-  const { login, loginAsDemo, isDemoMode } = useAuth()
+  const { login, loginAsDemo, isDemo } = useAuth()
   const navigate = useNavigate()
 
   async function handleSubmit(e) {
@@ -63,7 +63,7 @@ export default function Login() {
           <h1 className="text-xl font-semibold text-text-primary mb-1 font-heading">Sign in</h1>
           <p className="text-sm text-text-secondary mb-6">Access your VirtueCore portal</p>
 
-          {isDemoMode && (
+          {isDemo && (
             <div className="mb-6 p-3 bg-status-warning/10 border border-status-warning/20 rounded-card">
               <p className="text-xs text-status-warning font-medium mb-2">Demo mode — no Supabase required</p>
               <div className="flex flex-wrap gap-1.5">

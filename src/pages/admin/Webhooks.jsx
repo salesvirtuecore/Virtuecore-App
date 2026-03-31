@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Copy, Check, CreditCard, AlertCircle } from 'lucide-react'
-import { isDemoMode } from '../../lib/supabase'
+
 
 const BASE_URL = 'https://your-app.vercel.app'
 
@@ -35,7 +35,7 @@ function CopyButton({ text }) {
 }
 
 function StatusBadge() {
-  if (isDemoMode) {
+  if (isDemo) {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-status-warning/10 border border-status-warning/20 text-status-warning">
         <span className="w-1.5 h-1.5 rounded-full bg-status-warning/100" />

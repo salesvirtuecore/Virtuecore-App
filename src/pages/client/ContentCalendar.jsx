@@ -82,7 +82,6 @@ export default function ContentCalendar() {
     if (!text?.trim()) return
 
     if (isDemo) {
-      console.log('Feedback submitted (demo):', { post_id: post.id, platform: post.platform, feedback: text })
     } else {
       // Send as a message to the client thread
       await supabase.from('crm_messages').insert({

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, X, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const STEPS = [
@@ -13,7 +13,7 @@ const STEPS = [
 ]
 
 export default function OnboardingChecklist({ calendlyUrl }) {
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const [completed, setCompleted] = useState({ account: true })
   const [dismissed, setDismissed] = useState(false)
 
@@ -32,7 +32,7 @@ export default function OnboardingChecklist({ calendlyUrl }) {
   }, [profile?.id])
 
   useEffect(() => {
-    if (isDemoMode || !profile?.client_id) return
+    if (isDemo || !profile?.client_id) return
 
     // Check stripe + meta
     supabase.from('clients').select('stripe_account_id, meta_ad_account_id').eq('id', profile.client_id).maybeSingle()

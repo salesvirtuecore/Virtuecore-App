@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Clock } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
-import { supabase, isDemoMode } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_TASKS } from '../../data/placeholder'
 
@@ -53,13 +53,13 @@ function TaskCard({ task, expanded, onToggle, onCycleStatus }) {
 }
 
 export default function TaskBoard() {
-  const { profile } = useAuth()
-  const [tasks, setTasks] = useState(isDemoMode ? DEMO_TASKS : [])
+  const { profile, isDemo } = useAuth()
+  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS : [])
   const [expanded, setExpanded] = useState(null)
-  const [loading, setLoading] = useState(!isDemoMode)
+  const [loading, setLoading] = useState(!isDemo)
 
   useEffect(() => {
-    if (isDemoMode || !supabase || !profile?.id) return
+    if (isDemo || !supabase || !profile?.id) return
 
     setLoading(true)
     supabase
@@ -84,7 +84,7 @@ export default function TaskBoard() {
     // Optimistic update
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t)))
 
-    if (!isDemoMode && supabase) {
+    if (!isDemo && supabase) {
       const { error } = await supabase
         .from('tasks')
         .update({

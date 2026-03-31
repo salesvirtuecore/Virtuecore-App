@@ -10,7 +10,7 @@ import {
   DEMO_CLIENTS, DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS,
   DEMO_DELIVERABLES, DEMO_MESSAGES, DEMO_INVOICES,
 } from '../../data/placeholder'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
@@ -69,7 +69,7 @@ export default function ClientView() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { profile } = useAuth()
+  const { profile, isDemo } = useAuth()
   const messagesBottomRef = useRef(null)
 
   const [reportLoading, setReportLoading] = useState(false)
@@ -80,24 +80,24 @@ export default function ClientView() {
     return now.toLocaleString('en-GB', { month: 'long', year: 'numeric' })
   })
 
-  const [client, setClient] = useState(isDemoMode ? DEMO_CLIENTS.find((c) => c.id === id) ?? null : null)
-  const [loadingClient, setLoadingClient] = useState(!isDemoMode)
+  const [client, setClient] = useState(isDemo ? DEMO_CLIENTS.find((c) => c.id === id) ?? null : null)
+  const [loadingClient, setLoadingClient] = useState(!isDemo)
 
   // Local data state
   const [deliverables, setDeliverables] = useState(
-    isDemoMode ? DEMO_DELIVERABLES.filter((d) => d.client_id === id) : []
+    isDemo ? DEMO_DELIVERABLES.filter((d) => d.client_id === id) : []
   )
   const [invoices, setInvoices] = useState(
-    isDemoMode ? DEMO_INVOICES.filter((i) => i.client_id === id) : []
+    isDemo ? DEMO_INVOICES.filter((i) => i.client_id === id) : []
   )
-  const [adEntries, setAdEntries] = useState(isDemoMode ? [] : [])
-  const [npsData, setNpsData] = useState(isDemoMode ? [
+  const [adEntries, setAdEntries] = useState(isDemo ? [] : [])
+  const [npsData, setNpsData] = useState(isDemo ? [
     { id: 'n1', score: 9, comment: 'Really pleased with the leads coming through, team is responsive.', created_at: new Date(Date.now() - 1000*60*60*24*30).toISOString() },
     { id: 'n2', score: 10, comment: "Best marketing agency we've worked with. Results speak for themselves.", created_at: new Date(Date.now() - 1000*60*60*24*60).toISOString() },
     { id: 'n3', score: 8, comment: null, created_at: new Date(Date.now() - 1000*60*60*24*90).toISOString() },
   ] : [])
   const [messages, setMessages] = useState(
-    isDemoMode ? DEMO_MESSAGES.filter((m) => m.client_id === id) : []
+    isDemo ? DEMO_MESSAGES.filter((m) => m.client_id === id) : []
   )
 
   // Modal open states
@@ -120,7 +120,7 @@ export default function ClientView() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
 
     let cancelled = false
 
@@ -180,7 +180,7 @@ export default function ClientView() {
 
   // Realtime messages subscription
   useEffect(() => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
     const channel = supabase
       .channel(`admin-messages-${id}`)
       .on(
@@ -234,7 +234,7 @@ export default function ClientView() {
   const totalAdSpend = adEntries.reduce((sum, row) => sum + Number(row.spend || 0), 0)
   const totalLeads = adEntries.reduce((sum, row) => sum + Number(row.leads || 0), 0)
   const weightedRoasNumerator = adEntries.reduce((sum, row) => sum + Number(row.spend || 0) * Number(row.roas || 0), 0)
-  const fallbackPerformance = isDemoMode
+  const fallbackPerformance = isDemo
     ? DEMO_CLIENT_METRICS
     : { ad_spend: 0, leads: 0, cpl: 0, roas: 0 }
   const metrics = {
@@ -247,13 +247,13 @@ export default function ClientView() {
     month: row.date,
     leads: Number(row.leads || 0),
     cpl: Number(row.cpl || 0),
-  })) : (isDemoMode ? DEMO_AD_PERFORMANCE : [])
+  })) : (isDemo ? DEMO_AD_PERFORMANCE : [])
 
   // ── Generate Report ──────────────────────────────────────────────────────────
   async function handleGenerateReport() {
     setReportLoading(true)
     try {
-      if (isDemoMode) {
+      if (isDemo) {
         await new Promise((r) => setTimeout(r, 1800))
         setReportModal({ text: DEMO_REPORT_PREVIEW, saved: true })
       } else {
@@ -334,7 +334,7 @@ export default function ClientView() {
       let resolvedFileUrl = deliverableForm.file_url.trim() || null
 
       if (deliverableFile) {
-        if (isDemoMode) {
+        if (isDemo) {
           resolvedFileUrl = '/demo-deliverable.pdf'
         } else {
           resolvedFileUrl = await uploadDeliverableToStorage(deliverableFile)
@@ -348,7 +348,7 @@ export default function ClientView() {
         status: deliverableForm.status,
         client_id: id,
       }
-      if (isDemoMode) {
+      if (isDemo) {
         if (editDeliverable) {
           setDeliverables((prev) =>
             prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
@@ -409,7 +409,7 @@ export default function ClientView() {
   async function handleDeleteDeliverable(delId) {
     if (!confirm('Delete this deliverable?')) return
     try {
-      if (!isDemoMode) {
+      if (!isDemo) {
         const { error } = await supabase.from('deliverables').delete().eq('id', delId)
         if (error) throw error
       }
@@ -462,7 +462,7 @@ export default function ClientView() {
         client_id: id,
         client_name: client.company_name,
       }
-      if (isDemoMode) {
+      if (isDemo) {
         if (editInvoice) {
           setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
         } else {
@@ -528,7 +528,7 @@ export default function ClientView() {
         cpl: Number(adForm.cpl) || 0,
         roas: Number(adForm.roas) || 0,
       }
-      if (isDemoMode) {
+      if (isDemo) {
         setAdEntries((prev) => [{ ...payload, id: `ad-${Date.now()}` }, ...prev].slice(0, 5))
       } else {
         const { data, error } = await supabase.from('ad_performance').insert(payload).select().single()
@@ -558,7 +558,7 @@ export default function ClientView() {
         sender_id: profile?.id ?? null,
         content,
       }
-      if (!isDemoMode) {
+      if (!isDemo) {
         const { data, error } = await supabase
           .from('crm_messages')
           .insert(payload)

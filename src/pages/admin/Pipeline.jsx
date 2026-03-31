@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { DEMO_PIPELINE } from '../../data/placeholder'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 
 const STAGES = [
@@ -50,7 +50,7 @@ export default function Pipeline() {
         return { ...l, stage: STAGES[newIdx].id }
       })
     )
-    if (!isDemoMode) {
+    if (!isDemo) {
       const lead = leads.find((l) => l.id === leadId)
       if (lead) {
         const idx = STAGES.findIndex((s) => s.id === lead.stage)
@@ -118,7 +118,7 @@ export default function Pipeline() {
         notes: leadForm.notes.trim(),
       }
 
-      if (isDemoMode) {
+      if (isDemo) {
         if (editLead) {
           setLeads((prev) => prev.map((l) => (l.id === editLead.id ? { ...l, ...payload } : l)))
           if (selected?.id === editLead.id) setSelected((prev) => ({ ...prev, ...payload }))
@@ -151,7 +151,7 @@ export default function Pipeline() {
   async function handleDeleteLead(leadId) {
     if (!confirm('Delete this lead?')) return
     try {
-      if (!isDemoMode) {
+      if (!isDemo) {
         const { error } = await supabase.from('pipeline_leads').delete().eq('id', leadId)
         if (error) throw error
       }

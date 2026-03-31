@@ -5,7 +5,7 @@ import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { DEMO_VAS, DEMO_TASKS, DEMO_VA_TRAINING, DEMO_CLIENTS } from '../../data/placeholder'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
 
@@ -23,13 +23,13 @@ const EMPTY_VA_FORM = {
 
 export default function VAManagement() {
   const [showInvite, setShowInvite] = useState(false)
-  const [vas, setVas] = useState(isDemoMode ? DEMO_VAS : [])
-  const [tasks, setTasks] = useState(isDemoMode ? DEMO_TASKS : [])
-  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
+  const [vas, setVas] = useState(isDemo ? DEMO_VAS : [])
+  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS : [])
+  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
   const { showToast } = useToast()
 
   useEffect(() => {
-    if (isDemoMode || !supabase) return
+    if (isDemo || !supabase) return
     Promise.all([
       supabase.from('profiles').select('id, full_name, email, created_at').eq('role', 'va').order('created_at'),
       supabase.from('tasks').select('*').order('deadline'),
@@ -102,7 +102,7 @@ export default function VAManagement() {
         time_logged_minutes: 0,
       }
 
-      if (isDemoMode) {
+      if (isDemo) {
         const newTask = { ...payload, id: `t-${Date.now()}` }
         setTasks((prev) => [...prev, newTask])
         showToast(`Task assigned to ${assignTarget.full_name}`)
@@ -144,7 +144,7 @@ export default function VAManagement() {
     setSavingVA(true)
     try {
       const updates = { full_name: vaForm.full_name.trim() }
-      if (isDemoMode) {
+      if (isDemo) {
         setVas((prev) => prev.map((v) => (v.id === editVA.id ? { ...v, ...updates } : v)))
       } else {
         const { error } = await supabase.from('profiles').update(updates).eq('id', editVA.id)

@@ -6,7 +6,7 @@ import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { DEMO_CLIENTS, DEMO_INVOICES, DEMO_BUSINESS_METRICS } from '../../data/placeholder'
-import { isDemoMode, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 
 const MONTHLY_REV = [
@@ -42,15 +42,15 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Revenue() {
   const { showToast } = useToast()
-  const [clients, setClients] = useState(isDemoMode ? DEMO_CLIENTS : [])
-  const [invoices, setInvoices] = useState(isDemoMode ? DEMO_INVOICES : [])
+  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
+  const [invoices, setInvoices] = useState(isDemo ? DEMO_INVOICES : [])
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceForm, setInvoiceForm] = useState(EMPTY_INVOICE_FORM)
   const [invoiceErrors, setInvoiceErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (isDemoMode) return
+    if (isDemo) return
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
         supabase.from('clients').select('*'),
@@ -92,7 +92,7 @@ export default function Revenue() {
         status: invoiceForm.status,
       }
 
-      if (isDemoMode) {
+      if (isDemo) {
         setInvoices((prev) => [
           ...prev,
           { ...payload, id: `inv-${Date.now()}`, paid_date: null, created_at: new Date().toISOString().split('T')[0] },

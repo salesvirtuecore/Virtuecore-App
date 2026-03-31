@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { isDemoMode } from '../../lib/supabase'
+
 
 const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
 
@@ -43,7 +43,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
     setLoading(true)
     setError(null)
 
-    if (isDemoMode) {
+    if (isDemo) {
       await new Promise((r) => setTimeout(r, 800))
       setLoading(false)
       setSuccess(true)
@@ -114,7 +114,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
         {success ? (
           <div className="space-y-4">
             <div className="bg-bg-tertiary border border-white/[0.06] rounded-card p-4">
-              {isDemoMode ? (
+              {isDemo ? (
                 <p className="text-sm text-text-primary">
                   In live mode, this would send an invite email to{' '}
                   <span className="font-medium">{formData.email}</span>.
