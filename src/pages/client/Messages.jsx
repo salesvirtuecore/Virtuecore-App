@@ -180,7 +180,7 @@ export default function Messages() {
                   <div
                     className={`px-3 py-2 text-sm ${
                       isMe
-                        ? 'bg-vc-text text-white'
+                        ? 'bg-vc-primary text-white'
                         : 'bg-bg-tertiary text-text-primary border border-white/[0.06]'
                     }`}
                   >
@@ -206,7 +206,7 @@ export default function Messages() {
           <button
             onClick={send}
             disabled={sending || !input.trim()}
-            className="px-3 py-2 bg-vc-text text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+            className="px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent transition-colors disabled:opacity-50"
           >
             <Send size={14} />
           </button>

@@ -38,7 +38,7 @@ export default function SOPs() {
             onClick={() => setCategory(cat)}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
               category === cat
-                ? 'bg-vc-text text-white'
+                ? 'bg-vc-primary text-white'
                 : 'bg-bg-elevated border border-white/[0.08] text-text-secondary hover:text-text-primary'
             }`}
           >

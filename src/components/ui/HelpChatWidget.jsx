@@ -103,7 +103,7 @@ export default function HelpChatWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="h-12 px-4 rounded-full bg-vc-text text-white shadow-lg hover:bg-black transition-colors flex items-center gap-2"
+          className="h-12 px-4 rounded-full bg-vc-primary text-white shadow-lg hover:bg-black transition-colors flex items-center gap-2"
           aria-label="Open help chat"
         >
           <MessageCircle size={16} />
@@ -149,7 +149,7 @@ export default function HelpChatWidget() {
                 className={`max-w-[88%] text-sm px-3 py-2 rounded-lg ${
                   message.role === 'assistant'
                     ? 'bg-bg-tertiary text-text-primary'
-                    : 'ml-auto bg-vc-text text-white'
+                    : 'ml-auto bg-vc-primary text-white'
                 }`}
               >
                 {message.text}

@@ -342,8 +342,8 @@ export default function ClientDashboard() {
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
               <Tooltip content={<CustomAreaTooltip />} />
-              <Area type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} fill="url(#leadGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Leads" />
-              <Area type="monotone" dataKey="revenueEstimate" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue Estimate" />
+              <Area type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} fill="url(#leadGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Leads" isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="revenueEstimate" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue Estimate" isAnimationActive animationBegin={150} animationDuration={900} animationEasing="ease-out" />
             </AreaChart>
           </ResponsiveContainer>
         </button>

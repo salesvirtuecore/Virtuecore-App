@@ -172,7 +172,7 @@ export default function ContentCalendar() {
                 }`}
               >
                 <div className={`text-xs mb-1.5 font-medium w-5 h-5 flex items-center justify-center ${
-                  isToday ? 'bg-vc-text text-white rounded-full' :
+                  isToday ? 'bg-vc-primary text-white rounded-full' :
                   isCurrentMonth ? 'text-text-primary' : 'text-text-secondary/50'
                 }`}>
                   {format(day, 'd')}
@@ -263,7 +263,7 @@ export default function ContentCalendar() {
                         />
                         <button
                           onClick={() => handleSubmitFeedback(post)}
-                          className="text-xs px-3 py-1.5 bg-vc-text text-white hover:bg-vc-muted transition-colors"
+                          className="text-xs px-3 py-1.5 bg-vc-primary text-white hover:bg-vc-accent transition-colors"
                         >
                           Submit feedback
                         </button>

@@ -600,7 +600,7 @@ export default function ClientView() {
     <div className="p-6 space-y-6">
       {/* Report toast */}
       {reportToast && (
-        <div className="fixed top-4 right-4 z-50 bg-vc-text text-white text-sm px-4 py-3 shadow-md flex items-center gap-2">
+        <div className="fixed top-4 right-4 z-50 bg-vc-primary text-white text-sm px-4 py-3 shadow-md flex items-center gap-2">
           <Sparkles size={14} className="text-vc-accent" />
           Report generated and saved to deliverables.
         </div>

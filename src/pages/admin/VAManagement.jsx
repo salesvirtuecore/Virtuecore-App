@@ -187,7 +187,7 @@ export default function VAManagement() {
         {vas.map((va) => (
           <div key={va.id} className="vc-card">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 bg-vc-text flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-vc-primary flex items-center justify-center flex-shrink-0">
                 <span className="text-vc-accent font-semibold text-sm">{va.full_name[0]}</span>
               </div>
               <div className="flex-1 min-w-0">

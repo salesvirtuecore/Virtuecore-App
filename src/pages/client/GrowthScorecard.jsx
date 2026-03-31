@@ -138,7 +138,7 @@ export default function GrowthScorecard() {
                 <button
                   key={k}
                   onClick={() => setActiveChart(k)}
-                  className={`text-xs px-3 py-1 border transition-colors ${activeChart === k ? 'bg-vc-text text-white border-text-primary' : 'border-white/[0.06] text-text-secondary hover:text-text-primary'}`}
+                  className={`text-xs px-3 py-1 border transition-colors ${activeChart === k ? 'bg-vc-primary text-white border-text-primary' : 'border-white/[0.06] text-text-secondary hover:text-text-primary'}`}
                 >
                   {k === 'leads' ? 'Leads' : 'CPL'}
                 </button>

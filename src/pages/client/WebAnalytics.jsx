@@ -120,7 +120,7 @@ export default function ClientWebAnalytics() {
                         <button
                           onClick={() => saveGaId(site)}
                           disabled={saving === site.id}
-                          className="px-3 py-2 bg-vc-text text-white text-sm hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                          className="px-3 py-2 bg-vc-primary text-white text-sm hover:bg-vc-accent disabled:opacity-50 transition-colors"
                         >
                           {saving === site.id ? 'Saving...' : 'Save'}
                         </button>

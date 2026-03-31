@@ -73,7 +73,7 @@ export default function Webhooks() {
         <div className="border border-white/[0.06]">
           <div className="px-5 py-4 border-b border-white/[0.06] bg-bg-tertiary">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono bg-vc-text text-white px-1.5 py-0.5">POST</span>
+              <span className="text-xs font-mono bg-vc-primary text-white px-1.5 py-0.5">POST</span>
               <span className="text-sm font-medium text-text-primary">Stripe Webhook Handler</span>
             </div>
             <p className="text-xs text-text-secondary">
@@ -131,7 +131,7 @@ export default function Webhooks() {
         <div className="border border-white/[0.06]">
           <div className="px-5 py-4 border-b border-white/[0.06] bg-bg-tertiary">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono bg-vc-text text-white px-1.5 py-0.5">GET</span>
+              <span className="text-xs font-mono bg-vc-primary text-white px-1.5 py-0.5">GET</span>
               <span className="text-sm font-medium text-text-primary">Fetch & sync ad performance</span>
             </div>
             <p className="text-xs text-text-secondary">

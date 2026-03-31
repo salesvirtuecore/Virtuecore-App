@@ -42,7 +42,7 @@ function TaskCard({ task, expanded, onToggle, onCycleStatus }) {
           {task.brief && <p className="text-xs text-text-secondary mb-3">{task.brief}</p>}
           <button
             onClick={() => onCycleStatus(task.id)}
-            className="text-xs px-3 py-1.5 bg-vc-text text-white hover:bg-gray-800 transition-colors"
+            className="text-xs px-3 py-1.5 bg-vc-primary text-white hover:bg-vc-accent transition-colors"
           >
             Mark as: {STATUS_LABEL[STATUS_CYCLE[(STATUS_CYCLE.indexOf(task.status) + 1) % STATUS_CYCLE.length]]}
           </button>

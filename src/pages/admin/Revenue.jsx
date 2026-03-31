@@ -146,8 +146,8 @@ export default function Revenue() {
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v / 1000}k`} width={40} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="retainer" fill="#6C5CE7" name="retainer" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="commission" fill="#A29BFE" name="commission" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="retainer" fill="#6C5CE7" name="retainer" radius={[2, 2, 0, 0]} isAnimationActive animationBegin={0} animationDuration={800} animationEasing="ease-out" />
+            <Bar dataKey="commission" fill="#A29BFE" name="commission" radius={[2, 2, 0, 0]} isAnimationActive animationBegin={100} animationDuration={800} animationEasing="ease-out" />
           </BarChart>
         </ResponsiveContainer>
       </div>
