@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { notifySlack } from '../../lib/slackNotify'
 
 const STAGES = [
   { id: 'captured', label: 'Lead Captured' },
@@ -136,6 +137,7 @@ export default function Pipeline() {
           const { data, error } = await supabase.from('pipeline_leads').insert(payload).select().single()
           if (error) throw error
           setLeads((prev) => [...prev, data])
+          notifySlack('new_lead', { name: payload.name, company: payload.company, source: payload.source, score: payload.score, stage: payload.stage })
         }
       }
 

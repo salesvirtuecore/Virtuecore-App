@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import { sendPushNotification } from '../../lib/pushNotifications'
+import { notifySlack } from '../../lib/slackNotify'
 
 const TYPE_LABELS = {
   ad_creative: 'Ad Creative',
@@ -54,7 +55,7 @@ export default function Deliverables() {
       setLoading(true)
       const { data, error } = await supabase
         .from('deliverables')
-        .select('*')
+        .select('id, client_id, title, status, feedback, file_url, type, created_at')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
 
@@ -115,6 +116,7 @@ export default function Deliverables() {
       return next
     }), 3000)
     notifyAdmins('Deliverable approved ✓', `${profile?.full_name ?? 'Client'} approved "${deliverable?.title ?? 'a deliverable'}"`)
+    notifySlack('deliverable_approved', { title: deliverable?.title ?? 'a deliverable', client_name: profile?.full_name ?? 'Client' })
   }
 
   async function requestChanges(id) {
@@ -129,6 +131,7 @@ export default function Deliverables() {
     ))
     setShowFeedback((prev) => ({ ...prev, [id]: false }))
     notifyAdmins('Changes requested', `${profile?.full_name ?? 'Client'} requested changes on "${deliverable?.title ?? 'a deliverable'}"`)
+    notifySlack('deliverable_changes', { title: deliverable?.title ?? 'a deliverable', client_name: profile?.full_name ?? 'Client', feedback: text })
   }
 
   return (
@@ -138,7 +141,25 @@ export default function Deliverables() {
         <p className="text-sm text-text-secondary mt-0.5">Review and approve your assets</p>
       </div>
 
-      {loading && <p className="text-sm text-text-secondary">Loading deliverables...</p>}
+      {loading && (
+        <div className="space-y-3 animate-pulse">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="vc-card space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <div className="h-4 w-48 bg-bg-tertiary rounded" />
+                  <div className="h-3 w-32 bg-bg-tertiary rounded" />
+                </div>
+                <div className="h-6 w-20 bg-bg-tertiary rounded" />
+              </div>
+              <div className="flex gap-2">
+                <div className="h-8 w-24 bg-bg-tertiary rounded" />
+                <div className="h-8 w-24 bg-bg-tertiary rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-3">
         {normalizedDeliverables.map((d) => (

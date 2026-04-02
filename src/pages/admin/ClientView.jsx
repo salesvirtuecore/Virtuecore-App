@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
+import { notifySlack } from '../../lib/slackNotify'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -135,11 +136,11 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('*').eq('id', id).maybeSingle(),
-          supabase.from('deliverables').select('*').eq('client_id', id).order('created_at', { ascending: false }),
-          supabase.from('invoices').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, payment_status, ad_spend_managed, meta_ad_account_id').eq('id', id).maybeSingle(),
+          supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
+          supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('crm_messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
-          supabase.from('ad_performance').select('*').eq('client_id', id).order('date', { ascending: true }),
+          supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, client_id, platform, created_at').eq('client_id', id).order('date', { ascending: true }),
           supabase.from('nps_responses').select('score,comment,created_at').eq('client_id', id).order('created_at', { ascending: false }).limit(12),
         ])
 
@@ -480,6 +481,7 @@ export default function ClientView() {
           const { data, error } = await supabase.from('invoices').insert(payload).select().single()
           if (error) throw error
           setInvoices((prev) => [...prev, data])
+          notifySlack('invoice_created', { amount: payload.amount, type: payload.type, client_name: client.company_name, due_date: payload.due_date })
 
           // Notify client of new invoice
           const { data: clientProfile } = await supabase

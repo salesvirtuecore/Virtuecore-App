@@ -8,6 +8,7 @@ import { DEMO_VAS, DEMO_TASKS, DEMO_VA_TRAINING, DEMO_CLIENTS } from '../../data
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
+import { notifySlack } from '../../lib/slackNotify'
 
 const EMPTY_TASK_FORM = {
   title: '',
@@ -32,7 +33,7 @@ export default function VAManagement() {
     if (isDemo || !supabase) return
     Promise.all([
       supabase.from('profiles').select('id, full_name, email, created_at').eq('role', 'va').order('created_at'),
-      supabase.from('tasks').select('*').order('deadline'),
+      supabase.from('tasks').select('id, full_name, email, created_at, role').order('deadline'),
       supabase.from('clients').select('id, company_name').order('company_name'),
     ]).then(([{ data: vaRows }, { data: taskRows }, { data: clientRows }]) => {
       if (vaRows) {
@@ -116,6 +117,7 @@ export default function VAManagement() {
           body: `${payload.title}${payload.client_name ? ` — ${payload.client_name}` : ''}`,
           url: '/va',
         })
+        notifySlack('task_created', { title: payload.title, client_name: payload.client_name, va_name: assignTarget.full_name, priority: payload.priority })
       }
       setAssignTarget(null)
     } catch (err) {

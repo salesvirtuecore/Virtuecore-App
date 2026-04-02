@@ -4,6 +4,7 @@ import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { DEMO_TASKS } from '../../data/placeholder'
+import { notifySlack } from '../../lib/slackNotify'
 
 const STATUS_CYCLE = ['not_started', 'in_progress', 'complete']
 const STATUS_LABEL = { not_started: 'Not Started', in_progress: 'In Progress', complete: 'Complete' }
@@ -98,6 +99,8 @@ export default function TaskBoard() {
       if (error) {
         // Revert on failure
         setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: task.status } : t)))
+      } else {
+        notifySlack('task_updated', { title: task.title, client_name: task.client_name, status: nextStatus })
       }
     }
   }

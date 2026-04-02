@@ -39,6 +39,23 @@ async function handleInviteUser(req, res) {
       const n8nRes = await fetch(n8nWebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n8nPayload) })
       if (!n8nRes.ok) throw new Error(`n8n failed: ${n8nRes.status} ${await n8nRes.text()}`)
     }
+    if (role === 'client') {
+      const slackToken = process.env.SLACK_BOT_TOKEN
+      if (slackToken) {
+        fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({
+            channel: process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25',
+            text: `🏢 New Client Onboarded`,
+            blocks: [
+              { type: 'section', text: { type: 'mrkdwn', text: `*🏢 New Client Onboarded*\n*${company_name || full_name}*\nEmail: ${email} · Package: ${package_tier || 'Starter'}` } },
+              { type: 'context', elements: [{ type: 'mrkdwn', text: new Date().toUTCString() }] },
+            ],
+          }),
+        }).catch(() => {})
+      }
+    }
     return res.status(200).json({ success: true })
   } catch (err) {
     return res.status(500).json({ error: err.message })

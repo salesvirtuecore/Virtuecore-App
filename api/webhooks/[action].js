@@ -32,6 +32,22 @@ async function handleStripe(req, res, rawBody) {
       case 'invoice.paid': {
         const inv = event.data.object
         await supabase.from('invoices').update({ status: 'paid', paid_date: new Date(inv.status_transitions?.paid_at * 1000).toISOString().split('T')[0] }).eq('stripe_invoice_id', inv.id)
+        const slackToken = process.env.SLACK_BOT_TOKEN
+        if (slackToken) {
+          const amount = (inv.amount_paid ?? inv.amount_due ?? 0) / 100
+          fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({
+              channel: process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25',
+              text: `💰 Invoice Paid`,
+              blocks: [
+                { type: 'section', text: { type: 'mrkdwn', text: `*💰 Invoice Paid*\n*£${amount.toLocaleString()}* received\nStripe invoice: ${inv.id}` } },
+                { type: 'context', elements: [{ type: 'mrkdwn', text: new Date().toUTCString() }] },
+              ],
+            }),
+          }).catch(() => {})
+        }
         break
       }
       case 'invoice.payment_failed': {
