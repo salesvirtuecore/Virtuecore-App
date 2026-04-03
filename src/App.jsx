@@ -13,6 +13,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import AcceptInvite from './pages/auth/AcceptInvite'
 import Signup from './pages/auth/Signup'
 import SignupVA from './pages/auth/SignupVA'
+import ResetPassword from './pages/auth/ResetPassword'
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard'
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup/va" element={<SignupVA />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/meta/callback" element={<MetaCallback />} />
       <Route path="/preview/ad-feed" element={<AdPerformance />} />
       <Route path="/preview/scorecard" element={<GrowthScorecard />} />
