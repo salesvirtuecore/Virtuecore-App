@@ -46,7 +46,7 @@ export default function Standup() {
     setLoading(true)
     supabase
       .from('standups')
-      .select('*')
+      .select('id, va_id, date, yesterday, today, blockers')
       .eq('va_id', profile.id)
       .order('date', { ascending: false })
       .limit(14)

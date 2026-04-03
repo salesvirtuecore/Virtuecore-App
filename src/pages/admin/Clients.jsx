@@ -8,6 +8,7 @@ import FormField from '../../components/ui/FormField'
 import { DEMO_CLIENTS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
 const STATUS_BADGE = { active: 'green', onboarding: 'blue', churned: 'default' }
@@ -47,6 +48,7 @@ function withPortalStatus(clientRows, profileRows = []) {
 }
 
 export default function Clients() {
+  const { isDemo } = useAuth()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
@@ -65,7 +67,7 @@ export default function Clients() {
     setLoadingClients(true)
     try {
       const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase.from('clients').select('*').order('created_at', { ascending: false }),
+        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, payment_status, stripe_account_id, ad_spend_managed, created_at').order('created_at', { ascending: false }),
         supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       ])
 

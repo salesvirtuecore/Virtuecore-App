@@ -20,7 +20,7 @@ export default function Invoices() {
 
     supabase
       .from('invoices')
-      .select('*')
+      .select('id, client_id, amount, type, due_date, paid_date, status, created_at')
       .eq('client_id', profile.client_id)
       .order('created_at', { ascending: false })
       .then(({ data }) => {

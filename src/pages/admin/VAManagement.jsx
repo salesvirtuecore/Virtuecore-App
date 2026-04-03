@@ -7,6 +7,7 @@ import FormField from '../../components/ui/FormField'
 import { DEMO_VAS, DEMO_TASKS, DEMO_VA_TRAINING, DEMO_CLIENTS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
 import { notifySlack } from '../../lib/slackNotify'
 
@@ -23,6 +24,7 @@ const EMPTY_VA_FORM = {
 }
 
 export default function VAManagement() {
+  const { isDemo } = useAuth()
   const [showInvite, setShowInvite] = useState(false)
   const [vas, setVas] = useState(isDemo ? DEMO_VAS : [])
   const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS : [])

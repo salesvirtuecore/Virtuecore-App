@@ -46,7 +46,7 @@ export default function AdPerformance() {
     const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
     supabase
       .from('ad_performance')
-      .select('*')
+      .select('client_id, date, spend, leads, impressions, clicks, roas, cpl, ctr')
       .eq('client_id', profile.client_id)
       .gte('date', weekAgo.toISOString().split('T')[0])
       .order('date', { ascending: false })
@@ -68,7 +68,25 @@ export default function AdPerformance() {
       })
   }, [profile?.client_id, useDemo])
 
-  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin" /></div>
+  if (loading) return (
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">
+      <div className="h-7 w-48 bg-bg-tertiary rounded" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="vc-card space-y-2">
+            <div className="h-3 w-16 bg-bg-tertiary rounded" />
+            <div className="h-7 w-24 bg-bg-tertiary rounded" />
+            <div className="h-3 w-12 bg-bg-tertiary rounded" />
+          </div>
+        ))}
+      </div>
+      <div className="vc-card space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-8 bg-bg-tertiary rounded" />
+        ))}
+      </div>
+    </div>
+  )
   if (!data) return <div className="p-6 text-sm text-text-secondary">No ad performance data yet. Connect your ad account to see live data here.</div>
 
   const s = data.week_summary

@@ -198,8 +198,8 @@ export default function ClientDashboard() {
       setDashboardLoading(true)
       try {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
-          supabase.from('ad_performance').select('*').order('date', { ascending: true }),
-          supabase.from('invoices').select('*').order('created_at', { ascending: false }),
+          supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').order('date', { ascending: true }),
+          supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').order('created_at', { ascending: false }),
           supabase.from('clients').select('meta_ad_account_id').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
@@ -225,7 +225,7 @@ export default function ClientDashboard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setSyncMessage(`Synced ${data.rows_synced} entries`)
-      const { data: adData } = await supabase.from('ad_performance').select('*').order('date', { ascending: true })
+      const { data: adData } = await supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').order('date', { ascending: true })
       setAdPerformance(adData || [])
     } catch (err) {
       setSyncMessage(err.message || 'Sync failed')

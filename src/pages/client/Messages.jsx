@@ -22,7 +22,7 @@ export default function Messages() {
 
     supabase
       .from('crm_messages')
-      .select('*')
+      .select('id, client_id, sender_id, sender_name, sender_role, content, created_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {

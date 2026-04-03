@@ -100,7 +100,30 @@ export default function GrowthScorecard() {
       })
   }, [profile?.client_id, useDemo])
 
-  if (loading) return <div className="p-6 flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin" /></div>
+  if (loading) return (
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">
+      <div className="h-7 w-48 bg-bg-tertiary rounded" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="vc-card space-y-3">
+            <div className="h-3 w-24 bg-bg-tertiary rounded" />
+            <div className="flex items-end justify-between gap-2">
+              <div className="space-y-1">
+                <div className="h-3 w-20 bg-bg-tertiary rounded" />
+                <div className="h-6 w-16 bg-bg-tertiary rounded" />
+              </div>
+              <div className="h-4 w-6 bg-bg-tertiary rounded" />
+              <div className="space-y-1 text-right">
+                <div className="h-3 w-12 bg-bg-tertiary rounded ml-auto" />
+                <div className="h-8 w-20 bg-bg-tertiary rounded" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="vc-card h-48 bg-bg-tertiary rounded" />
+    </div>
+  )
   if (!data) return <div className="p-6 text-sm text-text-secondary">No data available yet. Your scorecard will populate as we start tracking results.</div>
 
   const chartData = data.monthly_leads || []

@@ -50,7 +50,7 @@ export default function Meetings() {
       setLoading(true)
       const { data, error } = await supabase
         .from('meetings')
-        .select('*')
+        .select('id, client_id, status, start_time, event_type_name, join_url')
         .eq('client_id', profile.client_id)
         .order('start_time', { ascending: true })
 

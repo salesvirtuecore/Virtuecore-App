@@ -165,8 +165,18 @@ export default function WeeklyPulse() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-5 h-5 border-2 border-white/[0.06] border-t-vc-primary rounded-full animate-spin" />
+        <div className="space-y-3 animate-pulse">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="border border-white/[0.06] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="h-4 w-48 bg-bg-tertiary rounded" />
+                  <div className="h-3 w-64 bg-bg-tertiary rounded" />
+                </div>
+                <div className="h-4 w-4 bg-bg-tertiary rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

@@ -29,7 +29,7 @@ export default function ContentCalendar() {
 
     setLoadingPosts(true)
     Promise.all([
-      supabase.from('content_calendar').select('*').eq('client_id', clientId).order('post_date', { ascending: true }),
+      supabase.from('content_calendar').select('id, client_id, post_date, platform, content, status').eq('client_id', clientId).order('post_date', { ascending: true }),
       supabase.from('deliverables').select('id, title, file_url, created_at').eq('client_id', clientId).eq('type', 'content_calendar').order('created_at', { ascending: false }),
     ]).then(([{ data: calData }, { data: planData }]) => {
       setPosts(calData || [])

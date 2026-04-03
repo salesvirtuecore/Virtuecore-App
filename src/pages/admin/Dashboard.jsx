@@ -44,7 +44,7 @@ export default function AdminDashboard() {
   const loadClients = useCallback(async () => {
     if (isDemo || !supabase) return
     const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-      supabase.from('clients').select('*').order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, created_at').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
     ])
     if (!clientError && !profileError && clientRows) {

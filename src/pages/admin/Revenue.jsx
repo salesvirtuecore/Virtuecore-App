@@ -8,6 +8,7 @@ import FormField from '../../components/ui/FormField'
 import { DEMO_CLIENTS, DEMO_INVOICES, DEMO_BUSINESS_METRICS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 
 const MONTHLY_REV = [
   { month: 'Oct', retainer: 8500, commission: 620 },
@@ -41,6 +42,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function Revenue() {
+  const { isDemo } = useAuth()
   const { showToast } = useToast()
   const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
   const [invoices, setInvoices] = useState(isDemo ? DEMO_INVOICES : [])
@@ -53,7 +55,7 @@ export default function Revenue() {
     if (isDemo) return
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
-        supabase.from('clients').select('*'),
+        supabase.from('clients').select('id, status, company_name, monthly_retainer, ad_spend_managed, revenue_share_percentage'),
         supabase.from('invoices').select('*, clients(company_name)'),
       ])
       if (clientData) setClients(clientData)

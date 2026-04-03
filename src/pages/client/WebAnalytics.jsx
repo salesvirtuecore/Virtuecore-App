@@ -29,7 +29,7 @@ export default function ClientWebAnalytics() {
     if (isDemo || !supabase || !clientId) return
     supabase
       .from('client_websites')
-      .select('*')
+      .select('id, client_id, name, url, ga_measurement_id, meta_pixel_id, notes, created_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -63,7 +63,26 @@ export default function ClientWebAnalytics() {
     })
   }
 
-  if (loading) return <div className="p-6 text-sm text-text-secondary">Loading...</div>
+  if (loading) return (
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">
+      <div className="space-y-1">
+        <div className="h-7 w-40 bg-bg-tertiary rounded" />
+        <div className="h-4 w-64 bg-bg-tertiary rounded" />
+      </div>
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="border border-white/[0.06] p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-bg-tertiary rounded flex-shrink-0" />
+            <div className="space-y-1 flex-1">
+              <div className="h-4 w-40 bg-bg-tertiary rounded" />
+              <div className="h-3 w-28 bg-bg-tertiary rounded" />
+            </div>
+          </div>
+          <div className="h-10 bg-bg-tertiary rounded" />
+        </div>
+      ))}
+    </div>
+  )
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">

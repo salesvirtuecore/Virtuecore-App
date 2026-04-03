@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { notifySlack } from '../../lib/slackNotify'
 
 const STAGES = [
@@ -32,6 +33,7 @@ function ScoreDot({ score }) {
 }
 
 export default function Pipeline() {
+  const { isDemo } = useAuth()
   const [leads, setLeads] = useState(DEMO_PIPELINE)
   const [selected, setSelected] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)

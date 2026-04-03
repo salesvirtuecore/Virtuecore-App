@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Copy, Check, CreditCard, AlertCircle } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 
 const BASE_URL = 'https://your-app.vercel.app'
@@ -52,6 +53,7 @@ function StatusBadge() {
 }
 
 export default function Webhooks() {
+  const { isDemo } = useAuth()
   return (
     <div className="p-6 space-y-8">
       {/* Header */}

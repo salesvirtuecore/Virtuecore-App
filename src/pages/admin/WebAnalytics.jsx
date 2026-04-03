@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Globe, Plus, ExternalLink, Trash2, Copy, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 
@@ -43,6 +44,7 @@ const EMPTY_FORM = {
 }
 
 export default function WebAnalytics() {
+  const { isDemo } = useAuth()
   const { showToast } = useToast()
   const [websites, setWebsites] = useState(isDemo ? DEMO_WEBSITES : [])
   const [clients, setClients] = useState([])
