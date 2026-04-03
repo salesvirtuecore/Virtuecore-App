@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import { notifySlack } from '../../lib/slackNotify'
 
 const STAGES = [
@@ -32,7 +31,6 @@ function ScoreDot({ score }) {
 }
 
 export default function Pipeline() {
-  const { isDemo } = useAuth()
   const [leads, setLeads] = useState([])
   const [selected, setSelected] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -41,6 +39,14 @@ export default function Pipeline() {
   const [leadErrors, setLeadErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const { showToast } = useToast()
+
+  const loadLeads = useCallback(async () => {
+    if (!supabase) return
+    const { data, error } = await supabase.from('pipeline_leads').select('*').order('created_at', { ascending: false })
+    if (!error && data) setLeads(data)
+  }, [])
+
+  useEffect(() => { loadLeads() }, [loadLeads])
 
   function moveStage(leadId, direction) {
     setLeads((prev) =>

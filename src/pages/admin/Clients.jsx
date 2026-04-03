@@ -6,8 +6,8 @@ import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
+import { withPortalStatus } from '../../lib/clientUtils'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
 const STATUS_BADGE = { active: 'green', onboarding: 'blue', churned: 'default' }
@@ -25,29 +25,7 @@ const EMPTY_FORM = {
   health_score: 'green',
 }
 
-function withPortalStatus(clientRows, profileRows = []) {
-  const joinedByClientId = new Map()
-
-  for (const profile of profileRows) {
-    if (!profile?.client_id) continue
-    const existing = joinedByClientId.get(profile.client_id)
-    if (!existing || new Date(profile.created_at) < new Date(existing.created_at)) {
-      joinedByClientId.set(profile.client_id, profile)
-    }
-  }
-
-  return clientRows.map((client) => {
-    const linkedProfile = joinedByClientId.get(client.id)
-    return {
-      ...client,
-      portal_joined: Boolean(linkedProfile),
-      portal_joined_at: linkedProfile?.created_at || null,
-    }
-  })
-}
-
 export default function Clients() {
-  const { isDemo } = useAuth()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
@@ -94,17 +72,11 @@ export default function Clients() {
       })
       .subscribe()
 
-    const pollId = window.setInterval(() => loadClients(), 15000)
-    const refreshOnFocus = () => loadClients()
-    const refreshOnVisible = () => { if (document.visibilityState === 'visible') loadClients() }
-
-    window.addEventListener('focus', refreshOnFocus)
-    document.addEventListener('visibilitychange', refreshOnVisible)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadClients() }
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
-      window.clearInterval(pollId)
-      window.removeEventListener('focus', refreshOnFocus)
-      document.removeEventListener('visibilitychange', refreshOnVisible)
+      document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
   }, [loadClients])

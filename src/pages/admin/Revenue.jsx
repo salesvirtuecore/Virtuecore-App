@@ -52,7 +52,7 @@ export default function Revenue() {
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
         supabase.from('clients').select('id, status, company_name, monthly_retainer, ad_spend_managed, revenue_share_percentage'),
-        supabase.from('invoices').select('*, clients(company_name)'),
+        supabase.from('invoices').select('id, client_id, amount, status, type, due_date, paid_date, created_at, clients(company_name)'),
       ])
       if (clientData) setClients(clientData)
       if (invoiceData) {
@@ -121,9 +121,8 @@ export default function Revenue() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Monthly Recurring Revenue" value={`£${totalRetainer.toLocaleString()}`} />
-        <StatCard label="Retainer Revenue" value={`£${totalRetainer.toLocaleString()}`} sub={`${activeClients.length} active clients`} />
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Monthly Recurring Revenue" value={`£${totalRetainer.toLocaleString()}`} sub={`${activeClients.length} active clients`} />
         <StatCard label="Outstanding Invoices" value={`£${totalOutstanding.toLocaleString()}`} sub={`${invoices.filter((i) => i.status === 'overdue').length} overdue`} />
       </div>
 

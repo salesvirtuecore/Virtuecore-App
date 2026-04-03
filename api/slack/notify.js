@@ -52,13 +52,14 @@ export default async function handler(req, res) {
   if (!token) return res.status(200).json({ ok: false, reason: 'Slack not configured' })
 
   const { event, data } = req.body
+  if (!data || typeof data !== 'object') return res.status(400).json({ error: 'Missing data' })
   const builder = MESSAGES[event]
   if (!builder) return res.status(400).json({ error: 'Unknown event' })
 
   const { title, text } = builder(data)
 
   try {
-    await fetch('https://slack.com/api/chat.postMessage', {
+    const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -73,7 +74,8 @@ export default async function handler(req, res) {
         ],
       }),
     })
-    res.status(200).json({ ok: true })
+    const slackData = await slackRes.json()
+    res.status(200).json({ ok: slackData.ok, error: slackData.error || undefined })
   } catch {
     res.status(200).json({ ok: false, reason: 'Slack API error' })
   }

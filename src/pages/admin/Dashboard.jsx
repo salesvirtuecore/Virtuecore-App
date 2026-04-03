@@ -4,24 +4,11 @@ import { TrendingUp, Users, DollarSign, Activity, AlertTriangle, Clock } from 'l
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import Badge from '../../components/ui/Badge'
-import { DEMO_MRR_CHART } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
+import { withPortalStatus } from '../../lib/clientUtils'
 import { useAuth } from '../../context/AuthContext'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
-const PORTAL_BADGE = { joined: 'green', invited: 'blue' }
-
-function withPortalStatus(clientRows, profileRows = []) {
-  const joinedByClientId = new Map()
-  for (const profile of profileRows) {
-    if (!profile?.client_id) continue
-    const existing = joinedByClientId.get(profile.client_id)
-    if (!existing || new Date(profile.created_at) < new Date(existing.created_at)) {
-      joinedByClientId.set(profile.client_id, profile)
-    }
-  }
-  return clientRows.map((client) => ({ ...client, portal_joined: joinedByClientId.has(client.id) }))
-}
 
 function fmt(n) {
   return n >= 1000 ? `£${(n / 1000).toFixed(1)}k` : `£${n}`
@@ -67,14 +54,9 @@ export default function AdminDashboard() {
         if (payload?.new?.client_id || payload?.old?.client_id) loadClients()
       })
       .subscribe()
-    const pollId = window.setInterval(loadClients, 15000)
-    const onFocus = () => loadClients()
     const onVisible = () => { if (document.visibilityState === 'visible') loadClients() }
-    window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
-      clearInterval(pollId)
-      window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
@@ -107,7 +89,7 @@ export default function AdminDashboard() {
           sub={`${joinedClients.length} in portal · ${onboardingClients.length} onboarding`}
           icon={Users}
         />
-        <StatCard label="Pipeline Leads" value={pipelineLeads.length} sub={`${pipelineLeads.length} active leads`} icon={TrendingUp} />
+        <StatCard label="Pipeline Leads" value={pipelineLeads.length} icon={TrendingUp} />
         <StatCard label="Ad Spend Managed" value={fmt(totalAdSpend)} icon={Activity} />
       </div>
 
@@ -120,7 +102,7 @@ export default function AdminDashboard() {
             <span className="vc-section-label">12 weeks</span>
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={DEMO_MRR_CHART} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <AreaChart data={[]} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6C5CE7" stopOpacity={0.3} />
