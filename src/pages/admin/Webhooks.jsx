@@ -35,7 +35,7 @@ function CopyButton({ text }) {
   )
 }
 
-function StatusBadge() {
+function StatusBadge({ isDemo }) {
   if (isDemo) {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-status-warning/10 border border-status-warning/20 text-status-warning">
@@ -69,7 +69,7 @@ export default function Webhooks() {
         <div className="flex items-center gap-2 mb-4">
           <CreditCard size={16} className="text-vc-accent" />
           <h2 className="text-base font-semibold text-text-primary">Stripe Webhook</h2>
-          <StatusBadge />
+          <StatusBadge isDemo={isDemo} />
         </div>
 
         <div className="border border-white/[0.06]">
@@ -127,7 +127,7 @@ export default function Webhooks() {
             <span className="text-white text-[9px] font-bold">f</span>
           </div>
           <h2 className="text-base font-semibold text-text-primary">Meta Ads Data Sync</h2>
-          <StatusBadge />
+          <StatusBadge isDemo={isDemo} />
         </div>
 
         <div className="border border-white/[0.06]">

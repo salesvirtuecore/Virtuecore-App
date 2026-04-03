@@ -268,7 +268,8 @@ export default function Clients() {
 
       {/* Table */}
       <div className="vc-card p-0 overflow-hidden">
-        <table className="vc-table">
+        <div className="overflow-x-auto">
+        <table className="vc-table min-w-[900px]">
           <thead>
             <tr>
               <th>Company</th>
@@ -292,7 +293,7 @@ export default function Clients() {
               </tr>
             )}
             {filtered.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} onClick={() => navigate(`/admin/clients/${c.id}`)} className="cursor-pointer">
                 <td>
                   <p className="font-medium text-text-primary">{c.company_name}</p>
                   <p className="text-xs text-text-tertiary">{c.contact_email}</p>
@@ -352,6 +353,7 @@ export default function Clients() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Edit Client Modal */}

@@ -13,11 +13,11 @@ export default function StatCard({ label, value, sub, trend, icon: Icon, prefix 
         )}
       </div>
 
-      <div>
-        <p className="vc-metric">
+      <div className="min-w-0">
+        <p className="vc-metric truncate">
           {prefix}{value}{suffix}
         </p>
-        {sub && <p className="text-text-tertiary text-xs mt-1">{sub}</p>}
+        {sub && <p className="text-text-tertiary text-xs mt-1 truncate">{sub}</p>}
       </div>
 
       {trend !== undefined && (

@@ -80,10 +80,16 @@
 
   .vc-metric {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 32px;
+    font-size: 22px;
     font-weight: 700;
     color: #EDEDEF;
     line-height: 1;
+  }
+
+  @media (min-width: 768px) {
+    .vc-metric {
+      font-size: 32px;
+    }
   }
 
   .vc-divider {
@@ -106,9 +112,10 @@
   }
   .vc-table td {
     padding: 12px;
-    font-size: 14px;
+    font-size: 13px;
     color: #EDEDEF;
     border-bottom: 1px solid rgba(255,255,255,0.04);
+    white-space: nowrap;
   }
   .vc-table tbody tr:hover td { background: #1A1A1D; }
   .vc-table td.mono { font-family: 'JetBrains Mono', monospace; text-align: right; }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TrendingUp, Users, DollarSign, Activity, AlertTriangle, Clock } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
@@ -38,6 +39,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function AdminDashboard() {
   const { profile, isDemo } = useAuth()
+  const navigate = useNavigate()
   const m = DEMO_BUSINESS_METRICS
   const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
 
@@ -158,7 +160,7 @@ export default function AdminDashboard() {
           <span className="text-xs text-text-tertiary">{activeClients.length} active</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="vc-table">
+          <table className="vc-table min-w-[800px]">
             <thead>
               <tr>
                 <th>Client</th>
@@ -172,7 +174,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {clients.filter(c => c.status !== 'churned').map(c => (
-                <tr key={c.id}>
+                <tr key={c.id} onClick={() => navigate(`/admin/clients/${c.id}`)} className="cursor-pointer">
                   <td>
                     <p className="text-text-primary font-medium">{c.company_name}</p>
                     <p className="text-xs text-text-tertiary">{c.contact_name}</p>
