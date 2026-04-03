@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Check, MessageSquare, FileText, Download, Eye } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
-import { DEMO_CONTENT_CALENDAR } from '../../data/placeholder'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -11,11 +10,11 @@ const STATUS_BADGE = { scheduled: 'blue', published: 'green', draft: 'default' }
 const PLATFORM_COLOR = { Instagram: '#E1306C', Facebook: '#1877F2', TikTok: '#000000', LinkedIn: '#0A66C2' }
 
 export default function ContentCalendar() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
-  const [posts, setPosts] = useState(isDemo ? DEMO_CONTENT_CALENDAR : [])
-  const [loadingPosts, setLoadingPosts] = useState(!isDemo)
+  const [posts, setPosts] = useState([])
+  const [loadingPosts, setLoadingPosts] = useState(true)
   const [approvedIds, setApprovedIds] = useState(new Set())
   const [feedbackOpen, setFeedbackOpen] = useState({})
   const [feedbackText, setFeedbackText] = useState({})
@@ -25,7 +24,7 @@ export default function ContentCalendar() {
 
   useEffect(() => {
     const clientId = profile?.client_id
-    if (isDemo || !supabase || !clientId) return
+    if (!supabase || !clientId) { setLoadingPosts(false); return }
 
     setLoadingPosts(true)
     Promise.all([
@@ -60,36 +59,26 @@ export default function ContentCalendar() {
   const selectedPosts = selected ? (postsMap[format(selected, 'yyyy-MM-dd')] ?? []) : []
 
   async function handleApprove(postId) {
-    if (isDemo) {
-      setPosts((prev) =>
-        prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
-      )
-      setApprovedIds((prev) => new Set([...prev, postId]))
-    } else {
-      await supabase
-        .from('content_calendar')
-        .update({ status: 'published' })
-        .eq('id', postId)
-      setPosts((prev) =>
-        prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
-      )
-      setApprovedIds((prev) => new Set([...prev, postId]))
-    }
+    await supabase
+      .from('content_calendar')
+      .update({ status: 'published' })
+      .eq('id', postId)
+    setPosts((prev) =>
+      prev.map((p) => p.id === postId ? { ...p, status: 'published' } : p)
+    )
+    setApprovedIds((prev) => new Set([...prev, postId]))
   }
 
   async function handleSubmitFeedback(post) {
     const text = feedbackText[post.id]
     if (!text?.trim()) return
 
-    if (isDemo) {
-    } else {
-      // Send as a message to the client thread
-      await supabase.from('crm_messages').insert({
-        client_id: post.client_id,
-        sender_id: null,
-        content: `Changes requested for ${post.platform} post on ${post.post_date}: ${text}`,
-      })
-    }
+    // Send as a message to the client thread
+    await supabase.from('crm_messages').insert({
+      client_id: post.client_id,
+      sender_id: null,
+      content: `Changes requested for ${post.platform} post on ${post.post_date}: ${text}`,
+    })
     setSubmittedFeedback((prev) => new Set([...prev, post.id]))
     setFeedbackOpen((prev) => ({ ...prev, [post.id]: false }))
     setFeedbackText((prev) => ({ ...prev, [post.id]: '' }))

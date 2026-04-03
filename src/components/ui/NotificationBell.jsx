@@ -4,50 +4,6 @@ import { formatDistanceToNow } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-// ── Demo notifications ────────────────────────────────────────────────────────
-const DEMO_NOTIFICATIONS = [
-  {
-    id: 'n-001',
-    type: 'deliverable_review',
-    title: 'Deliverable ready for review',
-    body: 'February Performance Report is pending your approval.',
-    read: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(), // 35 min ago
-  },
-  {
-    id: 'n-002',
-    type: 'message',
-    title: 'New message from VirtueCore',
-    body: 'Your March ad creatives are in review. Should be with you by EOD Wednesday.',
-    read: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 h ago
-  },
-  {
-    id: 'n-003',
-    type: 'invoice_due',
-    title: 'Invoice due in 5 days',
-    body: 'April retainer invoice of £2,500 is due on 1 April 2026.',
-    read: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-  },
-  {
-    id: 'n-smart-001',
-    type: 'smart',
-    title: 'CPL improved 16% this week 📉',
-    body: 'Cost per lead dropped from £138 to £116 — your campaigns are getting more efficient.',
-    read: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: 'n-smart-002',
-    type: 'smart',
-    title: 'Lead volume up 29% this week 🚀',
-    body: '18 leads this week vs 14 last week — your best performance yet.',
-    read: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-  },
-]
-
 const TYPE_ICON_COLOR = {
   deliverable_review: 'bg-status-warning/10 text-status-warning',
   deliverable_approved: 'bg-status-success/10 text-status-success',
@@ -57,17 +13,13 @@ const TYPE_ICON_COLOR = {
 }
 
 export default function NotificationBell() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const dropdownRef = useRef(null)
 
   // Load notifications
   useEffect(() => {
-    if (isDemo) {
-      setNotifications(DEMO_NOTIFICATIONS)
-      return
-    }
     if (!profile?.id) return
 
     async function load() {
@@ -98,7 +50,7 @@ export default function NotificationBell() {
   async function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
 
-    if (!isDemo && profile?.id) {
+    if (profile?.id) {
       await supabase
         .from('notifications')
         .update({ read: true })

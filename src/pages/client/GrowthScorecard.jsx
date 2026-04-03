@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Award } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_GROWTH_SCORECARD } from '../../data/placeholder'
 import { format, parseISO } from 'date-fns'
 
 function pctChange(start, now, lowerIsBetter) {
@@ -47,15 +45,13 @@ function MetricCard({ metric }) {
 }
 
 export default function GrowthScorecard() {
-  const { profile, isDemo } = useAuth()
-  const { pathname } = useLocation()
-  const useDemo = isDemo || pathname.startsWith('/preview/')
-  const [data, setData] = useState(useDemo ? DEMO_GROWTH_SCORECARD : null)
-  const [loading, setLoading] = useState(!useDemo)
+  const { profile } = useAuth()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [activeChart, setActiveChart] = useState('leads')
 
   useEffect(() => {
-    if (useDemo || !supabase || !profile?.client_id) return
+    if (!supabase || !profile?.client_id) { setLoading(false); return }
     setLoading(true)
     supabase
       .from('ad_performance')
@@ -98,7 +94,7 @@ export default function GrowthScorecard() {
         })
         setLoading(false)
       })
-  }, [profile?.client_id, useDemo])
+  }, [profile?.client_id])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

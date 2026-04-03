@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Play, Square } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_TASKS } from '../../data/placeholder'
 
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600)
@@ -11,16 +10,10 @@ function formatDuration(seconds) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-const DEMO_ENTRIES = [
-  { id: '1', task_name: 'Design March ad creatives — Meta', client_name: 'Hartley & Sons Roofing', duration_minutes: 90, started_at: '2026-03-14T09:00:00Z' },
-  { id: '2', task_name: 'Build onboarding questionnaire — Apex', client_name: 'Apex Drainage Solutions', duration_minutes: 60, started_at: '2026-03-14T11:00:00Z' },
-  { id: '3', task_name: 'Update Google Ads negative keywords — Prestige', client_name: 'Prestige Window Cleaning', duration_minutes: 45, started_at: '2026-03-13T14:00:00Z' },
-]
-
 export default function TimeTracker() {
-  const { profile, isDemo } = useAuth()
-  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS.filter((t) => t.status !== 'complete') : [])
-  const [entries, setEntries] = useState(isDemo ? DEMO_ENTRIES : [])
+  const { profile } = useAuth()
+  const [tasks, setTasks] = useState([])
+  const [entries, setEntries] = useState([])
   const [activeTask, setActiveTask] = useState('')
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -28,7 +21,7 @@ export default function TimeTracker() {
   const startedAtRef = useRef(null)
 
   useEffect(() => {
-    if (isDemo || !supabase || !profile?.id) return
+    if (!supabase || !profile?.id) return
 
     const weekAgo = new Date()
     weekAgo.setDate(weekAgo.getDate() - 7)
@@ -80,22 +73,6 @@ export default function TimeTracker() {
     const durationMinutes = Math.round(elapsed / 60)
     const startedAt = startedAtRef.current ?? new Date().toISOString()
     const endedAt = new Date().toISOString()
-
-    if (isDemo) {
-      const task = tasks.find((t) => t.id === activeTask)
-      setEntries((prev) => [
-        {
-          id: `demo-${Date.now()}`,
-          task_name: task?.title ?? activeTask,
-          client_name: task?.client_name ?? '—',
-          duration_minutes: durationMinutes,
-          started_at: startedAt,
-        },
-        ...prev,
-      ])
-      setElapsed(0)
-      return
-    }
 
     setSaving(true)
     try {

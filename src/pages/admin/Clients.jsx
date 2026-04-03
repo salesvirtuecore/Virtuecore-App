@@ -5,7 +5,6 @@ import Badge from '../../components/ui/Badge'
 import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-import { DEMO_CLIENTS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -52,8 +51,8 @@ export default function Clients() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [showInvite, setShowInvite] = useState(false)
-  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
-  const [loadingClients, setLoadingClients] = useState(!isDemo)
+  const [clients, setClients] = useState([])
+  const [loadingClients, setLoadingClients] = useState(true)
   const [editClient, setEditClient] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -62,7 +61,7 @@ export default function Clients() {
   const { showToast } = useToast()
 
   const loadClients = useCallback(async () => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
 
     setLoadingClients(true)
     try {
@@ -85,7 +84,7 @@ export default function Clients() {
   useEffect(() => { loadClients() }, [loadClients])
 
   useEffect(() => {
-    if (isDemo || !supabase) return undefined
+    if (!supabase) return undefined
 
     const channel = supabase
       .channel('admin-clients-live')
@@ -165,13 +164,9 @@ export default function Clients() {
         health_score: form.health_score,
       }
 
-      if (isDemo) {
-        setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
-      } else {
-        const { error } = await supabase.from('clients').update(updates).eq('id', editClient.id)
-        if (error) throw error
-        setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
-      }
+      const { error } = await supabase.from('clients').update(updates).eq('id', editClient.id)
+      if (error) throw error
+      setClients((prev) => prev.map((c) => (c.id === editClient.id ? { ...c, ...updates } : c)))
 
       showToast(`${updates.company_name} updated successfully`)
       closeEdit()
@@ -183,11 +178,6 @@ export default function Clients() {
   }
 
   async function handleStripeConnect(client) {
-    if (isDemo) {
-      showToast('Stripe connect not available in demo mode', 'info')
-      return
-    }
-
     try {
       setSaving(true)
       const response = await fetch('/api/stripe/connect', {

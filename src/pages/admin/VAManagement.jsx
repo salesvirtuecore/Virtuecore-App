@@ -4,10 +4,8 @@ import Badge from '../../components/ui/Badge'
 import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-import { DEMO_VAS, DEMO_TASKS, DEMO_VA_TRAINING, DEMO_CLIENTS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
 import { notifySlack } from '../../lib/slackNotify'
 
@@ -24,15 +22,14 @@ const EMPTY_VA_FORM = {
 }
 
 export default function VAManagement() {
-  const { isDemo } = useAuth()
   const [showInvite, setShowInvite] = useState(false)
-  const [vas, setVas] = useState(isDemo ? DEMO_VAS : [])
-  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS : [])
-  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
+  const [vas, setVas] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [clients, setClients] = useState([])
   const { showToast } = useToast()
 
   useEffect(() => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
     Promise.all([
       supabase.from('profiles').select('id, full_name, email, created_at').eq('role', 'va').order('created_at'),
       supabase.from('tasks').select('id, full_name, email, created_at, role').order('deadline'),
@@ -105,22 +102,16 @@ export default function VAManagement() {
         time_logged_minutes: 0,
       }
 
-      if (isDemo) {
-        const newTask = { ...payload, id: `t-${Date.now()}` }
-        setTasks((prev) => [...prev, newTask])
-        showToast(`Task assigned to ${assignTarget.full_name}`)
-      } else {
-        const { data, error } = await supabase.from('tasks').insert(payload).select().single()
-        if (error) throw error
-        setTasks((prev) => [...prev, data])
-        showToast(`Task assigned to ${assignTarget.full_name}`)
-        sendPushNotification(assignTarget.id, {
-          title: 'New task assigned',
-          body: `${payload.title}${payload.client_name ? ` — ${payload.client_name}` : ''}`,
-          url: '/va',
-        })
-        notifySlack('task_created', { title: payload.title, client_name: payload.client_name, va_name: assignTarget.full_name, priority: payload.priority })
-      }
+      const { data, error } = await supabase.from('tasks').insert(payload).select().single()
+      if (error) throw error
+      setTasks((prev) => [...prev, data])
+      showToast(`Task assigned to ${assignTarget.full_name}`)
+      sendPushNotification(assignTarget.id, {
+        title: 'New task assigned',
+        body: `${payload.title}${payload.client_name ? ` — ${payload.client_name}` : ''}`,
+        url: '/va',
+      })
+      notifySlack('task_created', { title: payload.title, client_name: payload.client_name, va_name: assignTarget.full_name, priority: payload.priority })
       setAssignTarget(null)
     } catch (err) {
       showToast(err.message ?? 'Failed to assign task', 'error')
@@ -148,13 +139,9 @@ export default function VAManagement() {
     setSavingVA(true)
     try {
       const updates = { full_name: vaForm.full_name.trim() }
-      if (isDemo) {
-        setVas((prev) => prev.map((v) => (v.id === editVA.id ? { ...v, ...updates } : v)))
-      } else {
-        const { error } = await supabase.from('profiles').update(updates).eq('id', editVA.id)
-        if (error) throw error
-        setVas((prev) => prev.map((v) => (v.id === editVA.id ? { ...v, ...updates } : v)))
-      }
+      const { error } = await supabase.from('profiles').update(updates).eq('id', editVA.id)
+      if (error) throw error
+      setVas((prev) => prev.map((v) => (v.id === editVA.id ? { ...v, ...updates } : v)))
       showToast('VA profile updated')
       setEditVA(null)
     } catch (err) {
@@ -242,30 +229,17 @@ export default function VAManagement() {
             </div>
 
             {/* Training progress */}
-            {(() => {
-              const training = DEMO_VA_TRAINING[va.id]
-              return (
-                <div className="space-y-2">
-                  <div>
-                    <div className="flex justify-between text-xs text-text-secondary mb-1">
-                      <span>Training progress</span>
-                      <span>{training ? `${training.modules_completed}/${training.modules_total} modules` : `${va.training_completion}%`}</span>
-                    </div>
-                    <div className="h-1.5 bg-vc-border">
-                      <div className="h-full bg-vc-primary transition-all" style={{ width: `${va.training_completion}%` }} />
-                    </div>
-                  </div>
-                  {training && (
-                    <div className="flex items-center justify-between text-xs text-text-secondary pt-1">
-                      <span>Avg. quiz score</span>
-                      <span className={`font-medium ${training.avg_score >= 80 ? 'text-status-success' : training.avg_score >= 60 ? 'text-status-warning' : 'text-status-danger'}`}>
-                        {training.avg_score}%
-                      </span>
-                    </div>
-                  )}
+            <div className="space-y-2">
+              <div>
+                <div className="flex justify-between text-xs text-text-secondary mb-1">
+                  <span>Training progress</span>
+                  <span>{va.training_completion}%</span>
                 </div>
-              )
-            })()}
+                <div className="h-1.5 bg-vc-border">
+                  <div className="h-full bg-vc-primary transition-all" style={{ width: `${va.training_completion}%` }} />
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>

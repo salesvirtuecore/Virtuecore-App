@@ -4,7 +4,7 @@ import { TrendingUp, Users, DollarSign, Activity, AlertTriangle, Clock } from 'l
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import Badge from '../../components/ui/Badge'
-import { DEMO_BUSINESS_METRICS, DEMO_MRR_CHART, DEMO_CLIENTS } from '../../data/placeholder'
+import { DEMO_MRR_CHART } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
@@ -38,26 +38,28 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function AdminDashboard() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const navigate = useNavigate()
-  const m = DEMO_BUSINESS_METRICS
-  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
+  const [clients, setClients] = useState([])
+  const [pipelineLeads, setPipelineLeads] = useState([])
 
   const loadClients = useCallback(async () => {
-    if (isDemo || !supabase) return
-    const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, created_at').order('created_at', { ascending: false }),
+    if (!supabase) return
+    const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }, { data: leads }] = await Promise.all([
+      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, ad_spend_managed, health_score, payment_status, package_tier, created_at').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
+      supabase.from('pipeline_leads').select('id, score, stage').neq('stage', 'contract_signed'),
     ])
     if (!clientError && !profileError && clientRows) {
       setClients(withPortalStatus(clientRows, profileRows || []))
     }
+    if (leads) setPipelineLeads(leads)
   }, [])
 
   useEffect(() => { loadClients() }, [loadClients])
 
   useEffect(() => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
     const channel = supabase
       .channel('admin-dashboard-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => loadClients())
@@ -81,6 +83,8 @@ export default function AdminDashboard() {
   const activeClients = clients.filter(c => c.status === 'active')
   const onboardingClients = clients.filter(c => c.status === 'onboarding')
   const joinedClients = clients.filter(c => c.portal_joined)
+  const mrr = activeClients.reduce((sum, c) => sum + Number(c.monthly_retainer || 0), 0)
+  const totalAdSpend = clients.reduce((sum, c) => sum + Number(c.ad_spend_managed || 0), 0)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
@@ -96,15 +100,15 @@ export default function AdminDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Monthly Revenue" value={fmt(m.mrr)} trend={m.mrr_change} icon={DollarSign} />
+        <StatCard label="Monthly Revenue" value={fmt(mrr)} icon={DollarSign} />
         <StatCard
           label="Active Clients"
           value={activeClients.length}
           sub={`${joinedClients.length} in portal · ${onboardingClients.length} onboarding`}
           icon={Users}
         />
-        <StatCard label="Pipeline Value" value={fmt(m.pipeline_value)} sub="5 active leads" icon={TrendingUp} />
-        <StatCard label="Ad Spend Managed" value={fmt(m.total_ad_spend)} trend={m.ad_spend_change} icon={Activity} />
+        <StatCard label="Pipeline Leads" value={pipelineLeads.length} sub={`${pipelineLeads.length} active leads`} icon={TrendingUp} />
+        <StatCard label="Ad Spend Managed" value={fmt(totalAdSpend)} icon={Activity} />
       </div>
 
       {/* Charts row */}

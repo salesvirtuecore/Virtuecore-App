@@ -3,7 +3,6 @@ import { Clock } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_TASKS } from '../../data/placeholder'
 import { notifySlack } from '../../lib/slackNotify'
 
 const STATUS_CYCLE = ['not_started', 'in_progress', 'complete']
@@ -54,13 +53,13 @@ function TaskCard({ task, expanded, onToggle, onCycleStatus }) {
 }
 
 export default function TaskBoard() {
-  const { profile, isDemo } = useAuth()
-  const [tasks, setTasks] = useState(isDemo ? DEMO_TASKS : [])
+  const { profile } = useAuth()
+  const [tasks, setTasks] = useState([])
   const [expanded, setExpanded] = useState(null)
-  const [loading, setLoading] = useState(!isDemo)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isDemo || !supabase || !profile?.id) return
+    if (!supabase || !profile?.id) { setLoading(false); return }
 
     setLoading(true)
     supabase
@@ -85,7 +84,7 @@ export default function TaskBoard() {
     // Optimistic update
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t)))
 
-    if (!isDemo && supabase) {
+    if (supabase) {
       const { error } = await supabase
         .from('tasks')
         .update({

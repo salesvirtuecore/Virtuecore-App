@@ -2,37 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Globe, Plus, ExternalLink, Trash2, Copy, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-
-const DEMO_WEBSITES = [
-  {
-    id: 'w-001',
-    client_id: 'c-001',
-    client_name: 'Hartley & Sons Roofing',
-    name: 'Hartley Roofing Website',
-    url: 'https://hartleyroofing.co.uk',
-    ga_measurement_id: 'G-ABC123456',
-    meta_pixel_id: '1234567890',
-    notes: 'WordPress site, hosted on WP Engine',
-  },
-  {
-    id: 'w-002',
-    client_id: 'c-002',
-    client_name: 'Apex Drainage Solutions',
-    name: 'Apex Drainage',
-    url: 'https://apexdrainage.co.uk',
-    ga_measurement_id: 'G-XYZ987654',
-    meta_pixel_id: '',
-    notes: 'Webflow site',
-  },
-]
-
-const DEMO_CLIENTS = [
-  { id: 'c-001', company_name: 'Hartley & Sons Roofing' },
-  { id: 'c-002', company_name: 'Apex Drainage Solutions' },
-]
 
 const EMPTY_FORM = {
   client_id: '',
@@ -44,11 +15,10 @@ const EMPTY_FORM = {
 }
 
 export default function WebAnalytics() {
-  const { isDemo } = useAuth()
   const { showToast } = useToast()
-  const [websites, setWebsites] = useState(isDemo ? DEMO_WEBSITES : [])
+  const [websites, setWebsites] = useState([])
   const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(!isDemo)
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -56,7 +26,7 @@ export default function WebAnalytics() {
   const [scriptSiteId, setScriptSiteId] = useState(null)
 
   useEffect(() => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
 
     setLoading(true)
     Promise.all([
@@ -86,21 +56,6 @@ export default function WebAnalytics() {
 
     setSaving(true)
     try {
-      if (isDemo) {
-        const client = clients.find((c) => c.id === form.client_id)
-        setWebsites((prev) => [
-          {
-            ...form,
-            id: `w-${Date.now()}`,
-            client_name: client?.company_name ?? '—',
-          },
-          ...prev,
-        ])
-        setShowModal(false)
-        setForm(EMPTY_FORM)
-        return
-      }
-
       const { data, error } = await supabase
         .from('client_websites')
         .insert({
@@ -132,11 +87,6 @@ export default function WebAnalytics() {
 
   async function handleDelete(site) {
     if (!confirm(`Remove ${site.name}?`)) return
-
-    if (isDemo) {
-      setWebsites((prev) => prev.filter((s) => s.id !== site.id))
-      return
-    }
 
     const { error } = await supabase.from('client_websites').delete().eq('id', site.id)
     if (error) {
@@ -307,7 +257,7 @@ export default function WebAnalytics() {
               required
             >
               <option value="">Select client...</option>
-              {(isDemo ? DEMO_CLIENTS : clients).map((c) => (
+              {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.company_name}</option>
               ))}
             </select>

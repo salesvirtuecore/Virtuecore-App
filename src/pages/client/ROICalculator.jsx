@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_CLIENT_METRICS } from '../../data/placeholder'
 
 function pct(a, b) {
   if (!b) return 0
@@ -21,10 +19,7 @@ function DiffBadge({ value, inverted = false }) {
 }
 
 export default function ROICalculator() {
-  const { profile, isDemo } = useAuth()
-  const { pathname } = useLocation()
-  const useDemo = isDemo || pathname.startsWith('/preview/')
-
+  const { profile } = useAuth()
   const [base, setBase] = useState(null)
   const [loading, setLoading] = useState(true)
   const [proposedSpend, setProposedSpend] = useState(null)
@@ -32,13 +27,6 @@ export default function ROICalculator() {
   const [closeRate, setCloseRate] = useState(20)
 
   useEffect(() => {
-    if (useDemo) {
-      const m = DEMO_CLIENT_METRICS
-      setBase({ spend: m.ad_spend, cpl: m.cpl, leads: m.leads, roas: m.roas })
-      setProposedSpend(Math.round(m.ad_spend * 1.3 / 100) * 100)
-      setLoading(false)
-      return
-    }
     if (!supabase || !profile?.client_id) { setLoading(false); return }
     const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30)
     supabase
@@ -56,7 +44,7 @@ export default function ROICalculator() {
         setProposedSpend(Math.round(spend * 1.3 / 100) * 100)
         setLoading(false)
       })
-  }, [profile?.client_id, useDemo])
+  }, [profile?.client_id])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

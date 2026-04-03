@@ -5,10 +5,8 @@ import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-import { DEMO_CLIENTS, DEMO_INVOICES, DEMO_BUSINESS_METRICS } from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 
 const MONTHLY_REV = [
   { month: 'Oct', retainer: 8500, commission: 620 },
@@ -42,17 +40,15 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function Revenue() {
-  const { isDemo } = useAuth()
   const { showToast } = useToast()
-  const [clients, setClients] = useState(isDemo ? DEMO_CLIENTS : [])
-  const [invoices, setInvoices] = useState(isDemo ? DEMO_INVOICES : [])
+  const [clients, setClients] = useState([])
+  const [invoices, setInvoices] = useState([])
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceForm, setInvoiceForm] = useState(EMPTY_INVOICE_FORM)
   const [invoiceErrors, setInvoiceErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (isDemo) return
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
         supabase.from('clients').select('id, status, company_name, monthly_retainer, ad_spend_managed, revenue_share_percentage'),
@@ -69,7 +65,6 @@ export default function Revenue() {
   const activeClients = clients.filter((c) => c.status === 'active')
   const totalRetainer = activeClients.reduce((s, c) => s + c.monthly_retainer, 0)
   const totalOutstanding = invoices.filter((i) => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
-  const m = DEMO_BUSINESS_METRICS
 
   function validateInvoice() {
     const e = {}
@@ -94,16 +89,9 @@ export default function Revenue() {
         status: invoiceForm.status,
       }
 
-      if (isDemo) {
-        setInvoices((prev) => [
-          ...prev,
-          { ...payload, id: `inv-${Date.now()}`, paid_date: null, created_at: new Date().toISOString().split('T')[0] },
-        ])
-      } else {
-        const { data, error } = await supabase.from('invoices').insert(payload).select().single()
-        if (error) throw error
-        setInvoices((prev) => [...prev, { ...data, client_name: client?.company_name ?? '' }])
-      }
+      const { data, error } = await supabase.from('invoices').insert(payload).select().single()
+      if (error) throw error
+      setInvoices((prev) => [...prev, { ...data, client_name: client?.company_name ?? '' }])
 
       showToast('Invoice created')
       setShowInvoiceModal(false)
@@ -134,7 +122,7 @@ export default function Revenue() {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Monthly Recurring Revenue" value={`£${totalRetainer.toLocaleString()}`} trend={m.mrr_change} />
+        <StatCard label="Monthly Recurring Revenue" value={`£${totalRetainer.toLocaleString()}`} />
         <StatCard label="Retainer Revenue" value={`£${totalRetainer.toLocaleString()}`} sub={`${activeClients.length} active clients`} />
         <StatCard label="Outstanding Invoices" value={`£${totalOutstanding.toLocaleString()}`} sub={`${invoices.filter((i) => i.status === 'overdue').length} overdue`} />
       </div>

@@ -3,21 +3,10 @@ import { BarChart2, ExternalLink, Copy, Check, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 
-const DEMO_SITES = [
-  {
-    id: 'w-001',
-    name: 'Hartley Roofing Website',
-    url: 'https://hartleyroofing.co.uk',
-    ga_measurement_id: 'G-ABC123456',
-    meta_pixel_id: '1234567890',
-    notes: 'WordPress site on WP Engine',
-  },
-]
-
 export default function ClientWebAnalytics() {
-  const { profile, isDemo } = useAuth()
-  const [sites, setSites] = useState(isDemo ? DEMO_SITES : [])
-  const [loading, setLoading] = useState(!isDemo)
+  const { profile } = useAuth()
+  const [sites, setSites] = useState([])
+  const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [openSnippet, setOpenSnippet] = useState(null)
   const [gaInput, setGaInput] = useState({})
@@ -26,7 +15,7 @@ export default function ClientWebAnalytics() {
   const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemo || !supabase || !clientId) return
+    if (!supabase || !clientId) { setLoading(false); return }
     supabase
       .from('client_websites')
       .select('id, client_id, name, url, ga_measurement_id, meta_pixel_id, notes, created_at')
@@ -42,12 +31,10 @@ export default function ClientWebAnalytics() {
     const value = (gaInput[site.id] ?? site.ga_measurement_id ?? '').trim()
     setSaving(site.id)
     try {
-      if (!isDemo) {
-        await supabase
-          .from('client_websites')
-          .update({ ga_measurement_id: value || null })
-          .eq('id', site.id)
-      }
+      await supabase
+        .from('client_websites')
+        .update({ ga_measurement_id: value || null })
+        .eq('id', site.id)
       setSites((prev) => prev.map((s) => s.id === site.id ? { ...s, ga_measurement_id: value || null } : s))
       setGaInput((prev) => { const n = { ...prev }; delete n[site.id]; return n })
     } finally {

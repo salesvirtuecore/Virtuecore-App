@@ -4,23 +4,6 @@ import Button from '../../components/ui/Button'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-const DEMO_HISTORY = [
-  {
-    id: 'h1',
-    date: '2026-03-14',
-    yesterday: 'Completed Google Ads negative keyword update for Prestige. Started on Hartley March creatives.',
-    today: 'Continue Hartley creatives. Begin Apex onboarding questionnaire.',
-    blockers: null,
-  },
-  {
-    id: 'h2',
-    date: '2026-03-13',
-    yesterday: 'Reviewed Clearview email brief. Set up new Apex client folder structure.',
-    today: 'Write Google Ads negative keywords for Prestige. Review March campaign briefs.',
-    blockers: 'Waiting on Hartley brand assets from Samuel.',
-  },
-]
-
 // Stable — date won't change during a session
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -31,17 +14,17 @@ const FIELDS = [
 ]
 
 export default function Standup() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
 
-  const [history, setHistory] = useState(isDemo ? DEMO_HISTORY : [])
+  const [history, setHistory] = useState([])
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(!isDemo)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [form, setForm] = useState({ yesterday: '', today: '', blockers: '' })
 
   useEffect(() => {
-    if (isDemo || !supabase || !profile?.id) return
+    if (!supabase || !profile?.id) { setLoading(false); return }
 
     setLoading(true)
     supabase
@@ -70,11 +53,6 @@ export default function Standup() {
   async function submit(e) {
     e.preventDefault()
     if (!form.yesterday.trim() || !form.today.trim()) return
-
-    if (isDemo) {
-      setSubmitted(true)
-      return
-    }
 
     setSubmitError('')
     setSaving(true)

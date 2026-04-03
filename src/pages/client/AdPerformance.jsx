@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Zap, Activity, Target, ChevronDown, ChevronUp } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_AD_FEED } from '../../data/placeholder'
 import { format, parseISO } from 'date-fns'
 
 const PLATFORM_COLOR = { Meta: '#1877F2', Google: '#34A853', TikTok: '#000000' }
@@ -32,15 +30,13 @@ function StatCard({ label, value, sub }) {
 }
 
 export default function AdPerformance() {
-  const { profile, isDemo } = useAuth()
-  const { pathname } = useLocation()
-  const useDemo = isDemo || pathname.startsWith('/preview/')
-  const [data, setData] = useState(useDemo ? DEMO_AD_FEED : null)
-  const [loading, setLoading] = useState(!useDemo)
+  const { profile } = useAuth()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [expandedTest, setExpandedTest] = useState(null)
 
   useEffect(() => {
-    if (useDemo || !supabase || !profile?.client_id) return
+    if (!supabase || !profile?.client_id) { setLoading(false); return }
     setLoading(true)
     const now = new Date()
     const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
@@ -66,7 +62,7 @@ export default function AdPerformance() {
         })
         setLoading(false)
       })
-  }, [profile?.client_id, useDemo])
+  }, [profile?.client_id])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

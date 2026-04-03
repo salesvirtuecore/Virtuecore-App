@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { DEMO_MESSAGES } from '../../data/placeholder'
 import { sendPushNotification } from '../../lib/pushNotifications'
 
 export default function Messages() {
-  const { profile, isDemo } = useAuth()
-  const [messages, setMessages] = useState(isDemo ? DEMO_MESSAGES : [])
+  const { profile } = useAuth()
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -18,7 +17,7 @@ export default function Messages() {
 
   // Load messages + fetch admin user IDs for push
   useEffect(() => {
-    if (isDemo || !supabase || !clientId) return
+    if (!supabase || !clientId) return
 
     supabase
       .from('crm_messages')
@@ -40,7 +39,7 @@ export default function Messages() {
 
   // Realtime subscription
   useEffect(() => {
-    if (isDemo || !supabase || !clientId) return
+    if (!supabase || !clientId) return
 
     const channel = supabase
       .channel(`client-messages-${clientId}`)
@@ -76,22 +75,6 @@ export default function Messages() {
 
     const content = input.trim()
     setInput('')
-
-    if (isDemo) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `m-${Date.now()}`,
-          client_id: clientId ?? 'c-001',
-          sender_id: profile?.id ?? 'client-001',
-          sender_name: profile?.full_name ?? 'You',
-          sender_role: 'client',
-          content,
-          created_at: new Date().toISOString(),
-        },
-      ])
-      return
-    }
 
     setSendError('')
     setSending(true)
@@ -148,7 +131,7 @@ export default function Messages() {
         </div>
       )}
 
-      {!isDemo && !clientId && !sending && (
+      {!clientId && !sending && (
         <div className="mb-3 px-3 py-2 bg-status-warning/10 border border-status-warning/20 text-xs text-amber-800">
           Account not linked yet — try refreshing the page.
         </div>

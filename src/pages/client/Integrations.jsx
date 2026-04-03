@@ -16,7 +16,7 @@ export default function Integrations() {
   const clientId = profile?.client_id
 
   useEffect(() => {
-    if (isDemo || !clientId) return
+    if (!clientId) return
     supabase
       .from('clients')
       .select('meta_ad_account_id')

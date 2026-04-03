@@ -6,10 +6,6 @@ import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/ui/StatCard'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
-import {
-  DEMO_CLIENTS, DEMO_AD_PERFORMANCE, DEMO_CLIENT_METRICS,
-  DEMO_DELIVERABLES, DEMO_MESSAGES, DEMO_INVOICES,
-} from '../../data/placeholder'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -17,45 +13,6 @@ import { sendPushNotification } from '../../lib/pushNotifications'
 import { notifySlack } from '../../lib/slackNotify'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
-
-// Sample report shown in demo mode
-const DEMO_REPORT_PREVIEW = `## Executive Summary
-
-Hartley & Sons Roofing delivered its strongest month to date in March 2026, generating 67 qualified leads at a Cost Per Lead of £125 — a 6% improvement on February. Return on Ad Spend reached 5.8x, reflecting both improved creative performance and tighter audience targeting implemented mid-month.
-
-## Key Highlights
-
-- **67 leads** generated in March (Feb: 61, +10% MoM)
-- **CPL reduced** to £125 from £133 — down 6% month-on-month
-- **ROAS of 5.8x** — highest recorded since campaign launch
-- Meta emergency call-out creative (A/B variant) outperformed control by 34% on CTR
-- Google Ads search impression share improved from 61% to 74% following negative keyword audit
-
-## Platform Breakdown
-
-**Meta Ads — £5,200 spend**
-- 44 leads at £118 CPL
-- Top performing ad set: Emergency Roofing — North Manchester (CTR 2.4%)
-- Lead form completion rate: 68%
-
-**Google Ads — £3,200 spend**
-- 23 leads at £139 CPL
-- Top keyword: "emergency roofer Manchester" — 12 conversions
-- Quality Score average improved to 7.2/10
-
-## Recommendations
-
-1. **Increase Meta budget by 15%** — the emergency call-out angle is performing well and has headroom to scale before saturation
-2. **Test video creative on Meta** — static ads dominating spend; a short testimonial video could lower CPL further
-3. **Add remarketing campaign on Google** — website visitors not converting represent a warm audience currently untapped
-4. **Review Google Ad schedule** — data suggests leads drop significantly on Sundays; reallocate budget to Mon–Sat
-5. **Expand to Instagram Stories placement** — currently only running in Feed; Stories inventory is cheaper and drives volume
-
-## Next Steps
-
-- **By 20 March**: VA to brief new video testimonial creative
-- **By 22 March**: Launch Google remarketing campaign (brief attached)
-- **1 April**: Review April budget allocation based on March final data`
 
 // ── Deliverable form defaults ────────────────────────────────────────────────
 const EMPTY_DELIVERABLE = { title: '', type: 'ad_creative', file_url: '', status: 'draft' }
@@ -70,7 +27,7 @@ export default function ClientView() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const messagesBottomRef = useRef(null)
 
   const [reportLoading, setReportLoading] = useState(false)
@@ -81,25 +38,15 @@ export default function ClientView() {
     return now.toLocaleString('en-GB', { month: 'long', year: 'numeric' })
   })
 
-  const [client, setClient] = useState(isDemo ? DEMO_CLIENTS.find((c) => c.id === id) ?? null : null)
-  const [loadingClient, setLoadingClient] = useState(!isDemo)
+  const [client, setClient] = useState(null)
+  const [loadingClient, setLoadingClient] = useState(true)
 
   // Local data state
-  const [deliverables, setDeliverables] = useState(
-    isDemo ? DEMO_DELIVERABLES.filter((d) => d.client_id === id) : []
-  )
-  const [invoices, setInvoices] = useState(
-    isDemo ? DEMO_INVOICES.filter((i) => i.client_id === id) : []
-  )
-  const [adEntries, setAdEntries] = useState(isDemo ? [] : [])
-  const [npsData, setNpsData] = useState(isDemo ? [
-    { id: 'n1', score: 9, comment: 'Really pleased with the leads coming through, team is responsive.', created_at: new Date(Date.now() - 1000*60*60*24*30).toISOString() },
-    { id: 'n2', score: 10, comment: "Best marketing agency we've worked with. Results speak for themselves.", created_at: new Date(Date.now() - 1000*60*60*24*60).toISOString() },
-    { id: 'n3', score: 8, comment: null, created_at: new Date(Date.now() - 1000*60*60*24*90).toISOString() },
-  ] : [])
-  const [messages, setMessages] = useState(
-    isDemo ? DEMO_MESSAGES.filter((m) => m.client_id === id) : []
-  )
+  const [deliverables, setDeliverables] = useState([])
+  const [invoices, setInvoices] = useState([])
+  const [adEntries, setAdEntries] = useState([])
+  const [npsData, setNpsData] = useState([])
+  const [messages, setMessages] = useState([])
 
   // Modal open states
   const [showDeliverableModal, setShowDeliverableModal] = useState(false)
@@ -121,7 +68,7 @@ export default function ClientView() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
 
     let cancelled = false
 
@@ -181,7 +128,7 @@ export default function ClientView() {
 
   // Realtime messages subscription
   useEffect(() => {
-    if (isDemo || !supabase) return
+    if (!supabase) return
     const channel = supabase
       .channel(`admin-messages-${id}`)
       .on(
@@ -235,9 +182,7 @@ export default function ClientView() {
   const totalAdSpend = adEntries.reduce((sum, row) => sum + Number(row.spend || 0), 0)
   const totalLeads = adEntries.reduce((sum, row) => sum + Number(row.leads || 0), 0)
   const weightedRoasNumerator = adEntries.reduce((sum, row) => sum + Number(row.spend || 0) * Number(row.roas || 0), 0)
-  const fallbackPerformance = isDemo
-    ? DEMO_CLIENT_METRICS
-    : { ad_spend: 0, leads: 0, cpl: 0, roas: 0 }
+  const fallbackPerformance = { ad_spend: 0, leads: 0, cpl: 0, roas: 0 }
   const metrics = {
     ad_spend: totalAdSpend || fallbackPerformance.ad_spend,
     leads: totalLeads || fallbackPerformance.leads,
@@ -248,32 +193,27 @@ export default function ClientView() {
     month: row.date,
     leads: Number(row.leads || 0),
     cpl: Number(row.cpl || 0),
-  })) : (isDemo ? DEMO_AD_PERFORMANCE : [])
+  })) : []
 
   // ── Generate Report ──────────────────────────────────────────────────────────
   async function handleGenerateReport() {
     setReportLoading(true)
     try {
-      if (isDemo) {
-        await new Promise((r) => setTimeout(r, 1800))
-        setReportModal({ text: DEMO_REPORT_PREVIEW, saved: true })
-      } else {
-        const res = await fetch('/api/admin/generate-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: client.id,
-            client_name: client.company_name,
-            period: reportPeriod,
-            ad_data: adEntries,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Report generation failed')
-        setReportToast(true)
-        setTimeout(() => setReportToast(false), 4000)
-        setReportModal({ text: data.report, saved: true })
-      }
+      const res = await fetch('/api/admin/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: client.id,
+          client_name: client.company_name,
+          period: reportPeriod,
+          ad_data: adEntries,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Report generation failed')
+      setReportToast(true)
+      setTimeout(() => setReportToast(false), 4000)
+      setReportModal({ text: data.report, saved: true })
     } catch (err) {
       showToast(err.message ?? 'Report generation failed', 'error')
     } finally {
@@ -335,11 +275,7 @@ export default function ClientView() {
       let resolvedFileUrl = deliverableForm.file_url.trim() || null
 
       if (deliverableFile) {
-        if (isDemo) {
-          resolvedFileUrl = '/demo-deliverable.pdf'
-        } else {
-          resolvedFileUrl = await uploadDeliverableToStorage(deliverableFile)
-        }
+        resolvedFileUrl = await uploadDeliverableToStorage(deliverableFile)
       }
 
       const payload = {
@@ -349,52 +285,39 @@ export default function ClientView() {
         status: deliverableForm.status,
         client_id: id,
       }
-      if (isDemo) {
-        if (editDeliverable) {
-          setDeliverables((prev) =>
-            prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
-          )
-        } else {
-          setDeliverables((prev) => [
-            ...prev,
-            { ...payload, id: `d-${Date.now()}`, created_at: new Date().toISOString().split('T')[0], feedback: null },
-          ])
-        }
+      if (editDeliverable) {
+        const { error } = await supabase.from('deliverables').update(payload).eq('id', editDeliverable.id)
+        if (error) throw error
+        setDeliverables((prev) =>
+          prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
+        )
       } else {
-        if (editDeliverable) {
-          const { error } = await supabase.from('deliverables').update(payload).eq('id', editDeliverable.id)
-          if (error) throw error
-          setDeliverables((prev) =>
-            prev.map((d) => (d.id === editDeliverable.id ? { ...d, ...payload } : d))
-          )
-        } else {
-          const { data, error } = await supabase.from('deliverables').insert(payload).select().single()
-          if (error) throw error
-          setDeliverables((prev) => [...prev, data])
+        const { data, error } = await supabase.from('deliverables').insert(payload).select().single()
+        if (error) throw error
+        setDeliverables((prev) => [...prev, data])
 
-          // Auto-import content calendar PDFs
-          if (payload.type === 'content_calendar' && payload.file_url) {
-            fetch('/api/admin/parse-content-plan', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ client_id: id, file_url: payload.file_url, title: payload.title }),
-            }).then(async (r) => {
-              const result = await r.json()
-              if (r.ok) showToast(`Content plan imported — ${result.posts_imported} posts added to calendar`)
-              else showToast(`Calendar import failed: ${result.error}`, 'error')
-            })
-          }
+        // Auto-import content calendar PDFs
+        if (payload.type === 'content_calendar' && payload.file_url) {
+          fetch('/api/admin/parse-content-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: id, file_url: payload.file_url, title: payload.title }),
+          }).then(async (r) => {
+            const result = await r.json()
+            if (r.ok) showToast(`Content plan imported — ${result.posts_imported} posts added to calendar`)
+            else showToast(`Calendar import failed: ${result.error}`, 'error')
+          })
+        }
 
-          // Notify client of new deliverable
-          const { data: clientProfile } = await supabase
-            .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
-          if (clientProfile?.id) {
-            sendPushNotification(clientProfile.id, {
-              title: 'New deliverable ready',
-              body: `${payload.title} is ready for your review.`,
-              url: '/client/deliverables',
-            })
-          }
+        // Notify client of new deliverable
+        const { data: clientProfile } = await supabase
+          .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
+        if (clientProfile?.id) {
+          sendPushNotification(clientProfile.id, {
+            title: 'New deliverable ready',
+            body: `${payload.title} is ready for your review.`,
+            url: '/client/deliverables',
+          })
         }
       }
       showToast(editDeliverable ? 'Deliverable updated' : 'Deliverable created')
@@ -410,10 +333,8 @@ export default function ClientView() {
   async function handleDeleteDeliverable(delId) {
     if (!confirm('Delete this deliverable?')) return
     try {
-      if (!isDemo) {
-        const { error } = await supabase.from('deliverables').delete().eq('id', delId)
-        if (error) throw error
-      }
+      const { error } = await supabase.from('deliverables').delete().eq('id', delId)
+      if (error) throw error
       setDeliverables((prev) => prev.filter((d) => d.id !== delId))
       showToast('Deliverable deleted')
     } catch (err) {
@@ -463,36 +384,25 @@ export default function ClientView() {
         client_id: id,
         client_name: client.company_name,
       }
-      if (isDemo) {
-        if (editInvoice) {
-          setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
-        } else {
-          setInvoices((prev) => [
-            ...prev,
-            { ...payload, id: `inv-${Date.now()}`, paid_date: null, created_at: new Date().toISOString().split('T')[0] },
-          ])
-        }
+      if (editInvoice) {
+        const { error } = await supabase.from('invoices').update(payload).eq('id', editInvoice.id)
+        if (error) throw error
+        setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
       } else {
-        if (editInvoice) {
-          const { error } = await supabase.from('invoices').update(payload).eq('id', editInvoice.id)
-          if (error) throw error
-          setInvoices((prev) => prev.map((i) => (i.id === editInvoice.id ? { ...i, ...payload } : i)))
-        } else {
-          const { data, error } = await supabase.from('invoices').insert(payload).select().single()
-          if (error) throw error
-          setInvoices((prev) => [...prev, data])
-          notifySlack('invoice_created', { amount: payload.amount, type: payload.type, client_name: client.company_name, due_date: payload.due_date })
+        const { data, error } = await supabase.from('invoices').insert(payload).select().single()
+        if (error) throw error
+        setInvoices((prev) => [...prev, data])
+        notifySlack('invoice_created', { amount: payload.amount, type: payload.type, client_name: client.company_name, due_date: payload.due_date })
 
-          // Notify client of new invoice
-          const { data: clientProfile } = await supabase
-            .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
-          if (clientProfile?.id) {
-            sendPushNotification(clientProfile.id, {
-              title: 'New invoice raised',
-              body: `£${Number(payload.amount).toLocaleString()} ${payload.type} invoice — due ${payload.due_date}.`,
-              url: '/client/invoices',
-            })
-          }
+        // Notify client of new invoice
+        const { data: clientProfile } = await supabase
+          .from('profiles').select('id').eq('client_id', id).eq('role', 'client').maybeSingle()
+        if (clientProfile?.id) {
+          sendPushNotification(clientProfile.id, {
+            title: 'New invoice raised',
+            body: `£${Number(payload.amount).toLocaleString()} ${payload.type} invoice — due ${payload.due_date}.`,
+            url: '/client/invoices',
+          })
         }
       }
       showToast(editInvoice ? 'Invoice updated' : 'Invoice created')
@@ -530,13 +440,9 @@ export default function ClientView() {
         cpl: Number(adForm.cpl) || 0,
         roas: Number(adForm.roas) || 0,
       }
-      if (isDemo) {
-        setAdEntries((prev) => [{ ...payload, id: `ad-${Date.now()}` }, ...prev].slice(0, 5))
-      } else {
-        const { data, error } = await supabase.from('ad_performance').insert(payload).select().single()
-        if (error) throw error
-        setAdEntries((prev) => [data, ...prev].slice(0, 5))
-      }
+      const { data, error } = await supabase.from('ad_performance').insert(payload).select().single()
+      if (error) throw error
+      setAdEntries((prev) => [data, ...prev].slice(0, 5))
       showToast('Ad performance entry saved')
       setAdForm(EMPTY_AD)
       setAdErrors({})
@@ -560,32 +466,28 @@ export default function ClientView() {
         sender_id: profile?.id ?? null,
         content,
       }
-      if (!isDemo) {
-        const { data, error } = await supabase
-          .from('crm_messages')
-          .insert(payload)
-          .select('*, sender:profiles!sender_id(full_name, role)')
-          .single()
-        if (error) throw error
-        setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
+      const { data, error } = await supabase
+        .from('crm_messages')
+        .insert(payload)
+        .select('*, sender:profiles!sender_id(full_name, role)')
+        .single()
+      if (error) throw error
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
 
-        // Find the client's user profile and push-notify them
-        const { data: clientProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('client_id', id)
-          .eq('role', 'client')
-          .maybeSingle()
+      // Find the client's user profile and push-notify them
+      const { data: clientProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('client_id', id)
+        .eq('role', 'client')
+        .maybeSingle()
 
-        if (clientProfile?.id) {
-          sendPushNotification(clientProfile.id, {
-            title: `New message from VirtueCore`,
-            body: content.slice(0, 100),
-            url: '/client/messages',
-          })
-        }
-      } else {
-        setMessages((prev) => [...prev, { ...payload, id: `m-${Date.now()}`, created_at: new Date().toISOString() }])
+      if (clientProfile?.id) {
+        sendPushNotification(clientProfile.id, {
+          title: `New message from VirtueCore`,
+          body: content.slice(0, 100),
+          url: '/client/messages',
+        })
       }
     } catch (err) {
       showToast(err.message ?? 'Failed to send message', 'error')

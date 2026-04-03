@@ -3,20 +3,17 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_INVOICES } from '../../data/placeholder'
 
 const STATUS_BADGE = { paid: 'green', sent: 'blue', overdue: 'red', draft: 'default' }
 
 export default function Invoices() {
-  const { profile, isDemo } = useAuth()
-  const [invoices, setInvoices] = useState(
-    isDemo ? DEMO_INVOICES.filter((i) => i.client_id === 'c-001') : []
-  )
+  const { profile } = useAuth()
+  const [invoices, setInvoices] = useState([])
   const [paying, setPaying] = useState(null)
   const [payError, setPayError] = useState('')
 
   useEffect(() => {
-    if (isDemo || !supabase || !profile?.client_id) return
+    if (!supabase || !profile?.client_id) return
 
     supabase
       .from('invoices')
@@ -29,10 +26,6 @@ export default function Invoices() {
   }, [profile?.client_id])
 
   async function handlePay(inv) {
-    if (isDemo) {
-      alert('Payment is disabled in demo mode.')
-      return
-    }
     setPayError('')
     setPaying(inv.id)
     try {

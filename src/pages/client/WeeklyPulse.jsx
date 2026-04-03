@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEMO_WEEKLY_PULSES } from '../../data/placeholder'
 import { format, parseISO, isMonday } from 'date-fns'
 
 function WowBadge({ value, inverted = false }) {
@@ -118,15 +116,13 @@ function PulseCard({ pulse, isLatest, expanded, onToggle }) {
 }
 
 export default function WeeklyPulse() {
-  const { profile, isDemo } = useAuth()
-  const { pathname } = useLocation()
-  const useDemo = isDemo || pathname.startsWith('/preview/')
-  const [pulses, setPulses] = useState(useDemo ? DEMO_WEEKLY_PULSES : [])
-  const [loading, setLoading] = useState(!useDemo)
+  const { profile } = useAuth()
+  const [pulses, setPulses] = useState([])
+  const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set([0]))
 
   useEffect(() => {
-    if (useDemo || !supabase || !profile?.client_id) return
+    if (!supabase || !profile?.client_id) { setLoading(false); return }
     setLoading(true)
     fetch(`/api/admin/weekly-pulse?client_id=${profile.client_id}`)
       .then((r) => r.json())
@@ -147,7 +143,7 @@ export default function WeeklyPulse() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [profile?.client_id, useDemo])
+  }, [profile?.client_id])
 
   const isNewWeek = isMonday(new Date())
 

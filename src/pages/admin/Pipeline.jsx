@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { DEMO_PIPELINE } from '../../data/placeholder'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
@@ -34,7 +33,7 @@ function ScoreDot({ score }) {
 
 export default function Pipeline() {
   const { isDemo } = useAuth()
-  const [leads, setLeads] = useState(DEMO_PIPELINE)
+  const [leads, setLeads] = useState([])
   const [selected, setSelected] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editLead, setEditLead] = useState(null)
@@ -53,16 +52,14 @@ export default function Pipeline() {
         return { ...l, stage: STAGES[newIdx].id }
       })
     )
-    if (!isDemo) {
-      const lead = leads.find((l) => l.id === leadId)
-      if (lead) {
-        const idx = STAGES.findIndex((s) => s.id === lead.stage)
-        const newIdx = idx + direction
-        if (newIdx >= 0 && newIdx < STAGES.length) {
-          supabase.from('pipeline_leads').update({ stage: STAGES[newIdx].id }).eq('id', leadId).then(({ error }) => {
-            if (error) showToast('Failed to update stage', 'error')
-          })
-        }
+    const lead = leads.find((l) => l.id === leadId)
+    if (lead) {
+      const idx = STAGES.findIndex((s) => s.id === lead.stage)
+      const newIdx = idx + direction
+      if (newIdx >= 0 && newIdx < STAGES.length) {
+        supabase.from('pipeline_leads').update({ stage: STAGES[newIdx].id }).eq('id', leadId).then(({ error }) => {
+          if (error) showToast('Failed to update stage', 'error')
+        })
       }
     }
     if (selected?.id === leadId) {
@@ -121,26 +118,16 @@ export default function Pipeline() {
         notes: leadForm.notes.trim(),
       }
 
-      if (isDemo) {
-        if (editLead) {
-          setLeads((prev) => prev.map((l) => (l.id === editLead.id ? { ...l, ...payload } : l)))
-          if (selected?.id === editLead.id) setSelected((prev) => ({ ...prev, ...payload }))
-        } else {
-          const newLead = { ...payload, id: `p-${Date.now()}`, created_at: new Date().toISOString().split('T')[0] }
-          setLeads((prev) => [...prev, newLead])
-        }
+      if (editLead) {
+        const { error } = await supabase.from('pipeline_leads').update(payload).eq('id', editLead.id)
+        if (error) throw error
+        setLeads((prev) => prev.map((l) => (l.id === editLead.id ? { ...l, ...payload } : l)))
+        if (selected?.id === editLead.id) setSelected((prev) => ({ ...prev, ...payload }))
       } else {
-        if (editLead) {
-          const { error } = await supabase.from('pipeline_leads').update(payload).eq('id', editLead.id)
-          if (error) throw error
-          setLeads((prev) => prev.map((l) => (l.id === editLead.id ? { ...l, ...payload } : l)))
-          if (selected?.id === editLead.id) setSelected((prev) => ({ ...prev, ...payload }))
-        } else {
-          const { data, error } = await supabase.from('pipeline_leads').insert(payload).select().single()
-          if (error) throw error
-          setLeads((prev) => [...prev, data])
-          notifySlack('new_lead', { name: payload.name, company: payload.company, source: payload.source, score: payload.score, stage: payload.stage })
-        }
+        const { data, error } = await supabase.from('pipeline_leads').insert(payload).select().single()
+        if (error) throw error
+        setLeads((prev) => [...prev, data])
+        notifySlack('new_lead', { name: payload.name, company: payload.company, source: payload.source, score: payload.score, stage: payload.stage })
       }
 
       showToast(editLead ? 'Lead updated' : 'Lead added')
@@ -155,10 +142,8 @@ export default function Pipeline() {
   async function handleDeleteLead(leadId) {
     if (!confirm('Delete this lead?')) return
     try {
-      if (!isDemo) {
-        const { error } = await supabase.from('pipeline_leads').delete().eq('id', leadId)
-        if (error) throw error
-      }
+      const { error } = await supabase.from('pipeline_leads').delete().eq('id', leadId)
+      if (error) throw error
       setLeads((prev) => prev.filter((l) => l.id !== leadId))
       if (selected?.id === leadId) setSelected(null)
       showToast('Lead deleted')
