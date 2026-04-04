@@ -8,7 +8,7 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { resetPassword, isDemo } = useAuth()
+  const { resetPassword } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -61,7 +61,7 @@ export default function ForgotPassword() {
                 <p className="text-xs text-status-danger bg-status-danger/10 border border-status-danger/20 px-3 py-2 rounded">{error}</p>
               )}
 
-              <Button type="submit" disabled={loading || isDemo} className="w-full justify-center">
+              <Button type="submit" disabled={loading} className="w-full justify-center">
                 {loading ? 'Sending...' : 'Send reset link'}
               </Button>
             </form>

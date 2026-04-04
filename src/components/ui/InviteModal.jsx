@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
 
 
 const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
 
 export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
-  const { isDemo } = useAuth()
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -44,13 +42,6 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
     e.preventDefault()
     setLoading(true)
     setError(null)
-
-    if (isDemo) {
-      await new Promise((r) => setTimeout(r, 800))
-      setLoading(false)
-      setSuccess(true)
-      return
-    }
 
     try {
       const payload = {
@@ -116,17 +107,10 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
         {success ? (
           <div className="space-y-4">
             <div className="bg-bg-tertiary border border-white/[0.06] rounded-card p-4">
-              {isDemo ? (
-                <p className="text-sm text-text-primary">
-                  In live mode, this would send an invite email to{' '}
-                  <span className="font-medium">{formData.email}</span>.
-                </p>
-              ) : (
-                <p className="text-sm text-text-primary">
-                  Invite sent to <span className="font-medium">{formData.email}</span>. They'll
-                  receive an email to set their password and access the portal.
-                </p>
-              )}
+              <p className="text-sm text-text-primary">
+                Invite sent to <span className="font-medium">{formData.email}</span>. They'll
+                receive an email to set their password and access the portal.
+              </p>
             </div>
             <button
               onClick={handleClose}

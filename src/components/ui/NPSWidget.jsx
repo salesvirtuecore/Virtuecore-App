@@ -20,7 +20,7 @@ const SCORE_COLOR_ACTIVE = (s) => {
 }
 
 export default function NPSWidget() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [visible, setVisible] = useState(false)
   const [score, setScore] = useState(null)
   const [comment, setComment] = useState('')
@@ -28,7 +28,7 @@ export default function NPSWidget() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!profile?.id || isDemo) return
+    if (!profile?.id) return
     // Only show for client role
     if (profile.role !== 'client') return
     const key = getMonthKey(profile.id)

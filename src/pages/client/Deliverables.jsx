@@ -84,7 +84,7 @@ export default function Deliverables() {
   const normalizedDeliverables = useMemo(() => {
     return deliverables.map((d) => ({
       ...d,
-      file_url: d.file_url === '#' ? '/demo-deliverable.pdf' : d.file_url,
+      file_url: d.file_url === '#' ? null : d.file_url,
     }))
   }, [deliverables])
 

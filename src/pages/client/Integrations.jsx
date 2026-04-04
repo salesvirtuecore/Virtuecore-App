@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 
 export default function Integrations() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [metaConnected, setMetaConnected] = useState(null)
   const [metaAccountId, setMetaAccountId] = useState(null)
   const [connecting, setConnecting] = useState(false)
@@ -141,7 +141,7 @@ export default function Integrations() {
           {metaConnected === false && (
             <button
               onClick={handleConnect}
-              disabled={connecting || isDemo}
+              disabled={connecting}
               className="bg-vc-primary text-white text-xs font-medium px-4 py-2 hover:bg-vc-accent disabled:opacity-60 flex items-center gap-1.5"
             >
               <ExternalLink size={12} />
@@ -169,9 +169,6 @@ export default function Integrations() {
             </>
           )}
 
-          {isDemo && (
-            <p className="text-xs text-text-secondary self-center">Integration unavailable in demo mode.</p>
-          )}
         </div>
       </div>
     </div>

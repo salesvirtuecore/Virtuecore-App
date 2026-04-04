@@ -29,9 +29,9 @@ function useCalendlyScript(url) {
 }
 
 export default function Meetings() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [meetings, setMeetings] = useState([])
-  const [loading, setLoading] = useState(!isDemo)
+  const [loading, setLoading] = useState(true)
 
   // Build pre-fill query string so Calendly fills name/email automatically
   const calendlyUrl = CALENDLY_URL
@@ -41,7 +41,7 @@ export default function Meetings() {
   useCalendlyScript(calendlyUrl)
 
   useEffect(() => {
-    if (isDemo || !supabase || !profile?.client_id) {
+    if (!supabase || !profile?.client_id) {
       setLoading(false)
       return
     }

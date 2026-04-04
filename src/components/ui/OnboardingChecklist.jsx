@@ -13,7 +13,7 @@ const STEPS = [
 ]
 
 export default function OnboardingChecklist({ calendlyUrl }) {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [completed, setCompleted] = useState({ account: true })
   const [dismissed, setDismissed] = useState(false)
 
@@ -32,7 +32,7 @@ export default function OnboardingChecklist({ calendlyUrl }) {
   }, [profile?.id])
 
   useEffect(() => {
-    if (isDemo || !profile?.client_id) return
+    if (!profile?.client_id) return
 
     // Check stripe + meta
     supabase.from('clients').select('stripe_account_id, meta_ad_account_id').eq('id', profile.client_id).maybeSingle()

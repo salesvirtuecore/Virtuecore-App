@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, ExternalLink, FolderOpen } from 'lucide-react'
-import { DEMO_SOPS } from '../../data/placeholder'
+import { SOP_DOCUMENTS } from '../../data/placeholder'
 
 const CATEGORIES = ['All', 'Operations', 'Paid Advertising', 'Content', 'Automation']
 
@@ -8,7 +8,7 @@ export default function SOPs() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
 
-  const filtered = DEMO_SOPS.filter((s) => {
+  const filtered = SOP_DOCUMENTS.filter((s) => {
     const matchSearch = s.title.toLowerCase().includes(search.toLowerCase())
     const matchCat = category === 'All' || s.category === category
     return matchSearch && matchCat
@@ -18,7 +18,7 @@ export default function SOPs() {
     <div className="p-6 space-y-5">
       <div>
         <h1 className="text-h2 font-heading text-text-primary">SOPs & Knowledge Base</h1>
-        <p className="text-sm text-text-secondary mt-0.5">{DEMO_SOPS.length} documents</p>
+        <p className="text-sm text-text-secondary mt-0.5">{SOP_DOCUMENTS.length} documents</p>
       </div>
 
       {/* Search */}

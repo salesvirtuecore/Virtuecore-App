@@ -4,8 +4,8 @@ import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-// ── Demo module data ──────────────────────────────────────────────────────────
-const DEMO_ACADEMY_MODULES = [
+// ── Academy module data ──────────────────────────────────────────────────────
+const ACADEMY_MODULES = [
   {
     id: 'mod-meta',
     title: 'Meta Ads Fundamentals',
@@ -187,14 +187,14 @@ const DEMO_ACADEMY_MODULES = [
 const VIEW = { LIST: 'list', DETAIL: 'detail', QUIZ: 'quiz', RESULTS: 'results' }
 
 export default function Academy() {
-  const { profile, isDemo } = useAuth()
+  const { profile } = useAuth()
   const [view, setView] = useState(VIEW.LIST)
   const [selectedModule, setSelectedModule] = useState(null)
   const [completions, setCompletions] = useState({}) // { moduleId: { score, completed } }
   const [quizState, setQuizState] = useState(null)
   // quizState: { currentQ: number, answers: {qId: optionId}, finished: false }
 
-  const totalModules = DEMO_ACADEMY_MODULES.length
+  const totalModules = ACADEMY_MODULES.length
   const completedCount = Object.values(completions).filter((c) => c.completed).length
   const overallPct = Math.round((completedCount / totalModules) * 100)
 
@@ -235,8 +235,7 @@ export default function Academy() {
       setCompletions((prev) => ({ ...prev, [selectedModule.id]: newCompletion }))
       setQuizState((prev) => ({ ...prev, finished: true, score, correct, total: questions.length, passed }))
 
-      // Persist to Supabase if not demo mode
-      if (!isDemo && profile?.id) {
+      if (profile?.id) {
         supabase.from('module_completions').upsert({
           va_id: profile.id,
           module_id: selectedModule.id,
@@ -520,7 +519,7 @@ export default function Academy() {
 
       {/* Module list */}
       <div className="space-y-2">
-        {DEMO_ACADEMY_MODULES.map((mod) => {
+        {ACADEMY_MODULES.map((mod) => {
           const completion = completions[mod.id]
           const isComplete = completion?.completed
           const score = completion?.score

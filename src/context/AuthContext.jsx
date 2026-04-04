@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
-import { supabase, isDemoMode } from '../lib/supabase'
-import { DEMO_PROFILES, DEMO_PASSWORD } from '../data/placeholder'
+import { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
@@ -10,20 +9,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Support demo override even when Supabase is configured
-    const demoOverride = sessionStorage.getItem('vc_demo_override')
-    if (isDemoMode || demoOverride) {
-      const saved = sessionStorage.getItem('vc_demo_profile')
-      if (saved) {
-        const p = JSON.parse(saved)
-        setProfile(p)
-        setUser({ id: p.id, email: p.email })
-      }
-      setLoading(false)
-      return
-    }
-
-    // Real Supabase auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user)
@@ -84,10 +69,8 @@ export function AuthProvider({ children }) {
         console.warn('Profile lookup failed:', error.message)
       }
 
-      // Check auth metadata for a role (set during VA/client signup)
       const metaRole = authUser?.user_metadata?.role
       if (metaRole && metaRole !== 'client') {
-        // VA or other non-client role from metadata — use it, no sync needed
         nextProfile = {
           id: authUser.id,
           email: authUser.email,
@@ -95,7 +78,6 @@ export function AuthProvider({ children }) {
           role: metaRole,
         }
       } else {
-        // No profile row, might be a new client — try to sync/claim
         const syncResult = await syncClientAccess(accessToken)
         if (syncResult?.profile) {
           nextProfile = {
@@ -106,7 +88,6 @@ export function AuthProvider({ children }) {
             ...syncResult.profile,
           }
         } else {
-          // No profile, no client record — this account has no access, sign them out
           await supabase.auth.signOut()
           setUser(null)
           setProfile(null)
@@ -129,37 +110,11 @@ export function AuthProvider({ children }) {
   }
 
   async function login(email, password) {
-    if (isDemoMode) {
-      const demoProfile = DEMO_PROFILES[email.toLowerCase()]
-      if (demoProfile && password === DEMO_PASSWORD) {
-        sessionStorage.setItem('vc_demo_profile', JSON.stringify(demoProfile))
-        setProfile(demoProfile)
-        setUser({ id: demoProfile.id, email: demoProfile.email })
-        return { error: null }
-      }
-      return { error: { message: 'Invalid email or password' } }
-    }
-
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error }
   }
 
-  // Allows previewing any demo role even when Supabase is configured
-  function loginAsDemo(role = 'client') {
-    const emailMap = { client: 'client@virtuecore.com', admin: 'sales@virtuecore.co.uk', va: 'va@virtuecore.com' }
-    const demoProfile = DEMO_PROFILES[emailMap[role]]
-    if (!demoProfile) return
-    sessionStorage.setItem('vc_demo_profile', JSON.stringify(demoProfile))
-    sessionStorage.setItem('vc_demo_override', '1')
-    setProfile(demoProfile)
-    setUser({ id: demoProfile.id, email: demoProfile.email })
-  }
-
   async function signup(email, password, fullName, role) {
-    if (isDemoMode) {
-      return { error: { message: 'Signup is disabled in demo mode' } }
-    }
-
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error }
 
@@ -176,31 +131,19 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    if (isDemoMode) {
-      sessionStorage.removeItem('vc_demo_profile')
-      setUser(null)
-      setProfile(null)
-      return
-    }
     await supabase.auth.signOut()
   }
 
   async function resetPassword(email) {
-    if (isDemoMode) {
-      return { error: { message: 'Password reset not available in demo mode' } }
-    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
     return { error }
   }
 
-  // True when running in env-based demo mode OR when a demo override session is active
-  const isDemo = isDemoMode || !!sessionStorage.getItem('vc_demo_override')
-
   const value = useMemo(
-    () => ({ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode, isDemo }),
-    [user, profile, loading, isDemo]
+    () => ({ user, profile, loading, login, signup, logout, resetPassword }),
+    [user, profile, loading]
   )
 
   return (

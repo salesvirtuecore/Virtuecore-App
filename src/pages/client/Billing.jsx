@@ -13,8 +13,8 @@ function formatDateTime(iso) {
 }
 
 export default function Billing() {
-  const { profile, isDemo } = useAuth()
-  const [loading, setLoading] = useState(!isDemo)
+  const { profile } = useAuth()
+  const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState({
@@ -58,7 +58,7 @@ export default function Billing() {
   }
 
   async function refreshStatus() {
-    if (isDemo || !profile?.id) return
+    if (!profile?.id) return
 
     setLoading(true)
     setError('')
@@ -94,8 +94,6 @@ export default function Billing() {
   }
 
   async function connectStripe() {
-    if (isDemo) return
-
     setConnecting(true)
     setError('')
 
@@ -168,13 +166,9 @@ export default function Billing() {
             <p className="text-sm font-semibold text-[#312e81]">Stripe Connection Status</p>
             <p className="text-xs text-[#4338ca] mt-1">Last sync check: {formatDateTime(status.lastCheckedAt)}</p>
           </div>
-          {isDemo ? (
-            <span className="text-xs font-medium text-text-secondary bg-bg-tertiary px-2 py-1 rounded">Demo</span>
-          ) : (
-            <span className={statusPillClass}>
-              {status.connected ? (status.onboardingComplete ? 'Connected' : 'Setup incomplete') : 'Not connected'}
-            </span>
-          )}
+          <span className={statusPillClass}>
+            {status.connected ? (status.onboardingComplete ? 'Connected' : 'Setup incomplete') : 'Not connected'}
+          </span>
         </div>
 
         {status.companyName && (
@@ -183,19 +177,19 @@ export default function Billing() {
           </div>
         )}
 
-        {!isDemo && status.stripeAccountId && (
+        {status.stripeAccountId && (
           <div className="text-sm text-text-primary">
             <span className="text-[#4f46e5]">Stripe Account ID:</span> {status.stripeAccountId}
           </div>
         )}
 
-        {!isDemo && status.connected && !status.onboardingComplete && (
+        {status.connected && !status.onboardingComplete && (
           <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 px-3 py-2 rounded">
             Your Stripe account exists, but onboarding is not finished yet. Use the button below to continue setup.
           </p>
         )}
 
-        {!isDemo && status.onboardingComplete && !status.chargesEnabled && (
+        {status.onboardingComplete && !status.chargesEnabled && (
           <p className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/20 px-3 py-2 rounded">
             Stripe onboarding is submitted, but charges are not enabled yet. Stripe may still be reviewing the account.
           </p>
@@ -207,7 +201,7 @@ export default function Billing() {
           <button
             type="button"
             onClick={refreshStatus}
-            disabled={loading || isDemo}
+            disabled={loading}
             className="text-xs px-3 py-2 border border-[#635bff] text-[#4338ca] bg-bg-elevated hover:bg-[#eef2ff] rounded transition-colors disabled:opacity-60"
           >
             {loading ? 'Refreshing...' : 'Refresh Status'}
@@ -216,7 +210,7 @@ export default function Billing() {
           <button
             type="button"
             onClick={connectStripe}
-            disabled={connecting || loading || isDemo}
+            disabled={connecting || loading}
             className="text-xs px-3 py-2 bg-[#635bff] text-white hover:bg-[#4f46e5] rounded transition-colors disabled:opacity-60"
           >
             {connecting ? 'Opening Stripe...' : status.onboardingComplete ? 'Manage Stripe' : status.connected ? 'Continue Stripe Setup' : 'Connect Stripe'}

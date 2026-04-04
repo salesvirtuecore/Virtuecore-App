@@ -96,16 +96,16 @@ function SidebarContent({ profile, onLogout, onNavClick }) {
 }
 
 export default function ClientLayout() {
-  const { profile, logout, isDemo } = useAuth()
+  const { profile, logout } = useAuth()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    if (!isDemo && profile?.id) subscribeToPush(profile.id)
+    if (profile?.id) subscribeToPush(profile.id)
   }, [profile?.id])
 
   useEffect(() => {
-    if (isDemo || !profile?.id || !profile?.client_id) return
+    if (!profile?.id || !profile?.client_id) return
     const todayKey = `vc_smart_${new Date().toISOString().split('T')[0]}_${profile.id}`
     if (sessionStorage.getItem(todayKey)) return
     sessionStorage.setItem(todayKey, '1')

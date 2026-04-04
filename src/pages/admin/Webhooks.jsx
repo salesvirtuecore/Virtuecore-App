@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Copy, Check, CreditCard, AlertCircle } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
 
 
 const BASE_URL = import.meta.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
@@ -35,15 +34,7 @@ function CopyButton({ text }) {
   )
 }
 
-function StatusBadge({ isDemo }) {
-  if (isDemo) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-status-warning/10 border border-status-warning/20 text-status-warning">
-        <span className="w-1.5 h-1.5 rounded-full bg-status-warning/100" />
-        Demo Mode
-      </span>
-    )
-  }
+function StatusBadge() {
   return (
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-status-success/10 border border-status-success/20 text-status-success">
       <span className="w-1.5 h-1.5 rounded-full bg-status-success/100" />
@@ -53,10 +44,8 @@ function StatusBadge({ isDemo }) {
 }
 
 export default function Webhooks() {
-  const { isDemo } = useAuth()
   return (
     <div className="p-6 space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-h2 font-heading text-text-primary">Integrations & Webhooks</h1>
         <p className="text-sm text-text-secondary mt-0.5">
@@ -64,12 +53,11 @@ export default function Webhooks() {
         </p>
       </div>
 
-      {/* Stripe section */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <CreditCard size={16} className="text-vc-accent" />
           <h2 className="text-base font-semibold text-text-primary">Stripe Webhook</h2>
-          <StatusBadge isDemo={isDemo} />
+          <StatusBadge />
         </div>
 
         <div className="border border-white/[0.06]">
@@ -84,7 +72,6 @@ export default function Webhooks() {
           </div>
 
           <div className="px-5 py-4 space-y-4">
-            {/* URL */}
             <div>
               <p className="text-xs text-text-secondary mb-1.5 font-medium uppercase tracking-wide">Webhook URL</p>
               <div className="flex items-center gap-2">
@@ -95,7 +82,6 @@ export default function Webhooks() {
               </div>
             </div>
 
-            {/* Events */}
             <div>
               <p className="text-xs text-text-secondary mb-2 font-medium uppercase tracking-wide">Events to Listen For</p>
               <div className="space-y-1">
@@ -108,7 +94,6 @@ export default function Webhooks() {
               </div>
             </div>
 
-            {/* Note */}
             <div className="flex items-start gap-2 p-3 bg-status-warning/10 border border-status-warning/20">
               <AlertCircle size={14} className="text-status-warning mt-0.5 flex-shrink-0" />
               <p className="text-xs text-amber-800">
@@ -120,14 +105,13 @@ export default function Webhooks() {
         </div>
       </section>
 
-      {/* Meta Ads section */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-4 h-4 bg-blue-600 flex items-center justify-center flex-shrink-0">
             <span className="text-white text-[9px] font-bold">f</span>
           </div>
           <h2 className="text-base font-semibold text-text-primary">Meta Ads Data Sync</h2>
-          <StatusBadge isDemo={isDemo} />
+          <StatusBadge />
         </div>
 
         <div className="border border-white/[0.06]">
