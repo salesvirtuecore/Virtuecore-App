@@ -83,7 +83,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, payment_status, ad_spend_managed, meta_ad_account_id').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('crm_messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),

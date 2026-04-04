@@ -44,7 +44,7 @@ export default function Clients() {
     setLoadingClients(true)
     try {
       const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, payment_status, stripe_account_id, ad_spend_managed, created_at').order('created_at', { ascending: false }),
+        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, stripe_account_id, created_at').order('created_at', { ascending: false }),
         supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       ])
 
@@ -237,12 +237,10 @@ export default function Clients() {
               <th>Company</th>
               <th>Package</th>
               <th>MRR</th>
-              <th>Ad Spend</th>
               <th>Stripe</th>
               <th>Status</th>
               <th>Portal</th>
               <th>Health</th>
-              <th>Payment</th>
               <th />
             </tr>
           </thead>
@@ -262,9 +260,6 @@ export default function Clients() {
                 </td>
                 <td className="text-text-secondary">{c.package_tier}</td>
                 <td className="mono">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
-                <td className="mono">
-                  {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
-                </td>
                 <td>
                   {c.stripe_account_id ? (
                     <Badge variant="green" dot>Connected</Badge>
@@ -287,11 +282,6 @@ export default function Clients() {
                 <td>
                   <Badge variant={HEALTH_BADGE[c.health_score] ?? 'default'} dot>
                     {c.health_score ? c.health_score.charAt(0).toUpperCase() + c.health_score.slice(1) : '—'}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge variant={c.payment_status === 'paid' ? 'green' : c.payment_status === 'overdue' ? 'red' : c.payment_status ? 'amber' : 'default'} dot>
-                    {c.payment_status ? c.payment_status.charAt(0).toUpperCase() + c.payment_status.slice(1) : '—'}
                   </Badge>
                 </td>
                 <td>

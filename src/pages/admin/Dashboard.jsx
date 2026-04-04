@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   const loadClients = useCallback(async () => {
     if (!supabase) return
     const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }, { data: leads }] = await Promise.all([
-      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, ad_spend_managed, health_score, payment_status, package_tier, created_at').order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, health_score, package_tier, created_at').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       supabase.from('pipeline_leads').select('id, score, stage').neq('stage', 'contract_signed'),
     ])
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
   const onboardingClients = clients.filter(c => c.status === 'onboarding')
   const joinedClients = clients.filter(c => c.portal_joined)
   const mrr = activeClients.reduce((sum, c) => sum + Number(c.monthly_retainer || 0), 0)
-  const totalAdSpend = clients.reduce((sum, c) => sum + Number(c.ad_spend_managed || 0), 0)
+  const totalAdSpend = 0
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
@@ -152,10 +152,8 @@ export default function AdminDashboard() {
                 <th>Client</th>
                 <th>Package</th>
                 <th>Retainer</th>
-                <th>Ad Spend</th>
                 <th>Portal</th>
                 <th>Health</th>
-                <th>Payment</th>
               </tr>
             </thead>
             <tbody>
@@ -167,9 +165,6 @@ export default function AdminDashboard() {
                   </td>
                   <td className="text-text-secondary">{c.package_tier}</td>
                   <td className="mono">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
-                  <td className="mono">
-                    {Number(c.ad_spend_managed || 0) > 0 ? `£${Number(c.ad_spend_managed).toLocaleString()}` : '—'}
-                  </td>
                   <td>
                     <Badge variant={c.portal_joined ? 'green' : 'blue'} dot>
                       {c.portal_joined ? 'Joined' : 'Invited'}
@@ -178,11 +173,6 @@ export default function AdminDashboard() {
                   <td>
                     <Badge variant={HEALTH_BADGE[c.health_score]} dot>
                       {(c.health_score || 'unknown').charAt(0).toUpperCase() + (c.health_score || 'unknown').slice(1)}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge variant={c.payment_status === 'paid' ? 'green' : c.payment_status === 'overdue' ? 'red' : 'amber'} dot>
-                      {(c.payment_status || 'pending').charAt(0).toUpperCase() + (c.payment_status || 'pending').slice(1)}
                     </Badge>
                   </td>
                 </tr>

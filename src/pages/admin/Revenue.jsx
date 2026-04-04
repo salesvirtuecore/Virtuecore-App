@@ -51,7 +51,7 @@ export default function Revenue() {
   useEffect(() => {
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
-        supabase.from('clients').select('id, status, company_name, monthly_retainer, ad_spend_managed, revenue_share_percentage'),
+        supabase.from('clients').select('id, status, company_name, monthly_retainer, revenue_share_percentage, package_tier'),
         supabase.from('invoices').select('id, client_id, amount, status, type, due_date, paid_date, created_at, clients(company_name)'),
       ])
       if (clientData) setClients(clientData)
@@ -154,9 +154,7 @@ export default function Revenue() {
           </thead>
           <tbody>
             {clients.filter((c) => c.status !== 'churned').map((c) => {
-              const commission = c.revenue_share_percentage > 0
-                ? Math.round(c.ad_spend_managed * (c.revenue_share_percentage / 100))
-                : 0
+              const commission = 0
               const total = c.monthly_retainer + commission
               return (
                 <tr key={c.id}>
