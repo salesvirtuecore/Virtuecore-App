@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 
 const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
 
 export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
+  const { isDemo } = useAuth()
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',

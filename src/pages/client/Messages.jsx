@@ -45,7 +45,7 @@ export default function Messages() {
       .channel(`client-messages-${clientId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${clientId}` },
+        { event: 'INSERT', schema: 'public', table: 'crm_messages', filter: `client_id=eq.${clientId}` },
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev

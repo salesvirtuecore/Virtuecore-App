@@ -3,7 +3,7 @@ import { Copy, Check, CreditCard, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 
-const BASE_URL = 'https://your-app.vercel.app'
+const BASE_URL = import.meta.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
 
 const STRIPE_EVENTS = [
   'invoice.paid',

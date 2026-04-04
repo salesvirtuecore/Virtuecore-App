@@ -133,7 +133,7 @@ export default function ClientView() {
       .channel(`admin-messages-${id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${id}` },
+        { event: 'INSERT', schema: 'public', table: 'crm_messages', filter: `client_id=eq.${id}` },
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev
