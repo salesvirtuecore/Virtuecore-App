@@ -63,7 +63,7 @@ export default function Messages() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [clientId])
+  }, [clientId, profile?.id, profile?.full_name])
 
   // Scroll to bottom on new messages
   useEffect(() => {

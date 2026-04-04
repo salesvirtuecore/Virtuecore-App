@@ -27,7 +27,7 @@ async function handleInviteUser(req, res) {
       if (clientError) throw clientError
     }
     const isVA = role === 'va'
-    const appUrl = process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'
+    const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
     const signupUrl = isVA ? `${appUrl}/signup/va` : `${appUrl}/signup`
     const n8nWebhookUrl = isVA ? n8nVaWebhookUrl : n8nClientWebhookUrl
     const emailSubject = isVA ? `You've been invited to join VirtueCore as a Virtual Assistant` : `You've been invited to your VirtueCore Client Portal`
@@ -224,7 +224,7 @@ async function handleMonthlyReport(req, res) {
       if (!reportText) throw new Error('No content from Claude')
       const { data: del } = await supabase.from('deliverables').insert({ client_id: client.id, title: `${client.company_name} — Monthly Report ${period}`, type: 'report', status: 'pending_review' }).select('id').single()
       await supabase.from('crm_reports').insert({ client_id: client.id, deliverable_id: del?.id ?? null, content: reportText, period })
-      if (n8nWebhook && client.contact_email) { await fetch(n8nWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: client.contact_email, company_name: client.company_name, period, report: reportText, portal_url: `${process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'}/client/deliverables` }) }).catch(() => {}) }
+      if (n8nWebhook && client.contact_email) { await fetch(n8nWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: client.contact_email, company_name: client.company_name, period, report: reportText, portal_url: `${process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'}/client/deliverables` }) }).catch(() => {}) }
       results.push({ client: client.company_name, ok: true })
     } catch (err) {
       results.push({ client: client.company_name, error: err.message })
@@ -371,7 +371,7 @@ async function handleSaveNPS(req, res) {
         sentiment,
         comment: comment || '(no comment)',
         submitted_at: new Date().toISOString(),
-        portal_url: `${process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'}/admin`,
+        portal_url: `${process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'}/admin`,
       }),
     }).catch(() => {})
   }

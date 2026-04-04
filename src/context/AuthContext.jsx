@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
 import { DEMO_PROFILES, DEMO_PASSWORD } from '../data/placeholder'
 
@@ -198,8 +198,13 @@ export function AuthProvider({ children }) {
   // True when running in env-based demo mode OR when a demo override session is active
   const isDemo = isDemoMode || !!sessionStorage.getItem('vc_demo_override')
 
+  const value = useMemo(
+    () => ({ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode, isDemo }),
+    [user, profile, loading, isDemo]
+  )
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, loginAsDemo, signup, logout, resetPassword, isDemoMode, isDemo }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

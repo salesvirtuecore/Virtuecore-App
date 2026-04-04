@@ -75,8 +75,8 @@ async function handleClientConnect(req, res) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const stripeSecret = process.env.STRIPE_SECRET_KEY
-  const returnUrl = process.env.STRIPE_CONNECT_CLIENT_RETURN_URL || 'https://virtuecore-app.vercel.app/client/billing'
-  const refreshUrl = process.env.STRIPE_CONNECT_CLIENT_REFRESH_URL || 'https://virtuecore-app.vercel.app/client/billing'
+  const returnUrl = process.env.STRIPE_CONNECT_CLIENT_RETURN_URL || 'https://app.virtuecore.co.uk/client/billing'
+  const refreshUrl = process.env.STRIPE_CONNECT_CLIENT_REFRESH_URL || 'https://app.virtuecore.co.uk/client/billing'
   if (!supabaseUrl) return res.status(500).json({ error: 'Server not configured: missing Supabase URL' })
   if (!serviceRoleKey) return res.status(500).json({ error: 'Server not configured: missing Supabase service role key' })
   if (!stripeSecret) return res.status(500).json({ error: 'Server not configured: missing Stripe secret key' })
@@ -128,8 +128,8 @@ async function handleConnect(req, res) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const stripeSecret = process.env.STRIPE_SECRET_KEY
-  const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || 'https://virtuecore-app.vercel.app/admin/clients'
-  const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || 'https://virtuecore-app.vercel.app/admin/clients'
+  const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || 'https://app.virtuecore.co.uk/admin/clients'
+  const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || 'https://app.virtuecore.co.uk/admin/clients'
   if (!supabaseUrl || !serviceRoleKey || !stripeSecret) {
     return res.status(500).json({ error: 'Server not configured' })
   }
@@ -160,7 +160,7 @@ async function handleCreateCheckout(req, res) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const appUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://virtuecore-app.vercel.app'
+  const appUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
   if (!stripeSecret || !supabaseUrl || !serviceRoleKey) return res.status(500).json({ error: 'Server not configured' })
   const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
   const supabase = createClient(supabaseUrl, serviceRoleKey)

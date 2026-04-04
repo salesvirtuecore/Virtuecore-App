@@ -150,7 +150,7 @@ export default function ClientView() {
       )
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [id])
+  }, [id, profile?.id, profile?.full_name])
 
   // Scroll messages to bottom
   useEffect(() => {
@@ -464,6 +464,8 @@ export default function ClientView() {
       const payload = {
         client_id: id,
         sender_id: profile?.id ?? null,
+        sender_name: profile?.full_name ?? null,
+        sender_role: 'admin',
         content,
       }
       const { data, error } = await supabase
