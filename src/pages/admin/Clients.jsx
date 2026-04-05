@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, ExternalLink, UserPlus, Pencil } from 'lucide-react'
+import { Search, ExternalLink, UserPlus, Pencil, Trash2 } from 'lucide-react'
 import Badge from '../../components/ui/Badge'
 import InviteModal from '../../components/ui/InviteModal'
 import Modal from '../../components/ui/Modal'
@@ -149,6 +149,20 @@ export default function Clients() {
     }
   }
 
+  async function handleDelete(client) {
+    const confirmed = window.confirm(`Are you sure you want to delete "${client.company_name}"? This will permanently remove the client and all their associated data.`)
+    if (!confirmed) return
+
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', client.id)
+      if (error) throw error
+      setClients((prev) => prev.filter((c) => c.id !== client.id))
+      showToast(`${client.company_name} deleted`)
+    } catch (err) {
+      showToast(err.message ?? 'Failed to delete client', 'error')
+    }
+  }
+
   async function handleStripeConnect(client) {
     try {
       setSaving(true)
@@ -286,11 +300,14 @@ export default function Clients() {
                 </td>
                 <td>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(c)} className="text-text-tertiary hover:text-text-primary transition-colors" title="Edit client">
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(c) }} className="text-text-tertiary hover:text-text-primary transition-colors" title="Edit client">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => navigate(`/admin/clients/${c.id}`)} className="text-text-tertiary hover:text-text-primary transition-colors" title="View client">
+                    <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/clients/${c.id}`) }} className="text-text-tertiary hover:text-text-primary transition-colors" title="View client">
                       <ExternalLink size={14} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(c) }} className="text-text-tertiary hover:text-status-danger transition-colors" title="Delete client">
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </td>
