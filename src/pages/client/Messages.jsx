@@ -20,7 +20,7 @@ export default function Messages() {
     if (!supabase || !clientId) return
 
     supabase
-      .from('crm_messages')
+      .from('messages')
       .select('id, client_id, sender_id, sender_name, sender_role, content, created_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true })
@@ -45,7 +45,7 @@ export default function Messages() {
       .channel(`client-messages-${clientId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'crm_messages', filter: `client_id=eq.${clientId}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${clientId}` },
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev
@@ -80,7 +80,7 @@ export default function Messages() {
     setSending(true)
     try {
       const { data, error } = await supabase
-        .from('crm_messages')
+        .from('messages')
         .insert({
           client_id: clientId,
           sender_id: profile?.id,

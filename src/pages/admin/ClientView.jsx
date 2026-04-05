@@ -86,7 +86,7 @@ export default function ClientView() {
           supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
-          supabase.from('crm_messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
+          supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, client_id, platform, created_at').eq('client_id', id).order('date', { ascending: true }),
           supabase.from('nps_responses').select('score,comment,created_at').eq('client_id', id).order('created_at', { ascending: false }).limit(12),
         ])
@@ -133,7 +133,7 @@ export default function ClientView() {
       .channel(`admin-messages-${id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'crm_messages', filter: `client_id=eq.${id}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${id}` },
         (payload) => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev
@@ -382,7 +382,6 @@ export default function ClientView() {
         status: invoiceForm.status,
         stripe_invoice_id: invoiceForm.stripe_invoice_id.trim() || null,
         client_id: id,
-        client_name: client.company_name,
       }
       if (editInvoice) {
         const { error } = await supabase.from('invoices').update(payload).eq('id', editInvoice.id)
@@ -469,7 +468,7 @@ export default function ClientView() {
         content,
       }
       const { data, error } = await supabase
-        .from('crm_messages')
+        .from('messages')
         .insert(payload)
         .select('*, sender:profiles!sender_id(full_name, role)')
         .single()

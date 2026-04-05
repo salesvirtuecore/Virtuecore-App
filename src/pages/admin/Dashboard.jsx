@@ -122,19 +122,27 @@ export default function AdminDashboard() {
         <div className="vc-card">
           <h2 className="text-sm font-semibold text-text-primary font-heading mb-4">Needs Attention</h2>
           <div className="space-y-1">
-            {[
-              { color: 'bg-status-danger', title: 'Overdue invoice', sub: 'Prestige Window — £1,500', icon: AlertTriangle },
-              { color: 'bg-status-warning', title: '3 pending deliverables', sub: 'Prestige — awaiting VA', icon: Clock },
-              { color: 'bg-status-warning', title: 'Proposal follow-up', sub: 'YC Financial — sent 3 days ago', icon: Clock },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3 py-3 border-b border-white/[0.04] last:border-0 cursor-pointer hover:bg-bg-tertiary -mx-2 px-2 rounded transition-colors">
-                <div className={`w-1.5 h-1.5 rounded-full ${item.color} mt-1.5 flex-shrink-0`} />
+            {clients.filter(c => c.status === 'onboarding').length > 0 && (
+              <div className="flex items-start gap-3 py-3 border-b border-white/[0.04] cursor-pointer hover:bg-bg-tertiary -mx-2 px-2 rounded transition-colors">
+                <div className="w-1.5 h-1.5 rounded-full bg-status-warning mt-1.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm text-text-primary">{item.title}</p>
-                  <p className="text-xs text-text-tertiary mt-0.5">{item.sub}</p>
+                  <p className="text-sm text-text-primary">{clients.filter(c => c.status === 'onboarding').length} client{clients.filter(c => c.status === 'onboarding').length > 1 ? 's' : ''} onboarding</p>
+                  <p className="text-xs text-text-tertiary mt-0.5">{clients.filter(c => c.status === 'onboarding').map(c => c.company_name).join(', ')}</p>
+                </div>
+              </div>
+            )}
+            {clients.filter(c => c.health_score === 'red').map(c => (
+              <div key={c.id} className="flex items-start gap-3 py-3 border-b border-white/[0.04] cursor-pointer hover:bg-bg-tertiary -mx-2 px-2 rounded transition-colors" onClick={() => navigate(`/admin/clients/${c.id}`)}>
+                <div className="w-1.5 h-1.5 rounded-full bg-status-danger mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-text-primary">Health score red</p>
+                  <p className="text-xs text-text-tertiary mt-0.5">{c.company_name}</p>
                 </div>
               </div>
             ))}
+            {clients.length > 0 && clients.filter(c => c.status === 'onboarding').length === 0 && clients.filter(c => c.health_score === 'red').length === 0 && (
+              <p className="text-sm text-text-secondary py-3">Nothing needs your attention right now.</p>
+            )}
           </div>
         </div>
       </div>

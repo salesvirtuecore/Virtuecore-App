@@ -82,7 +82,6 @@ export default function Revenue() {
       const client = clients.find((c) => c.id === invoiceForm.client_id)
       const payload = {
         client_id: invoiceForm.client_id,
-        client_name: client?.company_name ?? '',
         amount: Number(invoiceForm.amount),
         type: invoiceForm.type,
         due_date: invoiceForm.due_date,

@@ -32,7 +32,7 @@ export default function VAManagement() {
     if (!supabase) return
     Promise.all([
       supabase.from('profiles').select('id, full_name, email, created_at').eq('role', 'va').order('created_at'),
-      supabase.from('tasks').select('id, full_name, email, created_at, role').order('deadline'),
+      supabase.from('tasks').select('id, title, client_id, assigned_va_id, status, priority, deadline, time_logged_minutes, created_at, completed_at').order('deadline'),
       supabase.from('clients').select('id, company_name').order('company_name'),
     ]).then(([{ data: vaRows }, { data: taskRows }, { data: clientRows }]) => {
       if (vaRows) {
@@ -94,7 +94,6 @@ export default function VAManagement() {
         title: taskForm.title.trim(),
         brief: taskForm.brief.trim(),
         client_id: taskForm.client_id || null,
-        client_name: client?.company_name ?? null,
         assigned_va_id: assignTarget.id,
         priority: taskForm.priority,
         deadline: taskForm.deadline,
@@ -108,10 +107,10 @@ export default function VAManagement() {
       showToast(`Task assigned to ${assignTarget.full_name}`)
       sendPushNotification(assignTarget.id, {
         title: 'New task assigned',
-        body: `${payload.title}${payload.client_name ? ` — ${payload.client_name}` : ''}`,
+        body: `${payload.title}${client ? ` — ${client.company_name}` : ''}`,
         url: '/va',
       })
-      notifySlack('task_created', { title: payload.title, client_name: payload.client_name, va_name: assignTarget.full_name, priority: payload.priority })
+      notifySlack('task_created', { title: payload.title, client_name: client?.company_name ?? '', va_name: assignTarget.full_name, priority: payload.priority })
       setAssignTarget(null)
     } catch (err) {
       showToast(err.message ?? 'Failed to assign task', 'error')
