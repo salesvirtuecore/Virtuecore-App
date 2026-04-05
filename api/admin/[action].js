@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 function makeSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
@@ -9,11 +10,19 @@ function makeSupabase() {
 }
 
 // ── invite-user ──────────────────────────────────────────────────────────────
+function createMailTransport() {
+  const user = process.env.EMAIL_USER
+  const pass = process.env.EMAIL_PASS
+  if (!user || !pass) return null
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  })
+}
+
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const supabase = makeSupabase()
-  const n8nClientWebhookUrl = process.env.N8N_CLIENT_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL || ''
-  const n8nVaWebhookUrl = process.env.N8N_VA_WEBHOOK_URL || process.env.N8N_WEBHOOK_URL || ''
   const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage } = req.body
   if (!email || !role) return res.status(400).json({ error: 'Email and role are required' })
   try {
@@ -29,17 +38,48 @@ async function handleInviteUser(req, res) {
     const isVA = role === 'va'
     const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
     const signupUrl = isVA ? `${appUrl}/signup/va` : `${appUrl}/signup`
-    const n8nWebhookUrl = isVA ? n8nVaWebhookUrl : n8nClientWebhookUrl
     const emailSubject = isVA ? `You've been invited to join VirtueCore as a Virtual Assistant` : `You've been invited to your VirtueCore Client Portal`
-    const emailBody = isVA
-      ? `Hi ${full_name || 'there'},\n\nYou've been invited to VirtueCore as a Virtual Assistant.\n\nClick the link below to create your account:\n${signupUrl}\n\nWelcome to the team,\nThe VirtueCore Team`
-      : `Hi ${full_name || 'there'},\n\nYou've been invited to your VirtueCore Client Portal.\n\nClick the link below to get started:\n${signupUrl}\n\nLooking forward to working with you,\nThe VirtueCore Team`
-    const emailHtml = emailBody.replace(/\n/g, '<br>')
-    const n8nPayload = { to: email, from: 'sales@virtuecore.co.uk', subject: emailSubject, full_name: full_name || '', company_name: company_name || '', role, signupUrl, message: emailHtml }
-    if (n8nWebhookUrl) {
-      const n8nRes = await fetch(n8nWebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n8nPayload) })
-      if (!n8nRes.ok) throw new Error(`n8n failed: ${n8nRes.status} ${await n8nRes.text()}`)
-    }
+    const roleLabel = isVA ? 'Virtual Assistant' : 'Client'
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
+        <div style="background: #7C3AED; padding: 24px 32px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #fff; font-size: 20px; margin: 0;">VirtueCore</h1>
+        </div>
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+            Hi ${full_name || 'there'},
+          </p>
+          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+            You've been invited to VirtueCore as a <strong>${roleLabel}</strong>.
+          </p>
+          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
+            Click the button below to create your account and get started:
+          </p>
+          <a href="${signupUrl}" style="display: inline-block; background: #7C3AED; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600;">
+            Create Your Account
+          </a>
+          <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin: 24px 0 0;">
+            Or copy and paste this link into your browser:<br>
+            <a href="${signupUrl}" style="color: #7C3AED; word-break: break-all;">${signupUrl}</a>
+          </p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="font-size: 13px; color: #9ca3af; margin: 0;">
+            Looking forward to working with you,<br>The VirtueCore Team
+          </p>
+        </div>
+      </div>`
+
+    // Send email directly via Gmail SMTP
+    const transport = createMailTransport()
+    if (!transport) throw new Error('Email not configured — set EMAIL_USER and EMAIL_PASS in environment variables')
+    await transport.sendMail({
+      from: process.env.EMAIL_FROM || `VirtueCore <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: emailSubject,
+      html: emailHtml,
+    })
+
+    // Slack notification (non-blocking)
     if (role === 'client') {
       const slackToken = process.env.SLACK_BOT_TOKEN
       if (slackToken) {
@@ -48,9 +88,9 @@ async function handleInviteUser(req, res) {
           headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
           body: JSON.stringify({
             channel: process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25',
-            text: `🏢 New Client Onboarded`,
+            text: `New Client Onboarded`,
             blocks: [
-              { type: 'section', text: { type: 'mrkdwn', text: `*🏢 New Client Onboarded*\n*${company_name || full_name}*\nEmail: ${email} · Package: ${package_tier || 'Starter'}` } },
+              { type: 'section', text: { type: 'mrkdwn', text: `*New Client Onboarded*\n*${company_name || full_name}*\nEmail: ${email} · Package: ${package_tier || 'Starter'}` } },
               { type: 'context', elements: [{ type: 'mrkdwn', text: new Date().toUTCString() }] },
             ],
           }),
