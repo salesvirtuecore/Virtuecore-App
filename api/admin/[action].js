@@ -34,7 +34,8 @@ async function handleInviteUser(req, res) {
     const emailBody = isVA
       ? `Hi ${full_name || 'there'},\n\nYou've been invited to VirtueCore as a Virtual Assistant.\n\nClick the link below to create your account:\n${signupUrl}\n\nWelcome to the team,\nThe VirtueCore Team`
       : `Hi ${full_name || 'there'},\n\nYou've been invited to your VirtueCore Client Portal.\n\nClick the link below to get started:\n${signupUrl}\n\nLooking forward to working with you,\nThe VirtueCore Team`
-    const n8nPayload = { to: email, from: 'sales@virtuecore.co.uk', subject: emailSubject, emailSubject, full_name: full_name || '', company_name: company_name || '', role, signupUrl, emailBody, body: emailBody, text: emailBody, message: emailBody }
+    const emailHtml = emailBody.replace(/\n/g, '<br>')
+    const n8nPayload = { to: email, from: 'sales@virtuecore.co.uk', subject: emailSubject, full_name: full_name || '', company_name: company_name || '', role, signupUrl, message: emailHtml }
     if (n8nWebhookUrl) {
       const n8nRes = await fetch(n8nWebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n8nPayload) })
       if (!n8nRes.ok) throw new Error(`n8n failed: ${n8nRes.status} ${await n8nRes.text()}`)
