@@ -14,7 +14,7 @@ export default function ContentCalendar() {
   const [current, setCurrent] = useState(new Date())
   const [selected, setSelected] = useState(null)
   const [posts, setPosts] = useState([])
-  const [loadingPosts, setLoadingPosts] = useState(true)
+  const [, setLoadingPosts] = useState(true)
   const [approvedIds, setApprovedIds] = useState(new Set())
   const [feedbackOpen, setFeedbackOpen] = useState({})
   const [feedbackText, setFeedbackText] = useState({})

@@ -45,7 +45,7 @@ export default async function handler(req, res) {
         .from('clients')
         .update({ meta_access_token: null, meta_token_expires_at: null, meta_ad_account_id: null })
         .eq('facebook_user_id', facebookUserId)
-    } catch (_) {
+    } catch {
       // Best effort — don't block the response
     }
 

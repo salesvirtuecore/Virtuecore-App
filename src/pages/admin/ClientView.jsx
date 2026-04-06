@@ -605,7 +605,6 @@ export default function ClientView() {
 
       {/* NPS / Client Feedback */}
       {npsData.length > 0 && (() => {
-        const latest = npsData[0]
         const avg = Math.round(npsData.reduce((s, r) => s + r.score, 0) / npsData.length * 10) / 10
         const sentimentColor = (s) => s >= 9 ? 'text-status-success bg-status-success/10 border-status-success/20' : s >= 7 ? 'text-status-warning bg-status-warning/10 border-status-warning/20' : 'text-status-danger bg-status-danger/10 border-status-danger/20'
         const sentimentLabel = (s) => s >= 9 ? 'Promoter' : s >= 7 ? 'Passive' : 'Detractor'
