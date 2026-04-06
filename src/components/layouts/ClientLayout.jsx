@@ -6,6 +6,7 @@ import {
   Award, Zap, Calculator, Menu, X, HelpCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 
 import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
@@ -109,9 +110,8 @@ export default function ClientLayout() {
     const todayKey = `vc_smart_${new Date().toISOString().split('T')[0]}_${profile.id}`
     if (sessionStorage.getItem(todayKey)) return
     sessionStorage.setItem(todayKey, '1')
-    fetch('/api/admin/smart-notifications', {
+    apiFetch('/api/admin/smart-notifications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: profile.id, client_id: profile.client_id }),
     }).catch(() => {})
   }, [profile?.id, profile?.client_id])

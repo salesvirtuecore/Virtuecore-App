@@ -1,13 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
-
-function makeSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Server not configured')
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
-}
+import { makeSupabase, authenticateUser, requireRole, checkRateLimit } from '../_lib/auth.js'
 
 // ── invite-user ──────────────────────────────────────────────────────────────
 function createMailTransport() {
@@ -510,19 +504,37 @@ async function handleSmartNotifications(req, res) {
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
+// Public routes (no auth): get-reviews (website embed), monthly-report (cron), meta-ads (Zapier secret)
+// Authenticated routes: all others require Bearer token
+// Admin-only routes: invite-user, delete-user, register-va, generate-report, parse-content-plan
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
+
   const action = req.query.action
+
+  // Public / externally-authenticated routes
+  if (action === 'get-reviews') return handleGetReviews(req, res)
+  if (action === 'monthly-report') return handleMonthlyReport(req, res)
+  if (action === 'meta-ads') return handleMetaAds(req, res)
+
+  // All remaining routes require user authentication
+  const auth = await authenticateUser(req, res)
+  if (!auth) return // 401 already sent
+
+  // Admin-only routes
+  const adminOnly = ['invite-user', 'delete-user', 'register-va', 'generate-report', 'parse-content-plan']
+  if (adminOnly.includes(action)) {
+    if (!requireRole(res, auth.profile, 'admin')) return
+  }
+
   if (action === 'invite-user') return handleInviteUser(req, res)
   if (action === 'delete-user') return handleDeleteUser(req, res)
   if (action === 'register-va') return handleRegisterVA(req, res)
   if (action === 'generate-report') return handleGenerateReport(req, res)
   if (action === 'parse-content-plan') return handleParseContentPlan(req, res)
-  if (action === 'monthly-report') return handleMonthlyReport(req, res)
-  if (action === 'meta-ads') return handleMetaAds(req, res)
   if (action === 'help-chat') return handleHelpChat(req, res)
   if (action === 'weekly-pulse') return handleWeeklyPulse(req, res)
   if (action === 'save-nps') return handleSaveNPS(req, res)
   if (action === 'smart-notifications') return handleSmartNotifications(req, res)
-  if (action === 'get-reviews') return handleGetReviews(req, res)
   return res.status(404).json({ error: 'Unknown action' })
 }

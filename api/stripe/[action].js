@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { authenticateUser, requireRole, checkRateLimit } from '../_lib/auth.js'
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 function normalizeEmail(email) {
@@ -186,9 +187,20 @@ async function handleCreateCheckout(req, res) {
 
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
   const action = req.query.action
+
+  // client-connect already has its own Bearer token auth internally
   if (action === 'client-connect') return handleClientConnect(req, res)
-  if (action === 'connect') return handleConnect(req, res)
+
+  // connect and create-checkout require authentication
+  const auth = await authenticateUser(req, res)
+  if (!auth) return
+
+  if (action === 'connect') {
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleConnect(req, res)
+  }
   if (action === 'create-checkout') return handleCreateCheckout(req, res)
   res.status(404).json({ error: 'Unknown action' })
 }

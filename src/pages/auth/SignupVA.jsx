@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { apiFetch } from '../../lib/api'
 
 export default function SignupVA() {
   const [fullName, setFullName] = useState('')
@@ -38,9 +39,8 @@ export default function SignupVA() {
 
       const userId = data?.user?.id
       if (userId) {
-        await fetch('/api/admin/register-va', {
+        await apiFetch('/api/admin/register-va', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: userId, email, full_name: fullName }),
         })
       }

@@ -1,3 +1,5 @@
+import { apiFetch } from './api'
+
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 
 function urlBase64ToUint8Array(base64String) {
@@ -27,9 +29,8 @@ export async function subscribeToPush(userId) {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     })
 
-    await fetch('/api/push/subscribe', {
+    await apiFetch('/api/push/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, subscription: sub.toJSON() }),
     })
 
@@ -41,9 +42,8 @@ export async function subscribeToPush(userId) {
 
 export async function sendPushNotification(userId, { title, body, url }) {
   try {
-    await fetch('/api/push/notify', {
+    await apiFetch('/api/push/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, title, body, url }),
     })
   } catch {

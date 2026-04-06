@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { checkRateLimit } from '../_lib/auth.js'
 
 function normalizeEmail(email) {
   if (!email || typeof email !== 'string') return null
@@ -53,6 +54,7 @@ async function findClientForUser({ supabase, user, profile }) {
 }
 
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

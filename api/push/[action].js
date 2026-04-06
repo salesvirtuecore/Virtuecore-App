@@ -1,12 +1,5 @@
 import webpush from 'web-push'
-import { createClient } from '@supabase/supabase-js'
-
-function makeSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Server not configured')
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
-}
+import { makeSupabase, authenticateUser, checkRateLimit } from '../_lib/auth.js'
 
 // ── /api/push/notify (POST) ─────────────────────────────────────────────────
 async function handleNotify(req, res) {
@@ -62,6 +55,10 @@ async function handleSubscribe(req, res) {
 
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
+  const auth = await authenticateUser(req, res)
+  if (!auth) return
+
   const action = req.query.action
   if (action === 'notify') return handleNotify(req, res)
   if (action === 'subscribe') return handleSubscribe(req, res)

@@ -8,6 +8,7 @@ import FormField from '../../components/ui/FormField'
 import { supabase } from '../../lib/supabase'
 import { withPortalStatus } from '../../lib/clientUtils'
 import { useToast } from '../../context/ToastContext'
+import { apiFetch } from '../../lib/api'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
 const STATUS_BADGE = { active: 'green', onboarding: 'blue', churned: 'default' }
@@ -166,9 +167,8 @@ export default function Clients() {
   async function handleStripeConnect(client) {
     try {
       setSaving(true)
-      const response = await fetch('/api/stripe/connect', {
+      const response = await apiFetch('/api/stripe/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: client.id, contact_email: client.contact_email }),
       })
       const data = await response.json()

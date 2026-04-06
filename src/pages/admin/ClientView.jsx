@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
+import { apiFetch } from '../../lib/api'
 import { notifySlack } from '../../lib/slackNotify'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
@@ -199,9 +200,8 @@ export default function ClientView() {
   async function handleGenerateReport() {
     setReportLoading(true)
     try {
-      const res = await fetch('/api/admin/generate-report', {
+      const res = await apiFetch('/api/admin/generate-report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client_id: client.id,
           client_name: client.company_name,
@@ -298,9 +298,8 @@ export default function ClientView() {
 
         // Auto-import content calendar PDFs
         if (payload.type === 'content_calendar' && payload.file_url) {
-          fetch('/api/admin/parse-content-plan', {
+          apiFetch('/api/admin/parse-content-plan', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ client_id: id, file_url: payload.file_url, title: payload.title }),
           }).then(async (r) => {
             const result = await r.json()

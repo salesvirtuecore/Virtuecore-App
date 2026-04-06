@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal'
 import OnboardingChecklist from '../../components/ui/OnboardingChecklist'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { apiFetch } from '../../lib/api'
 
 // Placeholder chart data shown when real data is empty
 const PLACEHOLDER_TREND = [
@@ -217,7 +218,7 @@ export default function ClientDashboard() {
     setSyncing(true)
     setSyncMessage(null)
     try {
-      const res = await fetch('/api/meta/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId }) })
+      const res = await apiFetch('/api/meta/sync', { method: 'POST', body: JSON.stringify({ client_id: clientId }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setSyncMessage(`Synced ${data.rows_synced} entries`)

@@ -5,11 +5,12 @@
  * @param {'new_lead'|'task_updated'|'task_created'|'invoice_created'|'invoice_paid'|'deliverable_approved'|'deliverable_changes'|'client_created'} event
  * @param {object} data - Event-specific data
  */
+import { apiFetch } from './api'
+
 export async function notifySlack(event, data) {
   try {
-    await fetch('/api/slack/notify', {
+    await apiFetch('/api/slack/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event, data }),
     })
   } catch {

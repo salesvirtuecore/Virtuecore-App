@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 
 export default function MetaCallback() {
   const [searchParams] = useSearchParams()
@@ -25,9 +26,8 @@ export default function MetaCallback() {
 
     async function exchange() {
       try {
-        const res = await fetch('/api/meta/callback', {
+        const res = await apiFetch('/api/meta/callback', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, client_id: clientId }),
         })
         const data = await res.json()
@@ -56,9 +56,8 @@ export default function MetaCallback() {
   async function selectAccount(adAccountId) {
     setSaving(true)
     try {
-      const res = await fetch('/api/meta/select-account', {
+      const res = await apiFetch('/api/meta/select-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: clientId, ad_account_id: adAccountId }),
       })
       if (!res.ok) throw new Error('Failed to save account')

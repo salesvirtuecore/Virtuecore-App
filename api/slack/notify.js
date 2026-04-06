@@ -1,3 +1,5 @@
+import { authenticateUser, checkRateLimit } from '../_lib/auth.js'
+
 const EMOJI = {
   new_lead: '🎯',
   task_updated: '✅',
@@ -45,7 +47,10 @@ const MESSAGES = {
 }
 
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
   if (req.method !== 'POST') return res.status(405).end()
+  const auth = await authenticateUser(req, res)
+  if (!auth) return
 
   const token = process.env.SLACK_BOT_TOKEN
   const channel = process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25'

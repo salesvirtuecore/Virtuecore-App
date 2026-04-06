@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Bot, MessageCircle, Send, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useLocation } from 'react-router-dom'
+import { apiFetch } from '../../lib/api'
 
 function generateReply(input, role) {
   const text = input.toLowerCase()
@@ -68,9 +69,8 @@ export default function HelpChatWidget() {
     setSending(true)
 
     try {
-      const response = await fetch('/api/admin/help-chat', {
+      const response = await apiFetch('/api/admin/help-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: trimmed,
           messages: historySnapshot,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { RefreshCw, ExternalLink, CheckCircle, XCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { apiFetch } from '../../lib/api'
 
 export default function Integrations() {
   const { profile } = useAuth()
@@ -70,9 +71,8 @@ export default function Integrations() {
     setSyncing(true)
     setSyncMessage(null)
     try {
-      const res = await fetch('/api/meta/sync', {
+      const res = await apiFetch('/api/meta/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: clientId }),
       })
       const data = await res.json()

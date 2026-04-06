@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 
 function getMonthKey(userId) {
   const now = new Date()
@@ -47,9 +48,8 @@ export default function NPSWidget() {
     if (!score) return
     setSubmitting(true)
     try {
-      await fetch('/api/admin/save-nps', {
+      await apiFetch('/api/admin/save-nps', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: profile.id,
           client_id: profile.client_id ?? null,

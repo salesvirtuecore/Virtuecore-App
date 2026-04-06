@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { apiFetch } from '../../lib/api'
 
 
 const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
@@ -58,9 +59,8 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
         }),
       }
 
-      const res = await fetch('/api/admin/invite-user', {
+      const res = await apiFetch('/api/admin/invite-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 

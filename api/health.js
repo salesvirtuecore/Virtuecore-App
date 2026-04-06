@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { authenticateUser, requireRole, checkRateLimit } from './_lib/auth.js'
 
 export const config = { runtime: 'nodejs' }
 
@@ -10,7 +11,11 @@ function makeSupabase() {
 }
 
 export default async function handler(req, res) {
+  if (!checkRateLimit(req, res)) return
   if (req.method !== 'GET') return res.status(405).end()
+  const auth = await authenticateUser(req, res)
+  if (!auth) return
+  if (!requireRole(res, auth.profile, 'admin')) return
 
   const start = Date.now()
   const checks = {

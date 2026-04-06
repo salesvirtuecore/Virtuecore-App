@@ -3,6 +3,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 
 const STATUS_BADGE = { paid: 'green', sent: 'blue', overdue: 'red', draft: 'default' }
 
@@ -29,9 +30,8 @@ export default function Invoices() {
     setPayError('')
     setPaying(inv.id)
     try {
-      const res = await fetch('/api/stripe/create-checkout', {
+      const res = await apiFetch('/api/stripe/create-checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice_id: inv.id }),
       })
       const data = await res.json()
