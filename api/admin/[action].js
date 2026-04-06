@@ -516,19 +516,28 @@ export default async function handler(req, res) {
   if (action === 'monthly-report') return handleMonthlyReport(req, res)
   if (action === 'meta-ads') return handleMetaAds(req, res)
 
+  // register-va is called during signup before profile exists — verify Supabase token only
+  if (action === 'register-va') {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    if (!token) return res.status(401).json({ error: 'Authentication required' })
+    const supabase = makeSupabase()
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error || !user) return res.status(401).json({ error: 'Invalid token' })
+    return handleRegisterVA(req, res)
+  }
+
   // All remaining routes require user authentication
   const auth = await authenticateUser(req, res)
   if (!auth) return // 401 already sent
 
   // Admin-only routes
-  const adminOnly = ['invite-user', 'delete-user', 'register-va', 'generate-report', 'parse-content-plan']
+  const adminOnly = ['invite-user', 'delete-user', 'generate-report', 'parse-content-plan']
   if (adminOnly.includes(action)) {
     if (!requireRole(res, auth.profile, 'admin')) return
   }
 
   if (action === 'invite-user') return handleInviteUser(req, res)
   if (action === 'delete-user') return handleDeleteUser(req, res)
-  if (action === 'register-va') return handleRegisterVA(req, res)
   if (action === 'generate-report') return handleGenerateReport(req, res)
   if (action === 'parse-content-plan') return handleParseContentPlan(req, res)
   if (action === 'help-chat') return handleHelpChat(req, res)

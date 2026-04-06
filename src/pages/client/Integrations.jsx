@@ -37,7 +37,7 @@ export default function Integrations() {
     setConnecting(true)
     setConnectError(null)
     try {
-      const res = await fetch(`/api/meta/connect?client_id=${clientId}`)
+      const res = await apiFetch(`/api/meta/connect?client_id=${clientId}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to start Facebook connection')
       window.location.href = data.url

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 import { format, parseISO, isMonday } from 'date-fns'
 
 function WowBadge({ value, inverted = false }) {
@@ -124,7 +125,7 @@ export default function WeeklyPulse() {
   useEffect(() => {
     if (!supabase || !profile?.client_id) { setLoading(false); return }
     setLoading(true)
-    fetch(`/api/admin/weekly-pulse?client_id=${profile.client_id}`)
+    apiFetch(`/api/admin/weekly-pulse?client_id=${profile.client_id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.this_week) {
