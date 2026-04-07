@@ -4,7 +4,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/admin/monthly-report", "schedule": "0 9 1 * *" }
+    { "path": "/api/admin/monthly-report", "schedule": "0 9 1 * *" },
+    { "path": "/api/admin/run-billing-cycle", "schedule": "0 10 * * *" }
   ],
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

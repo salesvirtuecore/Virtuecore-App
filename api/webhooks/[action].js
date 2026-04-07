@@ -85,6 +85,35 @@ async function handleStripe(req, res, rawBody) {
         await supabase.from('invoices').update({ stripe_invoice_id: inv.id }).is('stripe_invoice_id', null).eq('status', 'draft').eq('amount', (inv.amount_due ?? 0) / 100)
         break
       }
+      case 'setup_intent.succeeded': {
+        const setup = event.data.object
+        const customerId = setup.customer
+        const paymentMethodId = setup.payment_method
+        if (customerId && paymentMethodId) {
+          // Set as default payment method on the Stripe customer
+          try {
+            await stripe.customers.update(customerId, {
+              invoice_settings: { default_payment_method: paymentMethodId },
+            })
+          } catch {
+            // Best effort
+          }
+          // Save in our DB
+          await supabase.from('clients').update({
+            default_payment_method_id: paymentMethodId,
+            payment_method_added_at: new Date().toISOString(),
+          }).eq('stripe_customer_id', customerId)
+        }
+        break
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object
+        const invoiceId = pi.metadata?.invoice_id
+        if (invoiceId) {
+          await supabase.from('invoices').update({ status: 'payment_failed' }).eq('id', invoiceId)
+        }
+        break
+      }
       default:
         console.log(`Unhandled Stripe event: ${event.type}`)
     }

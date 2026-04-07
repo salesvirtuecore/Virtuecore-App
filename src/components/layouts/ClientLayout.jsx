@@ -13,6 +13,7 @@ import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
 import NPSWidget from '../ui/NPSWidget'
 import InstallBanner from '../ui/InstallBanner'
+import OnboardingGate from '../OnboardingGate'
 
 const NAV = [
   { to: '/client',                label: 'Dashboard',       icon: LayoutDashboard, end: true },
@@ -170,7 +171,9 @@ export default function ClientLayout() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <Outlet />
+          <OnboardingGate>
+            <Outlet />
+          </OnboardingGate>
         </div>
       </main>
 

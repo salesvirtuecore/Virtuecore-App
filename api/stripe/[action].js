@@ -94,14 +94,28 @@ async function handleClientConnect(req, res) {
     const { client, error: clientError } = await resolveAuthenticatedClient({ supabase, user })
     if (clientError) return res.status(clientError.status).json({ error: clientError.message })
 
-    // Fetch revenue totals for this client
+    // Fetch revenue totals + payment method status for this client
     const { data: clientFull } = await supabase.from('clients')
-      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at')
+      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id')
       .eq('id', client.id).maybeSingle()
     const stripeAccountId = clientFull?.stripe_account_id || null
 
     if (req.method === 'GET') {
       const stripeStatus = await loadStripeAccountStatus({ stripe, stripeAccountId })
+
+      // Fetch saved card details for display (last4, brand)
+      let savedCard = null
+      if (clientFull?.stripe_customer_id && clientFull?.default_payment_method_id) {
+        try {
+          const pm = await stripe.paymentMethods.retrieve(clientFull.default_payment_method_id)
+          if (pm?.card) {
+            savedCard = { brand: pm.card.brand, last4: pm.card.last4, exp_month: pm.card.exp_month, exp_year: pm.card.exp_year }
+          }
+        } catch {
+          // Card might have been deleted in Stripe
+        }
+      }
+
       return res.status(200).json({
         clientId: clientFull.id,
         companyName: clientFull.company_name || null,
@@ -110,6 +124,11 @@ async function handleClientConnect(req, res) {
         connectedAt: clientFull.stripe_connected_at,
         totalRevenue: Number(clientFull.stripe_total_revenue || 0),
         revenueSyncedAt: clientFull.stripe_revenue_synced_at,
+        savedCard,
+        nextBillingDate: clientFull.next_billing_date,
+        monthlyRetainer: Number(clientFull.monthly_retainer || 0),
+        revenueSharePercentage: Number(clientFull.revenue_share_percentage || 0),
+        metaConnected: Boolean(clientFull.meta_ad_account_id),
         ...stripeStatus,
       })
     }
@@ -185,6 +204,55 @@ async function handleOAuthCallback(req, res) {
     res.end()
   } catch (err) {
     return redirectWithError(err?.message || 'Unexpected error')
+  }
+}
+
+// ── /api/stripe/setup-payment-method (POST) ─────────────────────────────────
+// Returns a Stripe Checkout Session in 'setup' mode so the client can save a card.
+async function handleSetupPaymentMethod(req, res, authProfile) {
+  if (req.method !== 'POST') return res.status(405).end()
+  if (!authProfile.client_id) return res.status(403).json({ error: 'No client linked to your account' })
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!stripeSecret) return res.status(500).json({ error: 'Stripe not configured' })
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+
+  try {
+    const { data: client } = await supabase.from('clients')
+      .select('id, company_name, contact_email, stripe_customer_id')
+      .eq('id', authProfile.client_id).single()
+    if (!client) return res.status(404).json({ error: 'Client not found' })
+
+    // Create or reuse Stripe Customer
+    let customerId = client.stripe_customer_id
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: client.contact_email,
+        name: client.company_name,
+        metadata: { client_id: client.id },
+      })
+      customerId = customer.id
+      await supabase.from('clients').update({ stripe_customer_id: customerId }).eq('id', client.id)
+    }
+
+    // Create a Checkout Session in setup mode
+    const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+    const session = await stripe.checkout.sessions.create({
+      mode: 'setup',
+      customer: customerId,
+      payment_method_types: ['card'],
+      success_url: `${appUrl}/client/billing?card_added=true`,
+      cancel_url: `${appUrl}/client/billing`,
+      metadata: { client_id: client.id },
+    })
+
+    return res.status(200).json({ url: session.url })
+  } catch (err) {
+    return res.status(500).json({ error: err?.message || 'Setup failed' })
   }
 }
 
@@ -345,6 +413,7 @@ export default async function handler(req, res) {
   if (!auth) return
 
   if (action === 'sync-revenue') return handleSyncRevenue(req, res, auth.profile)
+  if (action === 'setup-payment-method') return handleSetupPaymentMethod(req, res, auth.profile)
   if (action === 'connect') {
     if (!requireRole(res, auth.profile, 'admin')) return
     return handleConnect(req, res)

@@ -85,7 +85,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_total_revenue, stripe_revenue_synced_at').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -196,6 +196,50 @@ export default function ClientView() {
     leads: Number(row.leads || 0),
     cpl: Number(row.cpl || 0),
   })) : []
+
+  // ── Bill Now (manual trigger of billing cycle) ───────────────────────────────
+  const [billing, setBilling] = useState(false)
+  async function handleBillNow() {
+    if (!client?.stripe_account_id) {
+      showToast('Client has not connected their Stripe revenue account', 'error')
+      return
+    }
+    if (!client?.default_payment_method_id) {
+      showToast('Client has not saved a payment method', 'error')
+      return
+    }
+    if (!window.confirm(`Bill ${client.company_name} now? This will charge their saved card immediately based on the last 28 days of revenue.`)) return
+    setBilling(true)
+    try {
+      const res = await apiFetch('/api/admin/manual-bill-client', {
+        method: 'POST',
+        body: JSON.stringify({ client_id: client.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Billing failed')
+      if (data.ok) showToast(`Charged £${Number(data.amount).toLocaleString()}`)
+      else if (data.skipped) showToast(`Skipped: ${data.reason}`, 'warn')
+      else if (data.failed) showToast(`Charge failed: ${data.error}`, 'error')
+    } catch (err) {
+      showToast(err.message ?? 'Billing failed', 'error')
+    } finally {
+      setBilling(false)
+    }
+  }
+
+  async function handleToggleAutoCharge() {
+    const next = !client?.auto_charge_enabled
+    try {
+      const { error: updateError } = await supabase.from('clients')
+        .update({ auto_charge_enabled: next })
+        .eq('id', client.id)
+      if (updateError) throw updateError
+      setClient((prev) => ({ ...prev, auto_charge_enabled: next }))
+      showToast(`Auto-charge ${next ? 'enabled' : 'disabled'}`)
+    } catch (err) {
+      showToast(err.message ?? 'Update failed', 'error')
+    }
+  }
 
   // ── Sync Stripe Revenue ──────────────────────────────────────────────────────
   async function handleSyncRevenue() {
@@ -616,11 +660,11 @@ export default function ClientView() {
         <StatCard label="ROAS" value={`${metrics.roas}x`} />
       </div>
 
-      {/* Stripe Revenue (since joining VirtueCore) */}
+      {/* Stripe Revenue + Auto Billing */}
       <div className="vc-card">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining VirtueCore</h2>
+            <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining</h2>
             <p className="text-3xl font-semibold text-text-primary mt-1">
               £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
             </p>
@@ -644,11 +688,53 @@ export default function ClientView() {
             <button
               onClick={handleSyncRevenue}
               disabled={syncingRevenue}
-              className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
+              className="text-xs px-3 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors disabled:opacity-60 flex-shrink-0"
             >
               {syncingRevenue ? 'Syncing...' : 'Sync now'}
             </button>
           )}
+        </div>
+
+        {/* Billing controls */}
+        <div className="border-t border-white/[0.06] pt-4">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Automated billing</h3>
+          <div className="grid grid-cols-2 gap-3 text-xs mb-4">
+            <div>
+              <p className="text-text-tertiary">Card on file</p>
+              <p className="text-text-primary mt-0.5">{client?.default_payment_method_id ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <p className="text-text-tertiary">Next billing date</p>
+              <p className="text-text-primary mt-0.5">{client?.next_billing_date ? new Date(client.next_billing_date).toLocaleDateString('en-GB') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-text-tertiary">Monthly retainer</p>
+              <p className="text-text-primary mt-0.5">£{Number(client?.monthly_retainer || 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-text-tertiary">Revenue share</p>
+              <p className="text-text-primary mt-0.5">{client?.revenue_share_percentage || 0}%</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleToggleAutoCharge}
+              className={`text-xs px-3 py-2 rounded transition-colors ${
+                client?.auto_charge_enabled
+                  ? 'bg-status-success/10 text-status-success border border-status-success/20'
+                  : 'bg-bg-tertiary text-text-secondary border border-white/[0.06]'
+              }`}
+            >
+              Auto-charge: {client?.auto_charge_enabled ? 'ON' : 'OFF'}
+            </button>
+            <button
+              onClick={handleBillNow}
+              disabled={billing || !client?.stripe_account_id || !client?.default_payment_method_id}
+              className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
+            >
+              {billing ? 'Charging...' : 'Bill now'}
+            </button>
+          </div>
         </div>
       </div>
 

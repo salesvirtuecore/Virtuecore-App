@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
+import Stripe from 'stripe'
 import nodemailer from 'nodemailer'
 import { makeSupabase, authenticateUser, requireRole, checkRateLimit } from '../_lib/auth.js'
+import { runBillingCyclePass, processClientBillingCycle } from '../_lib/billing.js'
 
 // ── invite-user ──────────────────────────────────────────────────────────────
 function createMailTransport() {
@@ -20,11 +22,19 @@ async function handleInviteUser(req, res) {
   if (!email || !role) return res.status(400).json({ error: 'Email and role are required' })
   try {
     if (role === 'client') {
+      // Set billing cycle anchor 28 days from invite (gives them time to onboard)
+      const today = new Date()
+      const anchorDate = new Date(today)
+      anchorDate.setDate(anchorDate.getDate() + 28)
       const { error: clientError } = await supabase.from('clients').insert({
         company_name: company_name || full_name, contact_name: full_name, contact_email: email,
         package_tier: package_tier || 'Starter', monthly_retainer: monthly_retainer || 0,
         revenue_share_percentage: revenue_share_percentage || 0, status: 'onboarding',
-        onboarding_started_at: new Date().toISOString(),
+        onboarding_started_at: today.toISOString(),
+        billing_cycle_anchor_date: today.toISOString().split('T')[0],
+        next_billing_date: anchorDate.toISOString().split('T')[0],
+        auto_charge_enabled: true,
+        billing_model: 'revenue_share',
       })
       if (clientError) throw clientError
     }
@@ -502,10 +512,47 @@ async function handleSmartNotifications(req, res) {
   return res.status(200).json({ ok: true, alerts_created: alerts.length })
 }
 
+// ── run-billing-cycle (cron + admin manual) ──────────────────────────────────
+async function handleRunBillingCycle(req, res) {
+  const stripeSecret = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecret) return res.status(500).json({ error: 'Stripe not configured' })
+  const supabase = makeSupabase()
+  const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  try {
+    const results = await runBillingCyclePass(supabase, stripe)
+    return res.status(200).json({ ok: true, processed: results.length, results })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+// ── manual-bill-client (admin "Bill now" button) ─────────────────────────────
+async function handleManualBillClient(req, res) {
+  if (req.method !== 'POST') return res.status(405).end()
+  const { client_id } = req.body ?? {}
+  if (!client_id) return res.status(400).json({ error: 'client_id required' })
+  const stripeSecret = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecret) return res.status(500).json({ error: 'Stripe not configured' })
+  const supabase = makeSupabase()
+  const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  try {
+    const { data: client } = await supabase.from('clients')
+      .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_customer_id, default_payment_method_id, next_billing_date')
+      .eq('id', client_id).single()
+    if (!client) return res.status(404).json({ error: 'Client not found' })
+    if (!client.stripe_account_id) return res.status(400).json({ error: 'Client has not connected their Stripe revenue account' })
+    if (!client.default_payment_method_id) return res.status(400).json({ error: 'Client has not saved a payment method' })
+
+    // For manual billing, use today as the next_billing_date so the period is the last 28 days
+    const billClient = { ...client, next_billing_date: client.next_billing_date || new Date().toISOString().split('T')[0] }
+    const result = await processClientBillingCycle(supabase, stripe, billClient)
+    return res.status(200).json({ ok: true, ...result })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
-// Public routes (no auth): get-reviews (website embed), monthly-report (cron), meta-ads (Zapier secret)
-// Authenticated routes: all others require Bearer token
-// Admin-only routes: invite-user, delete-user, register-va, generate-report, parse-content-plan
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
 
@@ -515,6 +562,19 @@ export default async function handler(req, res) {
   if (action === 'get-reviews') return handleGetReviews(req, res)
   if (action === 'monthly-report') return handleMonthlyReport(req, res)
   if (action === 'meta-ads') return handleMetaAds(req, res)
+
+  // run-billing-cycle: cron (CRON_SECRET in Authorization: Bearer or x-cron-secret header) OR admin via Bearer token
+  if (action === 'run-billing-cycle') {
+    const authHeader = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    const cronSecret = req.headers['x-cron-secret'] || req.body?.secret || authHeader
+    if (cronSecret && cronSecret === process.env.CRON_SECRET) {
+      return handleRunBillingCycle(req, res)
+    }
+    const auth = await authenticateUser(req, res)
+    if (!auth) return
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleRunBillingCycle(req, res)
+  }
 
   // register-va is called during signup before profile exists — verify Supabase token only
   if (action === 'register-va') {
@@ -528,10 +588,10 @@ export default async function handler(req, res) {
 
   // All remaining routes require user authentication
   const auth = await authenticateUser(req, res)
-  if (!auth) return // 401 already sent
+  if (!auth) return
 
   // Admin-only routes
-  const adminOnly = ['invite-user', 'delete-user', 'generate-report', 'parse-content-plan']
+  const adminOnly = ['invite-user', 'delete-user', 'generate-report', 'parse-content-plan', 'manual-bill-client']
   if (adminOnly.includes(action)) {
     if (!requireRole(res, auth.profile, 'admin')) return
   }
@@ -540,6 +600,7 @@ export default async function handler(req, res) {
   if (action === 'delete-user') return handleDeleteUser(req, res)
   if (action === 'generate-report') return handleGenerateReport(req, res)
   if (action === 'parse-content-plan') return handleParseContentPlan(req, res)
+  if (action === 'manual-bill-client') return handleManualBillClient(req, res)
   if (action === 'help-chat') return handleHelpChat(req, res)
   if (action === 'weekly-pulse') return handleWeeklyPulse(req, res)
   if (action === 'save-nps') return handleSaveNPS(req, res)
