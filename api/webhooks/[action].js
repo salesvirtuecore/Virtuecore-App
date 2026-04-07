@@ -29,6 +29,31 @@ async function handleStripe(req, res, rawBody) {
   const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   try {
     switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object
+        const ourInvoiceId = session.metadata?.invoice_id
+        if (ourInvoiceId && session.payment_status === 'paid') {
+          const today = new Date().toISOString().split('T')[0]
+          await supabase.from('invoices').update({ status: 'paid', paid_date: today }).eq('id', ourInvoiceId)
+          const slackToken = process.env.SLACK_BOT_TOKEN
+          if (slackToken) {
+            const amount = (session.amount_total ?? 0) / 100
+            fetch('https://slack.com/api/chat.postMessage', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+              body: JSON.stringify({
+                channel: process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25',
+                text: `Invoice Paid`,
+                blocks: [
+                  { type: 'section', text: { type: 'mrkdwn', text: `*Invoice Paid*\n*£${amount.toLocaleString()}* received via card payment` } },
+                  { type: 'context', elements: [{ type: 'mrkdwn', text: new Date().toUTCString() }] },
+                ],
+              }),
+            }).catch(() => {})
+          }
+        }
+        break
+      }
       case 'invoice.paid': {
         const inv = event.data.object
         await supabase.from('invoices').update({ status: 'paid', paid_date: new Date(inv.status_transitions?.paid_at * 1000).toISOString().split('T')[0] }).eq('stripe_invoice_id', inv.id)

@@ -154,7 +154,7 @@ async function handleConnect(req, res) {
 }
 
 // ── /api/stripe/create-checkout (POST) ─────────────────────────────────────
-async function handleCreateCheckout(req, res) {
+async function handleCreateCheckout(req, res, authProfile) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { invoice_id } = req.body ?? {}
   if (!invoice_id) return res.status(400).json({ error: 'invoice_id is required' })
@@ -170,6 +170,11 @@ async function handleCreateCheckout(req, res) {
       .select('*, clients(contact_email, company_name)').eq('id', invoice_id).single()
     if (error || !invoice) return res.status(404).json({ error: 'Invoice not found' })
     if (invoice.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' })
+
+    // Ownership check: clients can only pay their own invoices, admins can pay any
+    if (authProfile.role !== 'admin' && authProfile.client_id !== invoice.client_id) {
+      return res.status(403).json({ error: 'You do not have permission to pay this invoice' })
+    }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       customer_email: invoice.clients?.contact_email ?? undefined,
@@ -201,6 +206,6 @@ export default async function handler(req, res) {
     if (!requireRole(res, auth.profile, 'admin')) return
     return handleConnect(req, res)
   }
-  if (action === 'create-checkout') return handleCreateCheckout(req, res)
+  if (action === 'create-checkout') return handleCreateCheckout(req, res, auth.profile)
   res.status(404).json({ error: 'Unknown action' })
 }
