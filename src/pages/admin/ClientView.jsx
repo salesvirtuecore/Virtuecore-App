@@ -41,6 +41,7 @@ export default function ClientView() {
 
   const [client, setClient] = useState(null)
   const [loadingClient, setLoadingClient] = useState(true)
+  const [syncingRevenue, setSyncingRevenue] = useState(false)
 
   // Local data state
   const [deliverables, setDeliverables] = useState([])
@@ -84,7 +85,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_total_revenue, stripe_revenue_synced_at').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -195,6 +196,33 @@ export default function ClientView() {
     leads: Number(row.leads || 0),
     cpl: Number(row.cpl || 0),
   })) : []
+
+  // ── Sync Stripe Revenue ──────────────────────────────────────────────────────
+  async function handleSyncRevenue() {
+    if (!client?.stripe_account_id) {
+      showToast('Client has not connected their Stripe account yet', 'error')
+      return
+    }
+    setSyncingRevenue(true)
+    try {
+      const res = await apiFetch('/api/stripe/sync-revenue', {
+        method: 'POST',
+        body: JSON.stringify({ client_id: client.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Sync failed')
+      setClient((prev) => ({
+        ...prev,
+        stripe_total_revenue: data.total_revenue,
+        stripe_revenue_synced_at: new Date().toISOString(),
+      }))
+      showToast(`Synced ${data.charge_count} charges — total £${Number(data.total_revenue).toLocaleString()}`)
+    } catch (err) {
+      showToast(err.message ?? 'Sync failed', 'error')
+    } finally {
+      setSyncingRevenue(false)
+    }
+  }
 
   // ── Generate Report ──────────────────────────────────────────────────────────
   async function handleGenerateReport() {
@@ -586,6 +614,42 @@ export default function ClientView() {
         <StatCard label="Leads (Mar)" value={metrics.leads} />
         <StatCard label="CPL" value={`£${metrics.cpl}`} />
         <StatCard label="ROAS" value={`${metrics.roas}x`} />
+      </div>
+
+      {/* Stripe Revenue (since joining VirtueCore) */}
+      <div className="vc-card">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining VirtueCore</h2>
+            <p className="text-3xl font-semibold text-text-primary mt-1">
+              £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-text-secondary mt-1">
+              {client?.stripe_account_id
+                ? client?.stripe_revenue_synced_at
+                  ? `Last synced ${new Date(client.stripe_revenue_synced_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                  : 'Not yet synced'
+                : 'Client has not connected their Stripe account yet'}
+            </p>
+            {client?.stripe_account_id && Number(client?.revenue_share_percentage || 0) > 0 && (
+              <p className="text-xs text-text-primary mt-2">
+                Estimated commission ({client.revenue_share_percentage}%):{' '}
+                <span className="font-semibold">
+                  £{Math.round(Number(client?.stripe_total_revenue || 0) * Number(client.revenue_share_percentage) / 100).toLocaleString()}
+                </span>
+              </p>
+            )}
+          </div>
+          {client?.stripe_account_id && (
+            <button
+              onClick={handleSyncRevenue}
+              disabled={syncingRevenue}
+              className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
+            >
+              {syncingRevenue ? 'Syncing...' : 'Sync now'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Performance chart */}
