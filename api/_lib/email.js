@@ -71,6 +71,51 @@ export async function sendWelcomeOnboardingEmail({ email, fullName }) {
   return send({ to: email, subject: `Welcome to VirtueCore, ${fullName || ''}`.trim(), html: wrapEmailHtml('Welcome to VirtueCore', body) })
 }
 
+// Daily nudge sent to a client who hasn't finished the onboarding checklist
+// yet — fired by the onboarding reminder cron, once per calendar day, until
+// they either finish (see sendOnboardingCompleteEmail) or churn.
+export async function sendOnboardingReminderEmail({ email, fullName, companyName, completedCount, totalSteps }) {
+  const appUrl = getAppUrl()
+  const onboardingUrl = `${appUrl}/client/onboarding`
+  const remaining = Math.max(0, totalSteps - completedCount)
+  const stepWord = remaining === 1 ? 'step' : 'steps'
+  const body = `
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+      You're <strong>${completedCount}/${totalSteps}</strong> through your VirtueCore onboarding — just ${remaining} ${stepWord} left before we can get started on ${companyName || 'your account'}.
+    </p>
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">Pick up right where you left off:</p>
+    ${ctaButton(onboardingUrl, 'Continue Onboarding')}
+    <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin: 24px 0 0;">Already finished? Give it a few minutes and this reminder will stop on its own.</p>`
+  return send({
+    to: email,
+    subject: `${remaining} ${stepWord} left to finish your VirtueCore onboarding`,
+    html: wrapEmailHtml('Finish Setting Up', body),
+  })
+}
+
+// Fired exactly once, the moment a client completes every onboarding step —
+// either eagerly (right after their last step) or as a safety-net catch on
+// the next cron pass. Links out to the marketing-site walkthrough page
+// (PLATFORM_GUIDE_URL) rather than anything inside the app itself.
+export async function sendOnboardingCompleteEmail({ email, fullName, companyName }) {
+  const guideUrl = process.env.PLATFORM_GUIDE_URL || 'https://virtuecore.co.uk'
+  const body = `
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+      You're all set! Onboarding is complete${companyName ? ` for ${companyName}` : ''}, and your VirtueCore portal is fully up and running.
+    </p>
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
+      We've put together a short walkthrough of exactly how the platform works — your dashboard, billing, messaging, and everything in between.
+    </p>
+    ${ctaButton(guideUrl, 'Watch How VirtueCore Works')}`
+  return send({
+    to: email,
+    subject: `Welcome aboard — here's how VirtueCore works`,
+    html: wrapEmailHtml('You’re All Set', body),
+  })
+}
+
 export async function sendPaymentReminderEmail({ email, fullName, amount, dueDate }) {
   const appUrl = getAppUrl()
   const body = `

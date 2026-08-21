@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import Stripe from 'stripe'
 import { makeSupabase, authenticateUser, requireRole, checkRateLimit, getAppUrl } from '../_lib/auth.js'
 import { runBillingCyclePass, processClientBillingCycle, runBillingReminderPass } from '../_lib/billing.js'
+import { runOnboardingReminderPass } from '../_lib/onboarding.js'
 import { ACADEMY_MODULES } from '../../src/data/academyModules.js'
 import { sendInviteEmail } from '../_lib/email.js'
 
@@ -543,6 +544,22 @@ async function handleSendBillingReminders(req, res) {
   }
 }
 
+// ── send-onboarding-reminders (cron only) ────────────────────────────────────
+async function handleSendOnboardingReminders(req, res) {
+  const supabase = makeSupabase()
+  try {
+    const results = await runOnboardingReminderPass(supabase)
+    return res.status(200).json({
+      ok: true,
+      reminders_sent: results.filter((r) => r.action === 'reminder_sent').length,
+      welcomes_sent: results.filter((r) => r.action === 'welcome_sent').length,
+      results,
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 // ── manual-bill-client (admin "Bill now" button) ─────────────────────────────
 async function handleManualBillClient(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -604,6 +621,19 @@ export default async function handler(req, res) {
     if (!auth) return
     if (!requireRole(res, auth.profile, 'admin')) return
     return handleSendBillingReminders(req, res)
+  }
+
+  // send-onboarding-reminders: cron only (same CRON_SECRET pattern)
+  if (action === 'send-onboarding-reminders') {
+    const authHeader = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    const cronSecret = req.headers['x-cron-secret'] || req.body?.secret || authHeader
+    if (cronSecret && cronSecret === process.env.CRON_SECRET) {
+      return handleSendOnboardingReminders(req, res)
+    }
+    const auth = await authenticateUser(req, res)
+    if (!auth) return
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleSendOnboardingReminders(req, res)
   }
 
   // register-va is called during signup before profile exists — verify Supabase token only

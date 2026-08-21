@@ -1,6 +1,7 @@
 import { authenticateUser, requireRole, requireClientOwnership, checkRateLimit } from '../_lib/auth.js'
 import { ONBOARDING_STEPS } from '../../src/data/onboardingSteps.js'
 import { sendWelcomeOnboardingEmail } from '../_lib/email.js'
+import { checkAndSendOnboardingComplete } from '../_lib/onboarding.js'
 
 const STEP_IDS = new Set(ONBOARDING_STEPS.map((s) => s.id))
 
@@ -46,6 +47,15 @@ async function handleMarkStep(req, res, profile, supabase) {
     completed_at: completed ? new Date().toISOString() : null,
   }, { onConflict: 'client_id,step_id' })
   if (error) return res.status(500).json({ error: error.message })
+
+  if (completed) {
+    try {
+      await checkAndSendOnboardingComplete(supabase, profile.client_id)
+    } catch {
+      // Non-critical — don't fail the step update over an email hiccup.
+    }
+  }
+
   res.status(200).json({ ok: true })
 }
 
@@ -76,6 +86,12 @@ async function handleSubmitCredentials(req, res, profile, supabase) {
     completed: true,
     completed_at: new Date().toISOString(),
   }, { onConflict: 'client_id,step_id' })
+
+  try {
+    await checkAndSendOnboardingComplete(supabase, profile.client_id)
+  } catch {
+    // Non-critical — don't fail credential submission over an email hiccup.
+  }
 
   res.status(200).json({ ok: true })
 }
