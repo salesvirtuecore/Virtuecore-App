@@ -60,6 +60,7 @@ export default function AdminDashboard() {
   }, [])
 
   const [totalAdSpendManaged, setTotalAdSpendManaged] = useState(0)
+  const [adSpendByClient, setAdSpendByClient] = useState({})
 
   const loadClients = useCallback(async () => {
     if (!supabase) return
@@ -74,11 +75,18 @@ export default function AdminDashboard() {
     if (leads) setPipelineLeads(leads)
   }, [])
 
-  // Total ad spend the agency manages across every client's campaigns.
+  // Ad spend the agency manages across every client's campaigns — both the
+  // agency-wide total and a per-client breakdown for the Client Health table.
   useEffect(() => {
     if (!supabase) return
-    supabase.from('ad_performance').select('spend').then(({ data }) => {
-      setTotalAdSpendManaged((data || []).reduce((sum, row) => sum + Number(row.spend || 0), 0))
+    supabase.from('ad_performance').select('client_id, spend').then(({ data }) => {
+      const rows = data || []
+      setTotalAdSpendManaged(rows.reduce((sum, row) => sum + Number(row.spend || 0), 0))
+      const byClient = {}
+      for (const row of rows) {
+        byClient[row.client_id] = (byClient[row.client_id] || 0) + Number(row.spend || 0)
+      }
+      setAdSpendByClient(byClient)
     })
   }, [])
 
@@ -257,12 +265,14 @@ export default function AdminDashboard() {
           <span className="text-xs text-text-tertiary">{activeClients.length} active</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="vc-table min-w-[800px]">
+          <table className="vc-table min-w-[960px]">
             <thead>
               <tr>
                 <th>Client</th>
                 <th>Package</th>
                 <th>Retainer</th>
+                <th>Revenue</th>
+                <th>Ad Spend</th>
                 <th>Portal</th>
                 <th>Health</th>
               </tr>
@@ -276,6 +286,13 @@ export default function AdminDashboard() {
                   </td>
                   <td className="text-text-secondary">{c.package_tier}</td>
                   <td className="mono">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
+                  <td className="mono">
+                    <p>£{Number(c.stripe_total_revenue || 0).toLocaleString()}</p>
+                    {Number(c.stripe_revenue_last_90d || 0) > 0 && (
+                      <p className="text-xs text-text-tertiary">£{Number(c.stripe_revenue_last_90d).toLocaleString()} last 90d</p>
+                    )}
+                  </td>
+                  <td className="mono">£{Number(adSpendByClient[c.id] || 0).toLocaleString()}</td>
                   <td>
                     <Badge variant={c.portal_joined ? 'green' : 'blue'} dot>
                       {c.portal_joined ? 'Joined' : 'Invited'}
