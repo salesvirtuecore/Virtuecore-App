@@ -118,7 +118,11 @@ async function handleListQueue(req, res, supabase) {
 async function syncInsightsForClient(supabase, token, client) {
   const today = new Date()
   const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400 * 1000)
-  const url = new URL(`https://graph.facebook.com/v21.0/${client.meta_ad_account_id}/insights`)
+  // Meta's ad-account-scoped edges (like /insights) require the "act_"
+  // prefix — me/adaccounts returns the bare numeric account_id, which we
+  // store as-is on the client row, so it has to be added back here.
+  const accountId = client.meta_ad_account_id.startsWith('act_') ? client.meta_ad_account_id : `act_${client.meta_ad_account_id}`
+  const url = new URL(`https://graph.facebook.com/v21.0/${accountId}/insights`)
   url.searchParams.set('fields', INSIGHT_FIELDS)
   url.searchParams.set('level', 'account')
   url.searchParams.set('time_range', JSON.stringify({ since: ninetyDaysAgo.toISOString().split('T')[0], until: today.toISOString().split('T')[0] }))
