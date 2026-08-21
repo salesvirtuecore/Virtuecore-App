@@ -95,7 +95,7 @@ async function handleClientConnect(req, res) {
 
     // Fetch revenue totals + payment method status for this client
     const { data: clientFull, error: clientFullError } = await supabase.from('clients')
-      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
+      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
       .eq('id', client.id).maybeSingle()
     if (clientFullError) return res.status(500).json({ error: `Failed to load client record: ${clientFullError.message}` })
     if (!clientFull) return res.status(404).json({ error: 'Client record not found' })
@@ -140,6 +140,7 @@ async function handleClientConnect(req, res) {
       stripeKeyMasked: clientFull.stripe_secret_key_masked || null,
       stripeKeyAddedAt: clientFull.stripe_key_added_at || null,
       totalRevenue: Number(clientFull.stripe_total_revenue || 0),
+      revenueLast90Days: Number(clientFull.stripe_revenue_last_90d || 0),
       revenueSyncedAt: clientFull.stripe_revenue_synced_at,
       savedCard,
       nextBillingDate: clientFull.next_billing_date,
@@ -292,9 +293,13 @@ async function handleSyncRevenue(req, res, authProfile) {
   // "Since joining VirtueCore"
   const joinDate = client.onboarding_started_at || client.created_at
   const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
+  const ninetyDaysAgoUnix = Math.floor(Date.now() / 1000) - 90 * 86400
+  // Never look further back than "since joining" for the 90-day figure either
+  const last90StartUnix = Math.max(joinUnix, ninetyDaysAgoUnix)
 
   try {
     let totalRevenue = 0
+    let revenueLast90Days = 0
     let chargeCount = 0
     let hasMore = true
     let startingAfter
@@ -309,6 +314,7 @@ async function handleSyncRevenue(req, res, authProfile) {
           const net = (charge.amount - (charge.amount_refunded || 0)) / 100
           totalRevenue += net
           chargeCount++
+          if (charge.created >= last90StartUnix) revenueLast90Days += net
         }
       }
 
@@ -318,12 +324,14 @@ async function handleSyncRevenue(req, res, authProfile) {
 
     await supabase.from('clients').update({
       stripe_total_revenue: totalRevenue,
+      stripe_revenue_last_90d: revenueLast90Days,
       stripe_revenue_synced_at: new Date().toISOString(),
     }).eq('id', clientId)
 
     return res.status(200).json({
       ok: true,
       total_revenue: totalRevenue,
+      revenue_last_90_days: revenueLast90Days,
       charge_count: chargeCount,
       since: joinDate,
     })

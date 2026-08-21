@@ -85,7 +85,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -277,6 +277,7 @@ export default function ClientView() {
       setClient((prev) => ({
         ...prev,
         stripe_total_revenue: data.total_revenue,
+        stripe_revenue_last_90d: data.revenue_last_90_days,
         stripe_revenue_synced_at: new Date().toISOString(),
       }))
       showToast(`Synced ${data.charge_count} charges — total £${Number(data.total_revenue).toLocaleString()}`)
@@ -688,9 +689,14 @@ export default function ClientView() {
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining</h2>
-            <p className="text-3xl font-semibold text-text-primary mt-1">
-              £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
-            </p>
+            <div className="flex items-baseline gap-4 mt-1">
+              <p className="text-3xl font-semibold text-text-primary">
+                £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
+              </p>
+              <p className="text-sm text-text-secondary">
+                £{Number(client?.stripe_revenue_last_90d || 0).toLocaleString()} <span className="text-text-tertiary">last 90 days</span>
+              </p>
+            </div>
             <p className="text-xs text-text-secondary mt-1">
               {(client?.stripe_account_id || client?.stripe_secret_key_valid)
                 ? client?.stripe_revenue_synced_at

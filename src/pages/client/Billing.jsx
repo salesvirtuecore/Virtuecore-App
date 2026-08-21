@@ -39,6 +39,7 @@ export default function Billing() {
     companyName: null,
     connectedAt: null,
     totalRevenue: 0,
+    revenueLast90Days: 0,
     revenueSyncedAt: null,
     savedCard: null,
     nextBillingDate: null,
@@ -96,6 +97,7 @@ export default function Billing() {
         companyName: data?.companyName || null,
         connectedAt: data?.connectedAt || null,
         totalRevenue: Number(data?.totalRevenue || 0),
+        revenueLast90Days: Number(data?.revenueLast90Days || 0),
         revenueSyncedAt: data?.revenueSyncedAt || null,
         savedCard: data?.savedCard || null,
         nextBillingDate: data?.nextBillingDate || null,
@@ -293,6 +295,19 @@ export default function Billing() {
                   Cancel
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {status.connected && (
+          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/[0.06]">
+            <div>
+              <p className="text-xs text-text-secondary">Revenue — last 90 days</p>
+              <p className="text-xl font-semibold text-text-primary mt-0.5">{formatCurrency(status.revenueLast90Days)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-secondary">Revenue — all time</p>
+              <p className="text-xl font-semibold text-text-primary mt-0.5">{formatCurrency(status.totalRevenue)}</p>
             </div>
           </div>
         )}
