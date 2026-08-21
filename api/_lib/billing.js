@@ -2,17 +2,12 @@
 // Automated billing cycle logic
 // Processes due clients, charges saved cards, handles retries
 // ─────────────────────────────────────────────────────────────────────────────
-import nodemailer from 'nodemailer'
+import Stripe from 'stripe'
+import { sendBillingReceiptEmail, sendPaymentReminderEmail, sendPaymentFailedEmail } from './email.js'
+import { decryptSecret } from './crypto.js'
 
 const RETRY_SCHEDULE_DAYS = [3, 4, 7] // attempt 1 fails → +3 days → +4 days → +7 days = day 0, 3, 7, 14
 const MAX_ATTEMPTS = 4
-
-function createMailTransport() {
-  const user = process.env.EMAIL_USER
-  const pass = process.env.EMAIL_PASS
-  if (!user || !pass) return null
-  return nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
-}
 
 function addDays(date, days) {
   const next = new Date(date)
@@ -24,8 +19,23 @@ function toDateString(date) {
   return new Date(date).toISOString().split('T')[0]
 }
 
-// Fetch successful charges from a connected Stripe account, net of refunds
-async function fetchRevenueForPeriod(stripe, stripeAccountId, periodStartUnix, periodEndUnix) {
+// Resolves which Stripe client/options to use to read a client's revenue —
+// legacy Connect accounts go through the platform Stripe object with a
+// stripeAccount header; everyone else (pasted secret key) gets their own
+// Stripe instance built from their decrypted key.
+function resolveClientChargesReader(platformStripe, client) {
+  if (client.stripe_account_id) {
+    return { chargesClient: platformStripe, chargesOptions: { stripeAccount: client.stripe_account_id } }
+  }
+  if (client.stripe_secret_key_encrypted) {
+    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
+    return { chargesClient: new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() }), chargesOptions: {} }
+  }
+  throw new Error('Client has no Stripe connection (neither Connect account nor secret key)')
+}
+
+// Fetch successful charges from a client's Stripe, net of refunds
+async function fetchRevenueForPeriod(chargesClient, chargesOptions, periodStartUnix, periodEndUnix) {
   let revenue = 0
   let chargeSnapshot = []
   let hasMore = true
@@ -34,7 +44,7 @@ async function fetchRevenueForPeriod(stripe, stripeAccountId, periodStartUnix, p
   while (hasMore) {
     const params = { created: { gte: periodStartUnix, lte: periodEndUnix }, limit: 100 }
     if (startingAfter) params.starting_after = startingAfter
-    const charges = await stripe.charges.list(params, { stripeAccount: stripeAccountId })
+    const charges = await chargesClient.charges.list(params, chargesOptions)
 
     for (const charge of charges.data) {
       if (charge.status === 'succeeded') {
@@ -62,62 +72,34 @@ async function fetchRevenueForPeriod(stripe, stripeAccountId, periodStartUnix, p
 }
 
 async function sendBillingReceipt(client, invoice) {
-  const transport = createMailTransport()
-  if (!transport || !client.contact_email) return
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 0;">
-      <div style="background: #7C3AED; padding: 24px 32px; border-radius: 8px 8px 0 0;">
-        <h1 style="color: #fff; font-size: 20px; margin: 0;">VirtueCore — Payment Received</h1>
-      </div>
-      <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-        <p style="font-size: 15px; color: #111827; margin: 0 0 16px;">Hi ${client.contact_name || 'there'},</p>
-        <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
-          We've successfully charged your card on file for your VirtueCore monthly cycle. Here's the breakdown:
-        </p>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Period</td><td style="padding: 8px 0; text-align: right; color: #111827; font-size: 14px;">${invoice.period_start} to ${invoice.period_end}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Revenue tracked from Stripe</td><td style="padding: 8px 0; text-align: right; color: #111827; font-size: 14px;">£${Number(invoice.revenue_amount || 0).toLocaleString()}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Commission</td><td style="padding: 8px 0; text-align: right; color: #111827; font-size: 14px;">£${Number(invoice.commission_amount || 0).toLocaleString()}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Monthly retainer</td><td style="padding: 8px 0; text-align: right; color: #111827; font-size: 14px;">£${Number(invoice.retainer_amount || 0).toLocaleString()}</td></tr>
-          <tr style="border-top: 1px solid #e5e7eb;"><td style="padding: 12px 0 0; color: #111827; font-size: 16px; font-weight: 600;">Total charged</td><td style="padding: 12px 0 0; text-align: right; color: #111827; font-size: 16px; font-weight: 600;">£${Number(invoice.amount).toLocaleString()}</td></tr>
-        </table>
-        <a href="${appUrl}/client/invoices" style="display: inline-block; background: #7C3AED; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View invoice details</a>
-        <p style="font-size: 13px; color: #6b7280; margin-top: 24px;">Stripe will also send you an official receipt separately.</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 13px; color: #9ca3af; margin: 0;">VirtueCore — sales@virtuecore.co.uk</p>
-      </div>
-    </div>`
-  try {
-    await transport.sendMail({
-      from: process.env.EMAIL_FROM || `VirtueCore <${process.env.EMAIL_USER}>`,
-      to: client.contact_email,
-      subject: `Payment received — £${Number(invoice.amount).toLocaleString()}`,
-      html,
-    })
-  } catch {
-    // Don't fail the whole billing run if email fails
-  }
+  await sendBillingReceiptEmail(client, invoice)
 }
 
 async function notifyAdminFailure(client, invoice, errorMessage, attemptNumber) {
   const slackToken = process.env.SLACK_BOT_TOKEN
-  if (!slackToken) return
-  const channel = process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25'
+  if (slackToken) {
+    const channel = process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25'
+    try {
+      await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({
+          channel,
+          text: `Billing charge failed`,
+          blocks: [
+            { type: 'section', text: { type: 'mrkdwn', text: `*Billing charge failed* (attempt ${attemptNumber}/4)\n*${client.company_name}*\nAmount: £${Number(invoice.amount).toLocaleString()}\nReason: ${errorMessage}` } },
+          ],
+        }),
+      })
+    } catch {
+      // Best effort
+    }
+  }
+
   try {
-    await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({
-        channel,
-        text: `Billing charge failed`,
-        blocks: [
-          { type: 'section', text: { type: 'mrkdwn', text: `*Billing charge failed* (attempt ${attemptNumber}/4)\n*${client.company_name}*\nAmount: £${Number(invoice.amount).toLocaleString()}\nReason: ${errorMessage}` } },
-        ],
-      }),
-    })
+    await sendPaymentFailedEmail({ email: client.contact_email, fullName: client.contact_name, amount: invoice.amount })
   } catch {
-    // Best effort
+    // Best effort — don't fail the billing run over an email
   }
 }
 
@@ -129,11 +111,12 @@ export async function processClientBillingCycle(supabase, stripe, client) {
   const periodStartUnix = Math.floor(periodStart.getTime() / 1000)
   const periodEndUnix = Math.floor(periodEnd.getTime() / 1000)
 
-  // 1. Fetch revenue from connected Stripe
+  // 1. Fetch revenue from the client's Stripe (Connect account or their own pasted key)
   let revenue = 0
   let chargeSnapshot = []
   try {
-    const result = await fetchRevenueForPeriod(stripe, client.stripe_account_id, periodStartUnix, periodEndUnix)
+    const { chargesClient, chargesOptions } = resolveClientChargesReader(stripe, client)
+    const result = await fetchRevenueForPeriod(chargesClient, chargesOptions, periodStartUnix, periodEndUnix)
     revenue = result.revenue
     chargeSnapshot = result.chargeSnapshot
   } catch (err) {
@@ -305,17 +288,19 @@ export async function runBillingCyclePass(supabase, stripe) {
   const today = toDateString(new Date())
   const results = []
 
-  // 1. Process clients due for billing
-  const { data: dueClients } = await supabase.from('clients')
-    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_customer_id, default_payment_method_id, next_billing_date')
+  // 1. Process clients due for billing — either a legacy Connect account or a
+  // pasted secret key counts as "has a Stripe revenue connection".
+  const { data: candidateClients } = await supabase.from('clients')
+    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
     .eq('status', 'active')
     .eq('auto_charge_enabled', true)
-    .not('stripe_account_id', 'is', null)
     .not('stripe_customer_id', 'is', null)
     .not('default_payment_method_id', 'is', null)
     .lte('next_billing_date', today)
 
-  for (const client of dueClients || []) {
+  const dueClients = (candidateClients || []).filter((c) => c.stripe_account_id || c.stripe_secret_key_encrypted)
+
+  for (const client of dueClients) {
     try {
       const result = await processClientBillingCycle(supabase, stripe, client)
       results.push({ client_id: client.id, company_name: client.company_name, ...result })
@@ -340,5 +325,35 @@ export async function runBillingCyclePass(supabase, stripe) {
     }
   }
 
+  return results
+}
+
+// ── Payment reminder scan — clients billing in exactly 3 days ───────────────
+// Uses the last-synced revenue total (not a fresh Stripe call) for a rough
+// estimate — good enough for a heads-up email, not used for the actual charge.
+export async function runBillingReminderPass(supabase) {
+  const reminderDate = toDateString(addDays(new Date(), 3))
+  const { data: clients } = await supabase.from('clients')
+    .select('id, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_total_revenue, next_billing_date')
+    .eq('status', 'active')
+    .eq('auto_charge_enabled', true)
+    .eq('next_billing_date', reminderDate)
+
+  const results = []
+  for (const client of clients || []) {
+    const estimatedCommission = Math.round(Number(client.stripe_total_revenue || 0) * Number(client.revenue_share_percentage || 0)) / 100
+    const estimatedTotal = estimatedCommission + Number(client.monthly_retainer || 0)
+    try {
+      await sendPaymentReminderEmail({
+        email: client.contact_email,
+        fullName: client.contact_name,
+        amount: estimatedTotal,
+        dueDate: client.next_billing_date,
+      })
+      results.push({ client_id: client.id, sent: true })
+    } catch (err) {
+      results.push({ client_id: client.id, sent: false, error: err.message })
+    }
+  }
   return results
 }

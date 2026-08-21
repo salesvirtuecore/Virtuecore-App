@@ -1,20 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 import Stripe from 'stripe'
-import nodemailer from 'nodemailer'
 import { makeSupabase, authenticateUser, requireRole, checkRateLimit } from '../_lib/auth.js'
-import { runBillingCyclePass, processClientBillingCycle } from '../_lib/billing.js'
+import { runBillingCyclePass, processClientBillingCycle, runBillingReminderPass } from '../_lib/billing.js'
+import { ACADEMY_MODULES } from '../../src/data/academyModules.js'
+import { sendInviteEmail } from '../_lib/email.js'
 
 // ── invite-user ──────────────────────────────────────────────────────────────
-function createMailTransport() {
-  const user = process.env.EMAIL_USER
-  const pass = process.env.EMAIL_PASS
-  if (!user || !pass) return null
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  })
-}
-
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const supabase = makeSupabase()
@@ -41,46 +32,9 @@ async function handleInviteUser(req, res) {
     const isVA = role === 'va'
     const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
     const signupUrl = isVA ? `${appUrl}/signup/va` : `${appUrl}/signup`
-    const emailSubject = isVA ? `You've been invited to join VirtueCore as a Virtual Assistant` : `You've been invited to your VirtueCore Client Portal`
-    const roleLabel = isVA ? 'Virtual Assistant' : 'Client'
-    const emailHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
-        <div style="background: #7C3AED; padding: 24px 32px; border-radius: 8px 8px 0 0;">
-          <h1 style="color: #fff; font-size: 20px; margin: 0;">VirtueCore</h1>
-        </div>
-        <div style="background: #ffffff; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
-            Hi ${full_name || 'there'},
-          </p>
-          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
-            You've been invited to VirtueCore as a <strong>${roleLabel}</strong>.
-          </p>
-          <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
-            Click the button below to create your account and get started:
-          </p>
-          <a href="${signupUrl}" style="display: inline-block; background: #7C3AED; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600;">
-            Create Your Account
-          </a>
-          <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin: 24px 0 0;">
-            Or copy and paste this link into your browser:<br>
-            <a href="${signupUrl}" style="color: #7C3AED; word-break: break-all;">${signupUrl}</a>
-          </p>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 13px; color: #9ca3af; margin: 0;">
-            Looking forward to working with you,<br>The VirtueCore Team
-          </p>
-        </div>
-      </div>`
 
-    // Send email directly via Gmail SMTP
-    const transport = createMailTransport()
-    if (!transport) throw new Error('Email not configured — set EMAIL_USER and EMAIL_PASS in environment variables')
-    await transport.sendMail({
-      from: process.env.EMAIL_FROM || `VirtueCore <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: emailSubject,
-      html: emailHtml,
-    })
+    const { sent } = await sendInviteEmail({ email, fullName: full_name, role, signupUrl })
+    if (!sent) throw new Error('Email not configured — set EMAIL_USER and EMAIL_PASS in environment variables')
 
     // Slack notification (non-blocking)
     if (role === 'client') {
@@ -310,8 +264,8 @@ async function handleMetaAds(req, res) {
 // ── help-chat ─────────────────────────────────────────────────────────────────
 const APP_KNOWLEDGE = {
   admin: { primaryRoutes: ['/admin', '/admin/clients', '/admin/pipeline', '/admin/vas', '/admin/revenue'], notes: ['Clients page manages invites, onboarding, status, and Stripe.', 'Revenue page manages invoice workflows.', 'Pipeline tracks lead stages.'] },
-  client: { primaryRoutes: ['/client', '/client/deliverables', '/client/calendar', '/client/messages', '/client/invoices', '/client/billing', '/client/meetings'], notes: ['Deliverables page is used to review and approve work.', 'Invoices and Billing for payment actions.'] },
-  va: { primaryRoutes: ['/va', '/va/time', '/va/academy', '/va/sops', '/va/standup'], notes: ['Task Board and Time Tracker are core VA workflow pages.', 'Standup captures daily progress updates.'] },
+  client: { primaryRoutes: ['/client', '/client/onboarding', '/client/deliverables', '/client/calendar', '/client/messages', '/client/invoices', '/client/billing', '/client/meetings'], notes: ['Deliverables page is used to review and approve work.', 'Invoices and Billing for payment actions.', 'Onboarding has the getting-started video walkthrough.'] },
+  va: { primaryRoutes: ['/va', '/va/time', '/va/academy', '/va/sops', '/va/standup', '/va/invoices'], notes: ['Task Board and Time Tracker are core VA workflow pages.', 'Standup captures daily progress updates.', 'Academy has training modules — use it to answer marketing/ops questions.'] },
 }
 function fallbackReply(input, role) {
   const text = (input || '').toLowerCase()
@@ -320,7 +274,45 @@ function fallbackReply(input, role) {
   if (text.includes('deliverable') || text.includes('task')) return role === 'va' ? 'Use Task Board for assignments.' : 'Deliverables are tracked in Deliverables.'
   return 'I can help with meetings, invoices, onboarding, tasks, and portal issues.'
 }
-async function handleHelpChat(req, res) {
+
+const ACADEMY_SUMMARY = ACADEMY_MODULES
+  .map((m) => `- ${m.title}: ${m.description}`)
+  .join('\n')
+
+function stripHtml(html) {
+  return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Cheap keyword-overlap "RAG" — good enough for a handful of static modules.
+function findRelevantModule(message) {
+  const words = new Set(message.toLowerCase().match(/[a-z]{4,}/g) || [])
+  let best = null, bestScore = 0
+  for (const mod of ACADEMY_MODULES) {
+    const haystack = `${mod.title} ${mod.description}`.toLowerCase()
+    const score = [...words].filter((w) => haystack.includes(w)).length
+    if (score > bestScore) { bestScore = score; best = mod }
+  }
+  return bestScore > 0 ? best : null
+}
+
+async function buildClientSummary(clientId) {
+  if (!clientId) return null
+  try {
+    const supabase = makeSupabase()
+    const [{ data: clientRow }, { data: lastInvoice }, { data: adRows }] = await Promise.all([
+      supabase.from('clients').select('company_name, package_tier, status').eq('id', clientId).maybeSingle(),
+      supabase.from('invoices').select('status, amount, due_date').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('ad_performance').select('spend').eq('client_id', clientId).gte('date', new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]),
+    ])
+    if (!clientRow) return null
+    const spend30d = (adRows || []).reduce((s, r) => s + Number(r.spend || 0), 0)
+    return `Client: ${clientRow.company_name}, package ${clientRow.package_tier}, status ${clientRow.status}. Last invoice: ${lastInvoice ? `${lastInvoice.status}, £${lastInvoice.amount}, due ${lastInvoice.due_date}` : 'none yet'}. Ad spend last 30 days: £${spend30d.toFixed(2)}.`
+  } catch {
+    return null
+  }
+}
+
+async function handleHelpChat(req, res, profile) {
   if (req.method !== 'POST') return res.status(405).end()
   const { message, messages = [], role = 'client', page = '', context = {} } = req.body || {}
   if (!message || typeof message !== 'string') return res.status(400).json({ error: 'Message is required' })
@@ -331,9 +323,21 @@ async function handleHelpChat(req, res) {
   try {
     const client = new Anthropic({ apiKey: anthropicKey })
     const history = Array.isArray(messages) ? messages.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').slice(-10).map((m) => ({ role: m.role, content: m.text.slice(0, 1000) })) : []
+
+    const relevantModule = findRelevantModule(trimmedMessage)
+    const moduleSnippet = relevantModule ? `\n\nRelevant training material — "${relevantModule.title}":\n${stripHtml(relevantModule.content_html).slice(0, 800)}` : ''
+    const clientSummary = role === 'client' ? await buildClientSummary(profile?.client_id) : null
+
+    const system = `You are VirtueCore's in-app AI support assistant, trained on VirtueCore's own Academy material. Role: ${role}. Page: ${page}. Name: ${context?.fullName || profile?.full_name || 'Unknown'}. Routes: ${roleKnowledge.primaryRoutes.join(', ')}. Notes: ${roleKnowledge.notes.join(' ')}.
+
+VirtueCore Academy knowledge base (marketing/ops training content — use this to answer substantive questions, not just navigation):
+${ACADEMY_SUMMARY}${moduleSnippet}${clientSummary ? `\n\n${clientSummary}` : ''}
+
+Be concise, practical, under 120 words.`
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 360, temperature: 0.3,
-      system: `You are VirtueCore's in-app AI support assistant. Role: ${role}. Page: ${page}. Name: ${context?.fullName || 'Unknown'}. Routes: ${roleKnowledge.primaryRoutes.join(', ')}. Notes: ${roleKnowledge.notes.join(' ')}. Be concise, practical, under 120 words.`,
+      system,
       messages: [...history, { role: 'user', content: trimmedMessage }],
     })
     const reply = response?.content?.find((b) => b.type === 'text')?.text?.trim()
@@ -526,6 +530,17 @@ async function handleRunBillingCycle(req, res) {
   }
 }
 
+// ── send-billing-reminders (cron only) ───────────────────────────────────────
+async function handleSendBillingReminders(req, res) {
+  const supabase = makeSupabase()
+  try {
+    const results = await runBillingReminderPass(supabase)
+    return res.status(200).json({ ok: true, sent: results.filter((r) => r.sent).length, results })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 // ── manual-bill-client (admin "Bill now" button) ─────────────────────────────
 async function handleManualBillClient(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -537,10 +552,10 @@ async function handleManualBillClient(req, res) {
   const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
   try {
     const { data: client } = await supabase.from('clients')
-      .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_customer_id, default_payment_method_id, next_billing_date')
+      .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
       .eq('id', client_id).single()
     if (!client) return res.status(404).json({ error: 'Client not found' })
-    if (!client.stripe_account_id) return res.status(400).json({ error: 'Client has not connected their Stripe revenue account' })
+    if (!client.stripe_account_id && !client.stripe_secret_key_encrypted) return res.status(400).json({ error: 'Client has not connected their Stripe revenue account' })
     if (!client.default_payment_method_id) return res.status(400).json({ error: 'Client has not saved a payment method' })
 
     // For manual billing, use today as the next_billing_date so the period is the last 28 days
@@ -576,6 +591,19 @@ export default async function handler(req, res) {
     return handleRunBillingCycle(req, res)
   }
 
+  // send-billing-reminders: cron only (same CRON_SECRET pattern as run-billing-cycle)
+  if (action === 'send-billing-reminders') {
+    const authHeader = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    const cronSecret = req.headers['x-cron-secret'] || req.body?.secret || authHeader
+    if (cronSecret && cronSecret === process.env.CRON_SECRET) {
+      return handleSendBillingReminders(req, res)
+    }
+    const auth = await authenticateUser(req, res)
+    if (!auth) return
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleSendBillingReminders(req, res)
+  }
+
   // register-va is called during signup before profile exists — verify Supabase token only
   if (action === 'register-va') {
     const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
@@ -601,7 +629,7 @@ export default async function handler(req, res) {
   if (action === 'generate-report') return handleGenerateReport(req, res)
   if (action === 'parse-content-plan') return handleParseContentPlan(req, res)
   if (action === 'manual-bill-client') return handleManualBillClient(req, res)
-  if (action === 'help-chat') return handleHelpChat(req, res)
+  if (action === 'help-chat') return handleHelpChat(req, res, auth.profile)
   if (action === 'weekly-pulse') return handleWeeklyPulse(req, res)
   if (action === 'save-nps') return handleSaveNPS(req, res)
   if (action === 'smart-notifications') return handleSmartNotifications(req, res)

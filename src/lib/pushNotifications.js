@@ -40,6 +40,23 @@ export async function subscribeToPush(userId) {
   }
 }
 
+export async function unsubscribeFromPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (!sub) return
+    const endpoint = sub.endpoint
+    await sub.unsubscribe()
+    await apiFetch('/api/push/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    })
+  } catch {
+    // non-critical — don't throw
+  }
+}
+
 export async function sendPushNotification(userId, { title, body, url }) {
   try {
     await apiFetch('/api/push/notify', {

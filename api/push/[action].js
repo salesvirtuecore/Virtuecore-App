@@ -53,6 +53,22 @@ async function handleSubscribe(req, res) {
   }
 }
 
+// ── /api/push/unsubscribe (POST) ────────────────────────────────────────────
+async function handleUnsubscribe(req, res, profile) {
+  if (req.method !== 'POST') return res.status(405).end()
+  const { endpoint } = req.body ?? {}
+  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' })
+  try {
+    const supabase = makeSupabase()
+    const { error } = await supabase.from('push_subscriptions')
+      .delete().eq('user_id', profile.id).eq('endpoint', endpoint)
+    if (error) return res.status(500).json({ error: error.message })
+    res.status(200).json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
@@ -62,5 +78,6 @@ export default async function handler(req, res) {
   const action = req.query.action
   if (action === 'notify') return handleNotify(req, res)
   if (action === 'subscribe') return handleSubscribe(req, res)
+  if (action === 'unsubscribe') return handleUnsubscribe(req, res, auth.profile)
   res.status(404).json({ error: 'Unknown action' })
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { apiFetch } from '../../lib/api'
 
 const VALID_ROLES = ['client', 'va', 'admin']
 const PORTAL_ROUTES = { admin: '/admin', client: '/client', va: '/va' }
@@ -53,6 +54,10 @@ export default function Signup() {
           full_name: fullName,
           role,
         }, { onConflict: 'id' })
+
+        if (role === 'client') {
+          apiFetch('/api/onboarding/send-welcome-email', { method: 'POST' }).catch(() => {})
+        }
       }
 
       setDone(true)

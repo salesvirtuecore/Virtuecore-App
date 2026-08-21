@@ -1,10 +1,22 @@
 import { authenticateUser, requireRole, requireClientOwnership, checkRateLimit } from '../_lib/auth.js'
 import { ONBOARDING_STEPS } from '../../src/data/onboardingSteps.js'
+import { sendWelcomeOnboardingEmail } from '../_lib/email.js'
 
 const STEP_IDS = new Set(ONBOARDING_STEPS.map((s) => s.id))
 
 function resolveTargetClientId(req, profile) {
   return profile.role === 'admin' ? req.query.client_id || req.body?.client_id : profile.client_id
+}
+
+// ── send-welcome-email (POST) — fired once right after a client's first signup ──
+async function handleSendWelcomeEmail(req, res, profile) {
+  if (!requireRole(res, profile, 'client')) return
+  try {
+    await sendWelcomeOnboardingEmail({ email: profile.email, fullName: profile.full_name })
+  } catch {
+    // Non-critical — signup should never fail because the welcome email didn't send.
+  }
+  res.status(200).json({ ok: true })
 }
 
 // ── get-progress (GET) ──────────────────────────────────────────────────────
@@ -113,6 +125,7 @@ export default async function handler(req, res) {
   const { profile, supabase } = auth
   const action = req.query.action
 
+  if (action === 'send-welcome-email') return handleSendWelcomeEmail(req, res, profile)
   if (action === 'get-progress') return handleGetProgress(req, res, profile, supabase)
   if (action === 'mark-step') return handleMarkStep(req, res, profile, supabase)
   if (action === 'submit-credentials') return handleSubmitCredentials(req, res, profile, supabase)
