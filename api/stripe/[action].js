@@ -278,42 +278,16 @@ function monthlyEquivalent(price, quantity) {
   }
 }
 
-// ── Shared revenue-sync core ────────────────────────────────────────────────
-// Fetches all successful charges, active subscriptions, and customers from
-// the client's connected Stripe account since their VirtueCore join date,
-// then stores the totals plus a month-by-month revenue breakdown (used to
-// drive the real revenue trend chart and forecaster on the client dashboard).
-// Used both by the standalone sync-revenue action and immediately after a
-// key is (re)saved, so a freshly pasted key is never left showing stale/zero
-// data until someone happens to click "Sync now".
-async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
-  const { data: client } = await supabase.from('clients')
-    .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
-    .eq('id', clientId).maybeSingle()
-  if (!client) throw Object.assign(new Error('Client not found'), { status: 404 })
-
-  // A pasted secret key always wins if one has been saved — it's the client's
-  // own real Stripe account and the whole point of replacing OAuth. Legacy
-  // Connect accounts (stripeAccount header on the platform Stripe object) are
-  // only used as a fallback for clients who never re-keyed.
-  let chargesClient = platformStripe
-  let chargesOptions
-
-  if (client.stripe_secret_key_encrypted) {
-    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
-    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
-  } else if (client.stripe_account_id) {
-    chargesOptions = { stripeAccount: client.stripe_account_id }
-  } else {
-    throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
-  }
-
-  // "Since joining VirtueCore"
-  const joinDate = client.onboarding_started_at || client.created_at
-  const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
+// ── Shared Stripe overview core ─────────────────────────────────────────────
+// Fetches all successful charges, active subscriptions, and customers from a
+// Stripe account since `sinceUnix`, returning totals plus a month-by-month
+// revenue breakdown. Pure function (no Supabase) — used both for a specific
+// client's connected account (syncRevenueForClient, persisted to their row)
+// and for the agency's own account (handleAgencyOverview, computed live on
+// each admin dashboard load, nothing to persist).
+async function computeStripeOverview(chargesClient, chargesOptions, sinceUnix) {
   const ninetyDaysAgoUnix = Math.floor(Date.now() / 1000) - 90 * 86400
-  // Never look further back than "since joining" for the 90-day figure either
-  const last90StartUnix = Math.max(joinUnix, ninetyDaysAgoUnix)
+  const last90StartUnix = Math.max(sinceUnix, ninetyDaysAgoUnix)
 
   let totalRevenue = 0
   let revenueLast90Days = 0
@@ -323,7 +297,7 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
   let startingAfter
 
   while (hasMore) {
-    const params = { created: { gte: joinUnix }, limit: 100 }
+    const params = { created: { gte: sinceUnix }, limit: 100 }
     if (startingAfter) params.starting_after = startingAfter
     const charges = await chargesClient.charges.list(params, chargesOptions)
 
@@ -379,17 +353,53 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
     startingAfter = customers.data.length > 0 ? customers.data[customers.data.length - 1].id : undefined
   }
 
+  return { totalRevenue, revenueLast90Days, chargeCount, revenueByMonth, activeSubscriptions, mrr, customerCount }
+}
+
+// ── Shared revenue-sync core ────────────────────────────────────────────────
+// Resolves a client's connected Stripe account, computes their overview, and
+// persists it to their row (used both by the standalone sync-revenue action
+// and immediately after a key is (re)saved, so a freshly pasted key is never
+// left showing stale/zero data until someone happens to click "Sync now").
+async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
+  const { data: client } = await supabase.from('clients')
+    .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
+    .eq('id', clientId).maybeSingle()
+  if (!client) throw Object.assign(new Error('Client not found'), { status: 404 })
+
+  // A pasted secret key always wins if one has been saved — it's the client's
+  // own real Stripe account and the whole point of replacing OAuth. Legacy
+  // Connect accounts (stripeAccount header on the platform Stripe object) are
+  // only used as a fallback for clients who never re-keyed.
+  let chargesClient = platformStripe
+  let chargesOptions
+
+  if (client.stripe_secret_key_encrypted) {
+    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
+    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  } else if (client.stripe_account_id) {
+    chargesOptions = { stripeAccount: client.stripe_account_id }
+  } else {
+    throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
+  }
+
+  // "Since joining VirtueCore"
+  const joinDate = client.onboarding_started_at || client.created_at
+  const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
+
+  const overview = await computeStripeOverview(chargesClient, chargesOptions, joinUnix)
+
   await supabase.from('clients').update({
-    stripe_total_revenue: totalRevenue,
-    stripe_revenue_last_90d: revenueLast90Days,
+    stripe_total_revenue: overview.totalRevenue,
+    stripe_revenue_last_90d: overview.revenueLast90Days,
     stripe_revenue_synced_at: new Date().toISOString(),
-    stripe_revenue_by_month: revenueByMonth,
-    stripe_active_subscriptions: activeSubscriptions,
-    stripe_mrr: mrr,
-    stripe_customer_count: customerCount,
+    stripe_revenue_by_month: overview.revenueByMonth,
+    stripe_active_subscriptions: overview.activeSubscriptions,
+    stripe_mrr: overview.mrr,
+    stripe_customer_count: overview.customerCount,
   }).eq('id', clientId)
 
-  return { totalRevenue, revenueLast90Days, chargeCount, joinDate, revenueByMonth, activeSubscriptions, mrr, customerCount }
+  return { ...overview, joinDate }
 }
 
 // ── /api/stripe/sync-revenue (POST) ─────────────────────────────────────────
@@ -537,6 +547,28 @@ async function handleSaveManualCost(req, res, authProfile) {
   return res.status(200).json({ ok: true, manual_costs_by_month: updated })
 }
 
+// ── /api/stripe/agency-overview (GET) — admin only ──────────────────────────
+// The agency's OWN real Stripe revenue — powers the admin dashboard's
+// revenue chart/forecast directly from Stripe instead of internal DB
+// aggregates (monthly_retainer sums, which reflect contracted value, not
+// what was actually charged/collected). Computed live on each load rather
+// than persisted, since this is a single low-traffic view, not per-client
+// data that needs to survive across sessions.
+async function handleAgencyOverview(req, res) {
+  const agencyKey = process.env.AGENCY_STRIPE_SECRET_KEY
+  if (!agencyKey) return res.status(200).json({ connected: false, reason: 'not_configured' })
+
+  try {
+    const stripe = new Stripe(agencyKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+    // Look back 12 months for a chart with enough history for a meaningful trend/forecast
+    const sinceUnix = Math.floor(Date.now() / 1000) - 365 * 86400
+    const overview = await computeStripeOverview(stripe, undefined, sinceUnix)
+    return res.status(200).json({ connected: true, ...overview })
+  } catch (err) {
+    return res.status(500).json({ connected: false, error: err?.message || 'Failed to load agency revenue' })
+  }
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
@@ -556,6 +588,10 @@ export default async function handler(req, res) {
   if (action === 'connect') {
     if (!requireRole(res, auth.profile, 'admin')) return
     return handleConnect(req, res)
+  }
+  if (action === 'agency-overview') {
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleAgencyOverview(req, res)
   }
   if (action === 'create-checkout') return handleCreateCheckout(req, res, auth.profile)
   res.status(404).json({ error: 'Unknown action' })

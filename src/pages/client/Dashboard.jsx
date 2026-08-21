@@ -7,6 +7,7 @@ import OnboardingChecklist from '../../components/ui/OnboardingChecklist'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
+import { isRestrictedTier } from '../../data/packageTiers'
 
 // Placeholder chart data shown when real data is empty
 const PLACEHOLDER_TREND = [
@@ -254,9 +255,11 @@ export default function ClientDashboard() {
   const [costInput, setCostInput] = useState('')
   const [savingCost, setSavingCost] = useState(false)
   const [costMessage, setCostMessage] = useState(null)
+  const [packageTier, setPackageTier] = useState(null)
 
   const clientId = profile?.client_id
   const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const restricted = isRestrictedTier(packageTier)
 
   useEffect(() => {
     if (!clientId) { setDashboardLoading(false); return }
@@ -266,13 +269,14 @@ export default function ClientDashboard() {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').eq('client_id', clientId).order('date', { ascending: true }),
           supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').eq('client_id', clientId).order('created_at', { ascending: false }),
-          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, manual_costs_by_month').eq('id', clientId).maybeSingle(),
+          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, manual_costs_by_month, package_tier').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
         if (invoiceError) throw invoiceError
         setAdPerformance(adData || [])
         setInvoiceRows(invoiceData || [])
         setMetaConnected(Boolean(clientRow?.meta_ad_account_id))
+        setPackageTier(clientRow?.package_tier || null)
         setStripeRevenue({
           total: Number(clientRow?.stripe_total_revenue || 0),
           last90: Number(clientRow?.stripe_revenue_last_90d || 0),
@@ -369,8 +373,10 @@ export default function ClientDashboard() {
 
   const kpiCards = [
     { label: 'Total Revenue', value: formatCurrency(revenuePrimary), icon: PoundSterling, color: 'text-vc-accent', sub: revenueSub },
-    { label: 'Ad Spend', value: formatCurrency(metrics.adSpend), icon: BarChart2, color: 'text-status-info', sub: metrics.roas > 0 ? `${metrics.roas.toFixed(1)}x ROAS` : null },
-    { label: 'Leads', value: metrics.leads || '—', icon: Users, color: 'text-status-success', sub: metrics.cpl > 0 ? `${formatCurrency(metrics.cpl)} CPL` : null },
+    ...(restricted ? [] : [
+      { label: 'Ad Spend', value: formatCurrency(metrics.adSpend), icon: BarChart2, color: 'text-status-info', sub: metrics.roas > 0 ? `${metrics.roas.toFixed(1)}x ROAS` : null },
+      { label: 'Leads', value: metrics.leads || '—', icon: Users, color: 'text-status-success', sub: metrics.cpl > 0 ? `${formatCurrency(metrics.cpl)} CPL` : null },
+    ]),
     { label: 'Outstanding', value: formatCurrency(metrics.outstandingRevenue), icon: TrendingUp, color: metrics.outstandingRevenue > 0 ? 'text-status-warning' : 'text-text-tertiary', sub: metrics.outstandingCount > 0 ? `${metrics.outstandingCount} invoice${metrics.outstandingCount > 1 ? 's' : ''}` : null },
   ]
 
@@ -398,7 +404,7 @@ export default function ClientDashboard() {
             {isPlaceholder ? 'Your data will appear here once your campaigns are live.' : `Revenue view for ${metrics.periodLabel}.`}
           </p>
         </div>
-        {metaConnected === true && (
+        {!restricted && metaConnected === true && (
           <button onClick={handleSyncMeta} disabled={syncing} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors flex-shrink-0 mt-1">
             <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Syncing…' : syncMessage ?? 'Sync now'}
@@ -409,7 +415,7 @@ export default function ClientDashboard() {
       <OnboardingChecklist calendlyUrl="https://calendly.com/virtuecore" />
 
       {/* Meta matching status banner */}
-      {metaConnected === false && (
+      {!restricted && metaConnected === false && (
         <div className="vc-card flex items-center justify-between gap-4 border-status-info/20 bg-status-info/5">
           <div>
             <p className="text-sm font-medium text-status-info">Ads account not matched yet</p>
@@ -494,7 +500,9 @@ export default function ClientDashboard() {
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
               <Tooltip content={<CustomAreaTooltip />} />
-              <Area type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} fill="url(#leadGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Leads" isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+              {!restricted && (
+                <Area type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} fill="url(#leadGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Leads" isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+              )}
               <Area type="monotone" dataKey="revenue" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue" isAnimationActive animationBegin={150} animationDuration={900} animationEasing="ease-out" />
               {forecastRows.length > 0 && (
                 <Line type="monotone" dataKey="revenueForecast" stroke="#6C5CE7" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue Forecast" connectNulls isAnimationActive={false} />
@@ -518,7 +526,7 @@ export default function ClientDashboard() {
             <div>
               <h2 className="text-sm font-semibold text-text-primary font-heading flex items-center gap-1.5">
                 <Activity size={14} className="text-vc-accent" />
-                Revenue & Spend Forecast
+                {restricted ? 'Revenue Forecast' : 'Revenue & Spend Forecast'}
               </h2>
               <p className="text-xs text-text-tertiary mt-0.5">
                 Trend-based projection from your last {metrics.performance.length} months of real data — not a guarantee.
@@ -534,28 +542,37 @@ export default function ClientDashboard() {
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line type="monotone" dataKey="revenue" stroke="#6C5CE7" strokeWidth={2} dot={false} name="Revenue" connectNulls />
               <Line type="monotone" dataKey="revenueForecast" stroke="#6C5CE7" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Revenue Forecast" connectNulls />
-              <Line type="monotone" dataKey="spend" stroke="#4DA3FF" strokeWidth={2} dot={false} name="Ad Spend" connectNulls />
-              <Line type="monotone" dataKey="spendForecast" stroke="#4DA3FF" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Ad Spend Forecast" connectNulls />
+              {!restricted && (
+                <>
+                  <Line type="monotone" dataKey="spend" stroke="#4DA3FF" strokeWidth={2} dot={false} name="Ad Spend" connectNulls />
+                  <Line type="monotone" dataKey="spendForecast" stroke="#4DA3FF" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Ad Spend Forecast" connectNulls />
+                </>
+              )}
             </AreaChart>
           </ResponsiveContainer>
-          <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/[0.06]">
+          <div className={`grid ${restricted ? 'grid-cols-1' : 'grid-cols-3'} gap-3 mt-4 pt-4 border-t border-white/[0.06]`}>
             <div>
               <p className="text-xs text-text-secondary">Next month revenue</p>
               <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(nextMonthForecast.revenueForecast)}</p>
             </div>
-            <div>
-              <p className="text-xs text-text-secondary">Next month ad spend</p>
-              <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(nextMonthForecast.spendForecast)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-text-secondary">Projected ROAS</p>
-              <p className="text-lg font-semibold text-text-primary mt-0.5">{forecastRoas > 0 ? `${forecastRoas.toFixed(1)}x` : '—'}</p>
-            </div>
+            {!restricted && (
+              <>
+                <div>
+                  <p className="text-xs text-text-secondary">Next month ad spend</p>
+                  <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(nextMonthForecast.spendForecast)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-secondary">Projected ROAS</p>
+                  <p className="text-lg font-semibold text-text-primary mt-0.5">{forecastRoas > 0 ? `${forecastRoas.toFixed(1)}x` : '—'}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
       {/* Cost & CAC */}
+      {!restricted && (
       <div className="vc-card">
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-text-primary font-heading">Monthly Cost & CAC</h2>
@@ -600,6 +617,7 @@ export default function ClientDashboard() {
           {costMessage && <span className="text-xs text-text-tertiary pb-2">{costMessage}</span>}
         </div>
       </div>
+      )}
 
       {/* Quick links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

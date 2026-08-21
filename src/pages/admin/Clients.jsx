@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { withPortalStatus } from '../../lib/clientUtils'
 import { useToast } from '../../context/ToastContext'
 import { apiFetch } from '../../lib/api'
+import { PACKAGE_TIERS } from '../../data/packageTiers'
 
 const STATUS_LABELS = { active: 'Active', onboarding: 'Onboarding', churned: 'Churned' }
 const STATUS_BADGE = { active: 'green', onboarding: 'blue', churned: 'default' }
@@ -19,7 +20,7 @@ const EMPTY_FORM = {
   company_name: '',
   contact_name: '',
   contact_email: '',
-  package_tier: 'Starter',
+  package_tier: 'Website Only',
   monthly_retainer: '',
   revenue_share_percentage: '',
   revenue_share_basis: 'revenue',
@@ -347,9 +348,12 @@ export default function Clients() {
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Package Tier" required>
                 <select className={selectClass} value={form.package_tier} onChange={(e) => setForm({ ...form, package_tier: e.target.value })}>
-                  <option>Starter</option>
-                  <option>Growth</option>
-                  <option>Premium</option>
+                  {form.package_tier && !PACKAGE_TIERS.includes(form.package_tier) && (
+                    <option value={form.package_tier}>{form.package_tier} (legacy)</option>
+                  )}
+                  {PACKAGE_TIERS.map((tier) => (
+                    <option key={tier} value={tier}>{tier}</option>
+                  ))}
                 </select>
               </FormField>
 

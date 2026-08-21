@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { apiFetch } from '../../lib/api'
+import { supabase } from '../../lib/supabase'
+import { isRestrictedTier } from '../../data/packageTiers'
 
 import { subscribeToPush } from '../../lib/pushNotifications'
 import NotificationBell from '../ui/NotificationBell'
@@ -14,6 +16,11 @@ import HelpChatWidget from '../ui/HelpChatWidget'
 import NPSWidget from '../ui/NPSWidget'
 import InstallBanner from '../ui/InstallBanner'
 import OnboardingGate from '../OnboardingGate'
+
+// Ad Performance and Ad Account only make sense for packages that include
+// paid ads — hidden from the nav entirely for Website Only / Automations
+// clients rather than shown empty.
+const ADS_ONLY_ROUTES = new Set(['/client/ad-performance', '/client/integrations'])
 
 const NAV = [
   { to: '/client',                label: 'Dashboard',       icon: LayoutDashboard, end: true },
@@ -33,7 +40,8 @@ const NAV = [
   { to: '/client/integrations',   label: 'Ad Account',      icon: Plug },
 ]
 
-function SidebarContent({ profile, onLogout, onNavClick }) {
+function SidebarContent({ profile, onLogout, onNavClick, restricted }) {
+  const items = restricted ? NAV.filter((item) => !ADS_ONLY_ROUTES.has(item.to)) : NAV
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -51,7 +59,7 @@ function SidebarContent({ profile, onLogout, onNavClick }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -103,10 +111,19 @@ export default function ClientLayout() {
   const { profile, logout } = useAuth()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [packageTier, setPackageTier] = useState(null)
 
   useEffect(() => {
     if (profile?.id) subscribeToPush(profile.id)
   }, [profile?.id])
+
+  useEffect(() => {
+    if (!supabase || !profile?.client_id) return
+    supabase.from('clients').select('package_tier').eq('id', profile.client_id).maybeSingle()
+      .then(({ data }) => setPackageTier(data?.package_tier || null))
+  }, [profile?.client_id])
+
+  const restricted = isRestrictedTier(packageTier)
 
   useEffect(() => {
     if (!profile?.id || !profile?.client_id) return
@@ -135,7 +152,7 @@ export default function ClientLayout() {
     <div className="flex h-screen overflow-hidden bg-bg-primary">
       {/* Sidebar — desktop */}
       <aside className="hidden md:flex w-[260px] flex-shrink-0 bg-bg-secondary border-r border-white/[0.06] flex-col">
-        <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => {}} />
+        <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => {}} restricted={restricted} />
       </aside>
 
       {/* Mobile drawer overlay */}
@@ -155,7 +172,7 @@ export default function ClientLayout() {
         >
           <X size={18} />
         </button>
-        <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => setDrawerOpen(false)} />
+        <SidebarContent profile={profile} onLogout={handleLogout} onNavClick={() => setDrawerOpen(false)} restricted={restricted} />
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">

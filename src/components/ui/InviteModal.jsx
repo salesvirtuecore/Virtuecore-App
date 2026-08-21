@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
-
-
-const PACKAGE_TIERS = ['Starter', 'Growth', 'Premium']
+import { PACKAGE_TIERS } from '../../data/packageTiers'
 
 export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     company_name: '',
-    package_tier: 'Starter',
+    package_tier: 'Website Only',
     monthly_retainer: '',
     revenue_share_percentage: '',
     revenue_share_basis: 'revenue',
@@ -30,7 +28,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
       full_name: '',
       email: '',
       company_name: '',
-      package_tier: 'Starter',
+      package_tier: 'Website Only',
       monthly_retainer: '',
       revenue_share_percentage: '',
       revenue_share_basis: 'revenue',

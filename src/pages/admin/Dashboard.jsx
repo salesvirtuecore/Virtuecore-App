@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, Users, DollarSign, Activity, AlertTriangle, Clock } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { TrendingUp, Users, DollarSign, Activity, Repeat } from 'lucide-react'
+import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { withPortalStatus } from '../../lib/clientUtils'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
+import { buildMonthlyForecast } from '../../lib/forecast'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -17,11 +19,30 @@ function fmt(n) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated">
-      <p className="text-text-secondary mb-1">{label}</p>
-      <p className="text-text-primary font-mono-data font-semibold">£{payload[0].value?.toLocaleString()}</p>
+    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated space-y-1">
+      <p className="text-text-secondary">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="text-text-primary font-mono-data font-semibold" style={{ color: p.stroke || p.fill }}>
+          {p.name}: £{Number(p.value || 0).toLocaleString()}
+        </p>
+      ))}
     </div>
   )
+}
+
+// Turns { "2026-01": 400, ... } into a sorted, chart-ready array.
+function buildRevenueSeries(revenueByMonth) {
+  return Object.keys(revenueByMonth || {})
+    .sort()
+    .map((key) => {
+      const [year, month] = key.split('-').map(Number)
+      const date = new Date(Date.UTC(year, month - 1, 1))
+      return {
+        month: date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+        sortKey: date.getTime(),
+        revenue: revenueByMonth[key],
+      }
+    })
 }
 
 export default function AdminDashboard() {
@@ -29,6 +50,14 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
   const [clients, setClients] = useState([])
   const [pipelineLeads, setPipelineLeads] = useState([])
+  const [agencyRevenue, setAgencyRevenue] = useState(null)
+
+  useEffect(() => {
+    apiFetch('/api/stripe/agency-overview')
+      .then((r) => r.json())
+      .then((data) => setAgencyRevenue(data?.connected ? data : null))
+      .catch(() => setAgencyRevenue(null))
+  }, [])
 
   const loadClients = useCallback(async () => {
     if (!supabase) return
@@ -65,8 +94,22 @@ export default function AdminDashboard() {
   const activeClients = clients.filter(c => c.status === 'active')
   const onboardingClients = clients.filter(c => c.status === 'onboarding')
   const joinedClients = clients.filter(c => c.portal_joined)
-  const mrr = activeClients.reduce((sum, c) => sum + Number(c.monthly_retainer || 0), 0)
-  const totalAdSpend = 0
+  const retainerSum = activeClients.reduce((sum, c) => sum + Number(c.monthly_retainer || 0), 0)
+  // Real Stripe MRR when the agency's own account is connected — falls back
+  // to summed contracted retainers (not what was actually charged/collected)
+  // if AGENCY_STRIPE_SECRET_KEY hasn't been set yet.
+  const mrr = agencyRevenue ? agencyRevenue.mrr : retainerSum
+  const revenueSeries = agencyRevenue ? buildRevenueSeries(agencyRevenue.revenueByMonth) : []
+  const forecastRows = agencyRevenue ? buildMonthlyForecast(revenueSeries) : []
+  const combinedRevenueData = forecastRows.length
+    ? (() => {
+        const withNulls = revenueSeries.map((row) => ({ ...row, revenueForecast: null }))
+        const lastReal = withNulls[withNulls.length - 1]
+        if (lastReal) lastReal.revenueForecast = lastReal.revenue
+        return [...withNulls, ...forecastRows.map((row) => ({ ...row, revenue: null }))]
+      })()
+    : revenueSeries
+  const nextMonthForecast = forecastRows[0] || null
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
@@ -82,7 +125,12 @@ export default function AdminDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Monthly Revenue" value={fmt(mrr)} icon={DollarSign} />
+        <StatCard
+          label={agencyRevenue ? 'Monthly Revenue (Stripe)' : 'Monthly Revenue (retainers)'}
+          value={fmt(mrr)}
+          sub={agencyRevenue?.revenueLast90Days ? `£${Number(agencyRevenue.totalRevenue).toLocaleString()} last 12mo` : null}
+          icon={DollarSign}
+        />
         <StatCard
           label="Active Clients"
           value={activeClients.length}
@@ -90,19 +138,29 @@ export default function AdminDashboard() {
           icon={Users}
         />
         <StatCard label="Pipeline Leads" value={pipelineLeads.length} icon={TrendingUp} />
-        <StatCard label="Ad Spend Managed" value={fmt(totalAdSpend)} icon={Activity} />
+        <StatCard
+          label="Active Subscriptions"
+          value={agencyRevenue ? agencyRevenue.activeSubscriptions : '—'}
+          sub={agencyRevenue ? `${agencyRevenue.customerCount} customers` : 'Set AGENCY_STRIPE_SECRET_KEY'}
+          icon={Repeat}
+        />
       </div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* MRR Area Chart */}
+        {/* Revenue Area Chart */}
         <div className="vc-card lg:col-span-2">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-semibold text-text-primary font-heading">Revenue Trend</h2>
-            <span className="vc-section-label">12 weeks</span>
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary font-heading">Revenue Trend</h2>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                {agencyRevenue ? 'Real revenue from your Stripe account, with a trend-based forecast.' : 'Connect AGENCY_STRIPE_SECRET_KEY to see real revenue here.'}
+              </p>
+            </div>
+            <span className="vc-section-label">12 months</span>
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={[]} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <AreaChart data={combinedRevenueData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6C5CE7" stopOpacity={0.3} />
@@ -113,9 +171,21 @@ export default function AdminDashboard() {
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} tickFormatter={v => `£${v/1000}k`} width={40} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="mrr" stroke="#6C5CE7" strokeWidth={2} fill="url(#mrrGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6C5CE7" strokeWidth={2} fill="url(#mrrGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
+              {forecastRows.length > 0 && (
+                <Line type="monotone" dataKey="revenueForecast" name="Forecast" stroke="#6C5CE7" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} connectNulls isAnimationActive={false} />
+              )}
             </AreaChart>
           </ResponsiveContainer>
+          {nextMonthForecast && (
+            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-white/[0.06]">
+              <div>
+                <p className="text-xs text-text-secondary">Next month forecast</p>
+                <p className="text-lg font-semibold text-text-primary mt-0.5">£{Number(nextMonthForecast.revenueForecast).toLocaleString()}</p>
+              </div>
+              <p className="text-xs text-text-tertiary">Trend-based projection from {revenueSeries.length} months of real Stripe data — not a guarantee.</p>
+            </div>
+          )}
         </div>
 
         {/* Pending Actions */}
