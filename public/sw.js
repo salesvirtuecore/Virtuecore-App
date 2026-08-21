@@ -1,4 +1,4 @@
-const CACHE_NAME = 'virtuecore-v2'
+const CACHE_NAME = 'virtuecore-v3'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -32,6 +32,28 @@ self.addEventListener('fetch', (event) => {
   // Don't cache Supabase or external API calls
   const url = new URL(event.request.url)
   if (url.hostname.includes('supabase.co') || url.hostname.includes('stripe.com')) {
+    return
+  }
+
+  // Navigation requests and the HTML shell must always go network-first —
+  // Vite's JS/CSS filenames are content-hashed (safe to cache-first forever),
+  // but index.html isn't, so a cached-first index.html would keep pointing
+  // at an OLD hashed bundle even after a real deploy went out. This was
+  // silently masking every deploy behind a stale cache.
+  const isNavigation = event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html'
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          }
+          return response
+        })
+        .catch(() => caches.match(event.request))
+    )
     return
   }
 
