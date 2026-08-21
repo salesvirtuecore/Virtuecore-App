@@ -59,10 +59,12 @@ export default function AdminDashboard() {
       .catch(() => setAgencyRevenue(null))
   }, [])
 
+  const [totalAdSpendManaged, setTotalAdSpendManaged] = useState(0)
+
   const loadClients = useCallback(async () => {
     if (!supabase) return
     const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }, { data: leads }] = await Promise.all([
-      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, health_score, package_tier, created_at').order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, health_score, package_tier, created_at, stripe_total_revenue, stripe_revenue_last_90d').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       supabase.from('pipeline_leads').select('id, score, stage').neq('stage', 'contract_signed'),
     ])
@@ -70,6 +72,14 @@ export default function AdminDashboard() {
       setClients(withPortalStatus(clientRows, profileRows || []))
     }
     if (leads) setPipelineLeads(leads)
+  }, [])
+
+  // Total ad spend the agency manages across every client's campaigns.
+  useEffect(() => {
+    if (!supabase) return
+    supabase.from('ad_performance').select('spend').then(({ data }) => {
+      setTotalAdSpendManaged((data || []).reduce((sum, row) => sum + Number(row.spend || 0), 0))
+    })
   }, [])
 
   useEffect(() => { loadClients() }, [loadClients])
@@ -110,6 +120,10 @@ export default function AdminDashboard() {
       })()
     : revenueSeries
   const nextMonthForecast = forecastRows[0] || null
+  // Rollup across every client's OWN Stripe revenue (distinct from the
+  // agency's own income above) and the ad spend managed on their behalf.
+  const totalClientRevenue = clients.reduce((sum, c) => sum + Number(c.stripe_total_revenue || 0), 0)
+  const totalClientRevenueLast90d = clients.reduce((sum, c) => sum + Number(c.stripe_revenue_last_90d || 0), 0)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
@@ -144,6 +158,25 @@ export default function AdminDashboard() {
           sub={agencyRevenue ? `${agencyRevenue.customerCount} customers` : 'Set AGENCY_STRIPE_SECRET_KEY'}
           icon={Repeat}
         />
+      </div>
+
+      {/* Across-your-clients rollup — their own Stripe revenue + ad spend
+          you manage on their behalf, distinct from the agency's own income above */}
+      <div>
+        <p className="vc-section-label mb-2">Across Your Clients</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Total Revenue Produced"
+            value={fmt(totalClientRevenue)}
+            sub={`£${Number(totalClientRevenueLast90d).toLocaleString()} last 90 days`}
+            icon={DollarSign}
+          />
+          <StatCard
+            label="Total Ad Spend Managed"
+            value={fmt(totalAdSpendManaged)}
+            icon={Activity}
+          />
+        </div>
       </div>
 
       {/* Charts row */}
