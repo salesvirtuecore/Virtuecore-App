@@ -184,6 +184,7 @@ export default function ClientDashboard() {
   const [adPerformance, setAdPerformance] = useState([])
   const [invoiceRows, setInvoiceRows] = useState([])
   const [metaConnected, setMetaConnected] = useState(null)
+  const [stripeRevenue, setStripeRevenue] = useState({ total: 0, last90: 0 })
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
 
@@ -197,13 +198,17 @@ export default function ClientDashboard() {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').eq('client_id', clientId).order('date', { ascending: true }),
           supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').eq('client_id', clientId).order('created_at', { ascending: false }),
-          supabase.from('clients').select('meta_ad_account_id').eq('id', clientId).maybeSingle(),
+          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
         if (invoiceError) throw invoiceError
         setAdPerformance(adData || [])
         setInvoiceRows(invoiceData || [])
         setMetaConnected(Boolean(clientRow?.meta_ad_account_id))
+        setStripeRevenue({
+          total: Number(clientRow?.stripe_total_revenue || 0),
+          last90: Number(clientRow?.stripe_revenue_last_90d || 0),
+        })
       } catch (error) {
         console.error('Failed to load client dashboard data:', error)
       } finally {
@@ -236,12 +241,17 @@ export default function ClientDashboard() {
     invoices: invoiceRows,
   })
 
-  const hasRealData = adPerformance.length > 0 || invoiceRows.length > 0
+  const hasRealData = adPerformance.length > 0 || invoiceRows.length > 0 || stripeRevenue.total > 0
   const chartData = metrics.performance.length ? metrics.performance : PLACEHOLDER_TREND
   const isPlaceholder = !hasRealData
 
+  const revenuePrimary = stripeRevenue.total > 0 ? stripeRevenue.total : metrics.revenuePrimary
+  const revenueSub = stripeRevenue.total > 0
+    ? `${formatCurrency(stripeRevenue.last90)} last 90 days`
+    : (metrics.collectedRevenue > 0 ? `${formatCurrency(metrics.collectedRevenue)} collected` : null)
+
   const kpiCards = [
-    { label: 'Total Revenue', value: formatCurrency(metrics.revenuePrimary), icon: PoundSterling, color: 'text-vc-accent', sub: metrics.collectedRevenue > 0 ? `${formatCurrency(metrics.collectedRevenue)} collected` : null },
+    { label: 'Total Revenue', value: formatCurrency(revenuePrimary), icon: PoundSterling, color: 'text-vc-accent', sub: revenueSub },
     { label: 'Ad Spend', value: formatCurrency(metrics.adSpend), icon: BarChart2, color: 'text-status-info', sub: metrics.roas > 0 ? `${metrics.roas.toFixed(1)}x ROAS` : null },
     { label: 'Leads', value: metrics.leads || '—', icon: Users, color: 'text-status-success', sub: metrics.cpl > 0 ? `${formatCurrency(metrics.cpl)} CPL` : null },
     { label: 'Outstanding', value: formatCurrency(metrics.outstandingRevenue), icon: TrendingUp, color: metrics.outstandingRevenue > 0 ? 'text-status-warning' : 'text-text-tertiary', sub: metrics.outstandingCount > 0 ? `${metrics.outstandingCount} invoice${metrics.outstandingCount > 1 ? 's' : ''}` : null },
@@ -269,15 +279,15 @@ export default function ClientDashboard() {
 
       <OnboardingChecklist calendlyUrl="https://calendly.com/virtuecore" />
 
-      {/* Meta connect banner */}
+      {/* Meta matching status banner */}
       {metaConnected === false && (
-        <div className="vc-card flex items-center justify-between gap-4 border-status-warning/20 bg-status-warning/5">
+        <div className="vc-card flex items-center justify-between gap-4 border-status-info/20 bg-status-info/5">
           <div>
-            <p className="text-sm font-medium text-status-warning">Connect your Facebook Ads account</p>
-            <p className="text-xs text-text-secondary mt-0.5">Link your Ads Manager to see live campaign data here.</p>
+            <p className="text-sm font-medium text-status-info">Ads account not matched yet</p>
+            <p className="text-xs text-text-secondary mt-0.5">Your account manager links your Ads Manager account on our side — no action needed from you. Live campaign data will appear here once it's matched.</p>
           </div>
-          <Link to="/client/integrations" className="flex-shrink-0 bg-status-warning/10 hover:bg-status-warning/20 text-status-warning border border-status-warning/20 text-xs font-medium px-4 py-2 rounded-btn transition-colors">
-            Connect
+          <Link to="/client/integrations" className="flex-shrink-0 bg-status-info/10 hover:bg-status-info/20 text-status-info border border-status-info/20 text-xs font-medium px-4 py-2 rounded-btn transition-colors">
+            View status
           </Link>
         </div>
       )}
