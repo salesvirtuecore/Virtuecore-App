@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
+// Meta is deliberately not a step here — matching a client's ad account is
+// done by admin via the shared System User token, not a client-side connect
+// action (see the Meta Ads phase). There's nothing for the client to click.
 const STEPS = [
   { id: 'account', label: 'Create your account', required: true, auto: true },
   { id: 'deliverable', label: 'Review your first deliverable', required: true, link: '/client/deliverables' },
-  { id: 'meta', label: 'Connect Facebook Ads Manager', required: false, link: '/client/integrations' },
-  { id: 'stripe', label: 'Connect Stripe billing', required: false, link: '/client/billing' },
+  { id: 'stripe', label: 'Add your Stripe key for billing', required: false, link: '/client/billing' },
   { id: 'call', label: 'Book a discovery call', required: false, external: true },
 ]
 
@@ -34,11 +36,10 @@ export default function OnboardingChecklist({ calendlyUrl }) {
   useEffect(() => {
     if (!profile?.client_id) return
 
-    // Check stripe + meta
-    supabase.from('clients').select('stripe_account_id, meta_ad_account_id').eq('id', profile.client_id).maybeSingle()
+    // Check stripe — a pasted key counts the same as a legacy Connect account
+    supabase.from('clients').select('stripe_account_id, stripe_secret_key_valid').eq('id', profile.client_id).maybeSingle()
       .then(({ data }) => {
-        if (data?.stripe_account_id) mark('stripe')
-        if (data?.meta_ad_account_id) mark('meta')
+        if (data?.stripe_account_id || data?.stripe_secret_key_valid) mark('stripe')
       })
 
     // Check deliverable viewed
