@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
 
-const VALID_ROLES = ['client', 'va', 'admin']
+// 'admin' is deliberately not a self-signup option — admin accounts must be
+// provisioned directly by an existing admin, never through the public form.
+const VALID_ROLES = ['client', 'va']
 const PORTAL_ROUTES = { admin: '/admin', client: '/client', va: '/va' }
 
 export default function Signup() {
