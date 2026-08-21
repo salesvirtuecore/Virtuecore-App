@@ -273,7 +273,8 @@ async function handleSyncRevenue(req, res, authProfile) {
   // Legacy OAuth Connect accounts read through the platform Stripe object with a
   // stripeAccount header; everyone else reads through their own pasted secret key directly.
   let chargesClient = stripe
-  let chargesOptions = {}
+  let chargesOptions
+
   if (client.stripe_account_id) {
     chargesOptions = { stripeAccount: client.stripe_account_id }
   } else if (client.stripe_secret_key_encrypted) {

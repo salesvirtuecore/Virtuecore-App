@@ -29,7 +29,7 @@ function resolveClientChargesReader(platformStripe, client) {
   }
   if (client.stripe_secret_key_encrypted) {
     const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
-    return { chargesClient: new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() }), chargesOptions: {} }
+    return { chargesClient: new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() }), chargesOptions: undefined }
   }
   throw new Error('Client has no Stripe connection (neither Connect account nor secret key)')
 }
