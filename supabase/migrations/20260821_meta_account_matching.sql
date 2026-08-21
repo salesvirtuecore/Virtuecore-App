@@ -19,6 +19,7 @@ create table if not exists meta_account_match_queue (
 
 alter table meta_account_match_queue enable row level security;
 
+drop policy if exists "admins manage match queue" on meta_account_match_queue;
 create policy "admins manage match queue" on meta_account_match_queue
   for all to authenticated
   using ((select role from profiles where id = auth.uid()) = 'admin')

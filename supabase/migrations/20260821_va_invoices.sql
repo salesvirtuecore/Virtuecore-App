@@ -1,5 +1,6 @@
 -- VA "money owed to us" queue — a simple manual admin-reviewed list, no
 -- Stripe payouts involved. Admin pays the VA outside the app and marks paid.
+-- Safe to re-run in full.
 create table if not exists va_invoices (
   id uuid primary key default gen_random_uuid(),
   va_id uuid references profiles(id) not null,
@@ -15,14 +16,17 @@ create table if not exists va_invoices (
 
 alter table va_invoices enable row level security;
 
+drop policy if exists "vas view own invoices" on va_invoices;
 create policy "vas view own invoices" on va_invoices
   for select to authenticated
   using (va_id = auth.uid());
 
+drop policy if exists "vas submit own invoices" on va_invoices;
 create policy "vas submit own invoices" on va_invoices
   for insert to authenticated
   with check (va_id = auth.uid());
 
+drop policy if exists "admins manage all invoices" on va_invoices;
 create policy "admins manage all invoices" on va_invoices
   for all to authenticated
   using ((select role from profiles where id = auth.uid()) = 'admin')

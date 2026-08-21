@@ -1,4 +1,6 @@
 -- Client onboarding video progress + contract/credentials handoff.
+-- Safe to re-run in full: tables use IF NOT EXISTS, every policy is
+-- dropped-then-recreated so partial prior runs don't cause "already exists" errors.
 
 create table if not exists client_onboarding_progress (
   id uuid primary key default gen_random_uuid(),
@@ -35,6 +37,7 @@ alter table client_onboarding_progress enable row level security;
 alter table contracts enable row level security;
 alter table client_credentials enable row level security;
 
+drop policy if exists "clients manage own onboarding progress" on client_onboarding_progress;
 create policy "clients manage own onboarding progress" on client_onboarding_progress
   for all to authenticated
   using (
@@ -46,6 +49,7 @@ create policy "clients manage own onboarding progress" on client_onboarding_prog
     or (select role from profiles where id = auth.uid()) = 'admin'
   );
 
+drop policy if exists "clients manage own contracts" on contracts;
 create policy "clients manage own contracts" on contracts
   for all to authenticated
   using (
@@ -57,6 +61,7 @@ create policy "clients manage own contracts" on contracts
     or (select role from profiles where id = auth.uid()) = 'admin'
   );
 
+drop policy if exists "clients manage own credentials" on client_credentials;
 create policy "clients manage own credentials" on client_credentials
   for all to authenticated
   using (
@@ -74,6 +79,7 @@ insert into storage.buckets (id, name, public)
 values ('client-documents', 'client-documents', false)
 on conflict (id) do nothing;
 
+drop policy if exists "clients insert own documents" on storage.objects;
 create policy "clients insert own documents" on storage.objects
   for insert to authenticated
   with check (
@@ -81,6 +87,7 @@ create policy "clients insert own documents" on storage.objects
     and (storage.foldername(name))[1] = (select client_id::text from profiles where id = auth.uid())
   );
 
+drop policy if exists "clients and admins select own documents" on storage.objects;
 create policy "clients and admins select own documents" on storage.objects
   for select to authenticated
   using (
@@ -91,6 +98,7 @@ create policy "clients and admins select own documents" on storage.objects
     )
   );
 
+drop policy if exists "admins manage all documents" on storage.objects;
 create policy "admins manage all documents" on storage.objects
   for all to authenticated
   using (
