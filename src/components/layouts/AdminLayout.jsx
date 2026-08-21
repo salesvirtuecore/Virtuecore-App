@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, GitBranch, UserCheck, DollarSign,
   LogOut, Webhook, Globe, Menu, X, ChevronLeft, ChevronRight,
-  Zap, BookOpen
+  Zap, BookOpen, FolderLock
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/admin/revenue',  label: 'Revenue',       icon: DollarSign },
   { to: '/admin/analytics',label: 'Web Analytics', icon: Globe },
   { to: '/admin/webhooks', label: 'Integrations',  icon: Webhook },
+  { to: '/admin/documents',label: 'Documents',      icon: FolderLock },
 ]
 
 const EXTERNAL = [

@@ -23,6 +23,7 @@ import VAManagement from './pages/admin/VAManagement'
 import Revenue from './pages/admin/Revenue'
 import WebAnalytics from './pages/admin/WebAnalytics'
 import Webhooks from './pages/admin/Webhooks'
+import Documents from './pages/admin/Documents'
 
 // Client
 import ClientDashboard from './pages/client/Dashboard'
@@ -39,6 +40,8 @@ import AdPerformance from './pages/client/AdPerformance'
 import GrowthScorecard from './pages/client/GrowthScorecard'
 import WeeklyPulse from './pages/client/WeeklyPulse'
 import ROICalculator from './pages/client/ROICalculator'
+import Onboarding from './pages/client/Onboarding'
+import Contracts from './pages/client/Contracts'
 
 // VA
 import TaskBoard from './pages/va/TaskBoard'
@@ -123,11 +126,14 @@ function AppRoutes() {
         <Route path="revenue" element={<Revenue />} />
         <Route path="analytics" element={<WebAnalytics />} />
         <Route path="webhooks" element={<Webhooks />} />
+        <Route path="documents" element={<Documents />} />
       </Route>
 
       {/* Client */}
       <Route path="/client" element={<RoleGate allowedRole="client"><ClientLayout /></RoleGate>}>
         <Route index element={<ClientDashboard />} />
+        <Route path="onboarding" element={<Onboarding />} />
+        <Route path="contracts" element={<Contracts />} />
         <Route path="deliverables" element={<Deliverables />} />
         <Route path="calendar" element={<ContentCalendar />} />
         <Route path="messages" element={<Messages />} />

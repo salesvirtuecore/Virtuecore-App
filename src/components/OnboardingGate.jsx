@@ -1,23 +1,29 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { CheckCircle, Circle, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/api'
 
+// Pages a client must be able to reach even before the gate is satisfied —
+// otherwise "Go to Billing" / "Go to Contracts" would just redirect back
+// into this same wall (both live inside the gated <Outlet>).
+const GATE_ESCAPE_ROUTES = ['/client/billing', '/client/contracts', '/client/onboarding']
+
 // Locks the client portal until they have completed:
 // 1. Added their Stripe secret key (read-only revenue tracking)
 // 2. Saved a payment method on file
-// 3. Connected their Facebook Ads account
+// 3. Uploaded their signed contract
 export default function OnboardingGate({ children }) {
   const { profile } = useAuth()
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [setup, setSetup] = useState({
     stripeRevenue: false,
     paymentMethod: false,
-    facebook: false,
+    contract: false,
   })
   const [savingCard, setSavingCard] = useState(false)
-  const [connectingMeta, setConnectingMeta] = useState(false)
   const [error, setError] = useState('')
 
   async function loadStatus() {
@@ -26,14 +32,19 @@ export default function OnboardingGate({ children }) {
       return
     }
     try {
-      const { data } = await supabase.from('clients')
-        .select('stripe_account_id, stripe_secret_key_valid, default_payment_method_id, meta_ad_account_id')
-        .eq('id', profile.client_id)
-        .single()
+      const [{ data }, { count }] = await Promise.all([
+        supabase.from('clients')
+          .select('stripe_account_id, stripe_secret_key_valid, default_payment_method_id')
+          .eq('id', profile.client_id)
+          .single(),
+        supabase.from('contracts')
+          .select('id', { count: 'exact', head: true })
+          .eq('client_id', profile.client_id),
+      ])
       setSetup({
         stripeRevenue: Boolean(data?.stripe_account_id || data?.stripe_secret_key_valid),
         paymentMethod: Boolean(data?.default_payment_method_id),
-        facebook: Boolean(data?.meta_ad_account_id),
+        contract: Boolean(count && count > 0),
       })
     } catch {
       // Default to all false if we can't read
@@ -67,22 +78,11 @@ export default function OnboardingGate({ children }) {
     }
   }
 
-  async function startMetaConnect() {
-    setError('')
-    setConnectingMeta(true)
-    try {
-      const res = await apiFetch(`/api/meta/connect?client_id=${profile.client_id}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to start Facebook connect')
-      window.location.assign(data.url)
-    } catch (err) {
-      setError(err.message)
-      setConnectingMeta(false)
-    }
-  }
-
   // VAs and admins skip the gate entirely
   if (profile?.role !== 'client') return children
+
+  // Always let the client reach the pages needed to actually complete a step
+  if (GATE_ESCAPE_ROUTES.includes(location.pathname)) return children
 
   if (loading) {
     return (
@@ -92,7 +92,7 @@ export default function OnboardingGate({ children }) {
     )
   }
 
-  const allComplete = setup.stripeRevenue && setup.paymentMethod && setup.facebook
+  const allComplete = setup.stripeRevenue && setup.paymentMethod && setup.contract
   if (allComplete) return children
 
   // Render onboarding wall
@@ -116,13 +116,13 @@ export default function OnboardingGate({ children }) {
       loading: savingCard,
     },
     {
-      key: 'facebook',
-      done: setup.facebook,
-      title: 'Connect your Facebook Ads account',
-      description: 'So we can pull your ad performance data into your dashboard.',
-      buttonLabel: connectingMeta ? 'Redirecting…' : 'Connect Facebook',
-      onClick: startMetaConnect,
-      loading: connectingMeta,
+      key: 'contract',
+      done: setup.contract,
+      title: 'Upload your signed contract',
+      description: 'Upload a copy of your signed agreement with VirtueCore so we can get started.',
+      buttonLabel: 'Go to Contracts',
+      onClick: () => window.location.assign('/client/contracts'),
+      loading: false,
     },
   ]
   const completedCount = steps.filter((s) => s.done).length

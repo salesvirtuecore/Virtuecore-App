@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Calendar, MessageSquare, Receipt,
   Video, CreditCard, BarChart2, Plug, LogOut, TrendingUp,
-  Award, Zap, Calculator, Menu, X, HelpCircle
+  Award, Zap, Calculator, Menu, X, HelpCircle, PlayCircle, ClipboardCheck
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { apiFetch } from '../../lib/api'
@@ -17,8 +17,10 @@ import OnboardingGate from '../OnboardingGate'
 
 const NAV = [
   { to: '/client',                label: 'Dashboard',       icon: LayoutDashboard, end: true },
+  { to: '/client/onboarding',     label: 'Getting Started', icon: PlayCircle },
   { to: '/client/ad-performance', label: 'Ads Performance', icon: TrendingUp },
   { to: '/client/deliverables',   label: 'Deliverables',    icon: FileText },
+  { to: '/client/contracts',      label: 'Contracts',       icon: ClipboardCheck },
   { to: '/client/calendar',       label: 'Content Calendar',icon: Calendar },
   { to: '/client/scorecard',      label: 'Growth Scorecard',icon: Award },
   { to: '/client/pulse',          label: 'Weekly Pulse',    icon: Zap },
