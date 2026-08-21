@@ -1,9 +1,33 @@
 import { authenticateUser, requireClientOwnership, requireRole, checkRateLimit } from '../_lib/auth.js'
 
-// Real deploy/site status per client_websites row with a netlify_site_id set.
-// Note: Netlify's visitor-traffic Analytics is a separate paid add-on with its
-// own endpoint — this only surfaces what's available on every plan (site info
-// + latest deploy state), not paid traffic analytics.
+// Pulls real pageview/visitor counts from Netlify's traffic Analytics add-on
+// (the paid "Web Analytics" feature). This is an UNDOCUMENTED Netlify API —
+// there's no public/versioned contract for it, so it's wrapped defensively
+// and degrades to `null` on any failure rather than breaking the page. Sites
+// without the add-on purchased simply come back with an empty series (not
+// an error), which reads to the client as "no data" rather than "broken".
+async function fetchNetlifyTraffic(siteId, token, days = 30) {
+  try {
+    const to = Math.floor(Date.now() / 1000)
+    const from = to - days * 86400
+    const [pvRes, visRes] = await Promise.all([
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/pageviews?from=${from}&to=${to}&timezone=0&resolution=day`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/visitors?from=${from}&to=${to}&timezone=0&resolution=range`, { headers: { Authorization: `Bearer ${token}` } }),
+    ])
+    if (!pvRes.ok || !visRes.ok) return null
+    const pvData = await pvRes.json()
+    const visData = await visRes.json()
+    const series = (pvData.data || []).map(([ts, v]) => ({ date: new Date(ts * 1000).toISOString().split('T')[0], pageviews: Number(v || 0) }))
+    const pageviews = series.reduce((sum, row) => sum + row.pageviews, 0)
+    const visitors = Number((visData.data || [])[0]?.[1] || 0)
+    return { days, pageviews, visitors, series }
+  } catch {
+    return null
+  }
+}
+
+// Real deploy/site status per client_websites row with a netlify_site_id set,
+// plus traffic numbers from the Analytics add-on when available.
 async function fetchNetlifySite(siteId, token) {
   const res = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -13,6 +37,7 @@ async function fetchNetlifySite(siteId, token) {
     return { error: `Netlify API error (${res.status})` }
   }
   const site = await res.json()
+  const traffic = await fetchNetlifyTraffic(siteId, token)
   return {
     name: site.name,
     url: site.ssl_url || site.url,
@@ -20,6 +45,7 @@ async function fetchNetlifySite(siteId, token) {
     state: site.state,
     lastDeployedAt: site.updated_at || null,
     screenshotUrl: site.screenshot_url || null,
+    traffic,
   }
 }
 

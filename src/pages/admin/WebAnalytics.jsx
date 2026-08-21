@@ -231,6 +231,14 @@ export default function WebAnalytics() {
                           <span className="text-xs text-text-secondary italic">Not connected yet</span>
                         )}
                       </div>
+                      {netlifyBySite[site.id]?.traffic && (netlifyBySite[site.id].traffic.pageviews > 0 || netlifyBySite[site.id].traffic.visitors > 0) && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-text-secondary">Traffic ({netlifyBySite[site.id].traffic.days}d):</span>
+                          <span className="text-xs font-mono text-text-primary">
+                            {netlifyBySite[site.id].traffic.pageviews.toLocaleString()} views · {netlifyBySite[site.id].traffic.visitors.toLocaleString()} visitors
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Tracking snippet panel */}

@@ -189,6 +189,31 @@ export default function ClientWebAnalytics() {
                     )}
                   </div>
 
+                  {/* Netlify traffic analytics */}
+                  {netlifyBySite[site.id] && !netlifyBySite[site.id]?.error && (
+                    <div className="border-t border-white/[0.06] pt-3">
+                      <p className="text-xs font-medium text-text-primary mb-2">
+                        Traffic (last {netlifyBySite[site.id].traffic?.days ?? 30} days, via Netlify Analytics)
+                      </p>
+                      {netlifyBySite[site.id].traffic?.pageviews > 0 || netlifyBySite[site.id].traffic?.visitors > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-text-tertiary text-[11px]">Pageviews</p>
+                            <p className="text-lg font-semibold text-text-primary font-mono-data">{netlifyBySite[site.id].traffic.pageviews.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-text-tertiary text-[11px]">Unique visitors</p>
+                            <p className="text-lg font-semibold text-text-primary font-mono-data">{netlifyBySite[site.id].traffic.visitors.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-text-secondary italic">
+                          No traffic data available — either Netlify Analytics isn't enabled for this site, or there hasn't been any traffic yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {site.ga_measurement_id && (
