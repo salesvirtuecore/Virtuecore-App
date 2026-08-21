@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Globe, Plus, ExternalLink, Trash2, Copy, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
+import { apiFetch } from '../../lib/api'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 
@@ -25,6 +26,7 @@ export default function WebAnalytics() {
   const [saving, setSaving] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
   const [scriptSiteId, setScriptSiteId] = useState(null)
+  const [netlifyBySite, setNetlifyBySite] = useState({})
 
   useEffect(() => {
     if (!supabase) return
@@ -45,6 +47,13 @@ export default function WebAnalytics() {
         setWebsites(
           siteRows.map((s) => ({ ...s, client_name: s.clients?.company_name ?? '—' }))
         )
+        for (const s of siteRows) {
+          if (!s.netlify_site_id) continue
+          apiFetch(`/api/netlify/site-status?netlify_site_id=${s.netlify_site_id}`)
+            .then((r) => r.json())
+            .then((data) => setNetlifyBySite((prev) => ({ ...prev, [s.id]: data.connected ? data.netlify : null })))
+            .catch(() => {})
+        }
       }
       if (clientRows) setClients(clientRows)
       setLoading(false)
@@ -198,11 +207,29 @@ export default function WebAnalytics() {
                           {site.meta_pixel_id || <span className="text-text-secondary italic">Not set</span>}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-text-secondary">Netlify site:</span>
-                        <span className="text-xs font-mono text-text-primary">
-                          {site.netlify_site_id || <span className="text-text-secondary italic">Not connected yet</span>}
-                        </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-text-secondary">Netlify:</span>
+                        {!site.netlify_site_id ? (
+                          <span className="text-xs text-text-secondary italic">Not connected yet</span>
+                        ) : netlifyBySite[site.id] === undefined ? (
+                          <span className="text-xs text-text-secondary italic">Loading...</span>
+                        ) : netlifyBySite[site.id]?.error ? (
+                          <span className="text-xs text-status-danger">{netlifyBySite[site.id].error}</span>
+                        ) : netlifyBySite[site.id] ? (
+                          <>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-status-success/10 text-status-success capitalize">{netlifyBySite[site.id].state || 'live'}</span>
+                            <span className="text-xs text-text-secondary">
+                              Deployed {netlifyBySite[site.id].lastDeployedAt ? new Date(netlifyBySite[site.id].lastDeployedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'unknown'}
+                            </span>
+                            {netlifyBySite[site.id].adminUrl && (
+                              <a href={netlifyBySite[site.id].adminUrl} target="_blank" rel="noreferrer" className="text-xs text-vc-accent hover:underline flex items-center gap-1">
+                                Dashboard <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-text-secondary italic">Not connected yet</span>
+                        )}
                       </div>
                     </div>
 

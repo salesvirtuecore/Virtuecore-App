@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BarChart2, ExternalLink, Copy, Check, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { apiFetch } from '../../lib/api'
 
 export default function ClientWebAnalytics() {
   const { profile } = useAuth()
@@ -11,6 +12,7 @@ export default function ClientWebAnalytics() {
   const [openSnippet, setOpenSnippet] = useState(null)
   const [gaInput, setGaInput] = useState({})
   const [saving, setSaving] = useState(null)
+  const [netlifyBySite, setNetlifyBySite] = useState({})
 
   const clientId = profile?.client_id
 
@@ -25,6 +27,19 @@ export default function ClientWebAnalytics() {
         if (data) setSites(data)
         setLoading(false)
       })
+  }, [clientId])
+
+  useEffect(() => {
+    if (!clientId) return
+    apiFetch(`/api/netlify/status?client_id=${clientId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.connected) return
+        const bySite = {}
+        for (const s of data.sites || []) bySite[s.id] = s.netlify
+        setNetlifyBySite(bySite)
+      })
+      .catch(() => {})
   }, [clientId])
 
   async function saveGaId(site) {
@@ -148,13 +163,29 @@ export default function ClientWebAnalytics() {
                     </div>
                   )}
 
-                  {/* Website hosting (Netlify) — stubbed until connected */}
-                  <div className="flex items-center gap-2 text-xs">
+                  {/* Website hosting (Netlify) */}
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="text-text-secondary">Hosting:</span>
-                    {site.netlify_site_id ? (
-                      <span className="font-mono text-text-primary">{site.netlify_site_id}</span>
+                    {!site.netlify_site_id ? (
+                      <span className="text-text-secondary italic">Not connected yet</span>
+                    ) : netlifyBySite[site.id] === undefined ? (
+                      <span className="text-text-secondary italic">Loading...</span>
+                    ) : netlifyBySite[site.id]?.error ? (
+                      <span className="text-status-danger">{netlifyBySite[site.id].error}</span>
+                    ) : netlifyBySite[site.id] ? (
+                      <>
+                        <span className="px-1.5 py-0.5 rounded bg-status-success/10 text-status-success capitalize">{netlifyBySite[site.id].state || 'live'}</span>
+                        <span className="text-text-secondary">
+                          Last deployed {netlifyBySite[site.id].lastDeployedAt ? new Date(netlifyBySite[site.id].lastDeployedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'unknown'}
+                        </span>
+                        {netlifyBySite[site.id].adminUrl && (
+                          <a href={netlifyBySite[site.id].adminUrl} target="_blank" rel="noreferrer" className="text-vc-accent hover:underline flex items-center gap-1">
+                            Netlify dashboard <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </>
                     ) : (
-                      <span className="text-text-secondary italic">Deploy/traffic data not connected yet</span>
+                      <span className="text-text-secondary italic">Deploy data not connected yet</span>
                     )}
                   </div>
 
