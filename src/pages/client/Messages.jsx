@@ -3,6 +3,7 @@ import { Send } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { sendPushNotification } from '../../lib/pushNotifications'
+import { apiFetch } from '../../lib/api'
 
 export default function Messages() {
   const { profile } = useAuth()
@@ -103,6 +104,8 @@ export default function Messages() {
           url: `/admin/clients/${clientId}`,
         })
       }
+      // Email/Slack fallback for staff — push only reaches an already-subscribed device
+      apiFetch('/api/messages/notify', { method: 'POST', body: JSON.stringify({ client_id: clientId, content }) }).catch(() => {})
     } catch (err) {
       console.error('Failed to send message', err)
       setSendError(err?.message || 'Failed to send. Please try again.')

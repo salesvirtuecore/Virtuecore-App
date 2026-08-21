@@ -32,6 +32,18 @@ function ctaButton(href, label) {
   return `<a href="${href}" style="display: inline-block; background: ${BRAND_COLOR}; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600;">${label}</a>`
 }
 
+// Message content is free-form user input embedded directly into HTML email
+// bodies below — always escape it first so a client typing "<script>" or
+// similar into a chat message can't break the email or inject markup.
+function escapeHtml(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function send({ to, subject, html }) {
   const transport = createMailTransport()
   if (!transport || !to) return { sent: false }
@@ -114,6 +126,39 @@ export async function sendOnboardingCompleteEmail({ email, fullName, companyName
     subject: `Welcome aboard — here's how VirtueCore works`,
     html: wrapEmailHtml('You’re All Set', body),
   })
+}
+
+// Sent to a client when a staff member replies to them in the portal
+// messaging thread — they may not be sitting in the app, so email is the
+// reliable channel (push notification also fires, but only reaches an
+// already-subscribed device).
+export async function sendMessageReplyEmail({ email, fullName, senderName, preview }) {
+  const appUrl = getAppUrl()
+  const body = `
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+      <strong>${senderName || 'Your VirtueCore team'}</strong> just replied to you in your portal:
+    </p>
+    <p style="font-size: 14px; color: #374151; line-height: 1.6; margin: 0 0 24px; padding: 12px 16px; background: #f9fafb; border-left: 3px solid ${BRAND_COLOR}; border-radius: 4px;">
+      ${escapeHtml(preview).slice(0, 300)}
+    </p>
+    ${ctaButton(`${appUrl}/client/messages`, 'Reply in Portal')}`
+  return send({ to: email, subject: `New reply from ${senderName || 'VirtueCore'}`, html: wrapEmailHtml('New Message', body) })
+}
+
+// Sent to every admin when a client sends a message — the reliable fallback
+// alongside the best-effort push notification and (separately) a Slack ping.
+export async function sendStaffMessageAlertEmail({ email, clientName, senderName, preview, clientId }) {
+  const appUrl = getAppUrl()
+  const body = `
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+      New portal message from <strong>${senderName || 'a client'}</strong> (${clientName || 'Unknown client'}):
+    </p>
+    <p style="font-size: 14px; color: #374151; line-height: 1.6; margin: 0 0 24px; padding: 12px 16px; background: #f9fafb; border-left: 3px solid ${BRAND_COLOR}; border-radius: 4px;">
+      ${escapeHtml(preview).slice(0, 300)}
+    </p>
+    ${ctaButton(`${appUrl}/admin/clients/${clientId}`, 'Reply Now')}`
+  return send({ to: email, subject: `New message from ${clientName || 'a client'}`, html: wrapEmailHtml('New Client Message', body) })
 }
 
 export async function sendPaymentReminderEmail({ email, fullName, amount, dueDate }) {

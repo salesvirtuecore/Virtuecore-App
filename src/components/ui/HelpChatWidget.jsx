@@ -4,6 +4,49 @@ import { useAuth } from '../../context/AuthContext'
 import { useLocation } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 
+// Small dependency-free renderer for the handful of markdown constructs the
+// assistant actually produces (bold, paragraphs, bullet lists) — a full
+// markdown library is overkill for a chat bubble, but plain text left the
+// model's **bold** markers and blank-line paragraphs showing up literally.
+function renderInline(text, keyPrefix) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>
+    }
+    return part ? <span key={`${keyPrefix}-${i}`}>{part}</span> : null
+  })
+}
+
+function renderMarkdownLite(text) {
+  if (!text) return null
+  const blocks = text.split(/\n{2,}/)
+  return blocks.map((block, bi) => {
+    const lines = block.split('\n')
+    const nonEmpty = lines.filter((l) => l.trim())
+    const isList = nonEmpty.length > 0 && nonEmpty.every((l) => /^[-*•]\s+/.test(l.trim()))
+    if (isList) {
+      return (
+        <ul key={bi} className={`list-disc list-inside space-y-0.5 ${bi > 0 ? 'mt-2' : ''}`}>
+          {nonEmpty.map((line, li) => (
+            <li key={li}>{renderInline(line.trim().replace(/^[-*•]\s+/, ''), `${bi}-${li}`)}</li>
+          ))}
+        </ul>
+      )
+    }
+    return (
+      <p key={bi} className={bi > 0 ? 'mt-2' : ''}>
+        {lines.map((line, li) => (
+          <span key={li}>
+            {renderInline(line, `${bi}-${li}`)}
+            {li < lines.length - 1 && <br />}
+          </span>
+        ))}
+      </p>
+    )
+  })
+}
+
 function generateReply(input, role) {
   const text = input.toLowerCase()
 
@@ -152,7 +195,7 @@ export default function HelpChatWidget() {
                     : 'ml-auto bg-vc-primary text-white'
                 }`}
               >
-                {message.text}
+                {message.role === 'assistant' ? renderMarkdownLite(message.text) : message.text}
               </div>
             ))}
             {sending && (

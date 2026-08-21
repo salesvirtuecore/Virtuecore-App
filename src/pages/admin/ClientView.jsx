@@ -593,6 +593,8 @@ export default function ClientView() {
           url: '/client/messages',
         })
       }
+      // Email fallback for the client — push only reaches an already-subscribed device
+      apiFetch('/api/messages/notify', { method: 'POST', body: JSON.stringify({ client_id: id, content }) }).catch(() => {})
     } catch (err) {
       showToast(err.message ?? 'Failed to send message', 'error')
       setMessageText(content)
