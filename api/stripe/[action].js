@@ -189,7 +189,19 @@ async function handleSaveSecretKey(req, res, authProfile) {
       stripe_key_last_validated_at: new Date().toISOString(),
     }).eq('id', targetClientId)
     if (error) return res.status(500).json({ error: error.message })
-    return res.status(200).json({ ok: true, masked })
+
+    // Sync revenue immediately so the dashboard never shows stale/zero
+    // numbers between "key saved" and someone happening to click "Sync now".
+    let revenue = null
+    try {
+      const platformStripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+      const result = await syncRevenueForClient(targetClientId, { supabase, platformStripe })
+      revenue = { totalRevenue: result.totalRevenue, revenueLast90Days: result.revenueLast90Days }
+    } catch (syncErr) {
+      console.error('Post-save revenue sync failed:', syncErr?.message)
+    }
+
+    return res.status(200).json({ ok: true, masked, revenue })
   } catch (err) {
     return res.status(500).json({ error: err?.message || 'Failed to save key' })
   }
@@ -244,9 +256,75 @@ async function handleSetupPaymentMethod(req, res, authProfile) {
   }
 }
 
-// ── /api/stripe/sync-revenue (POST) ─────────────────────────────────────────
+// ── Shared revenue-sync core ────────────────────────────────────────────────
 // Fetches all successful charges from the client's connected Stripe account
-// since their VirtueCore join date, then stores the total.
+// since their VirtueCore join date, then stores the total. Used both by the
+// standalone sync-revenue action and immediately after a key is (re)saved,
+// so a freshly pasted key is never left showing stale/zero revenue until
+// someone happens to click "Sync now".
+async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
+  const { data: client } = await supabase.from('clients')
+    .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
+    .eq('id', clientId).maybeSingle()
+  if (!client) throw Object.assign(new Error('Client not found'), { status: 404 })
+
+  // A pasted secret key always wins if one has been saved — it's the client's
+  // own real Stripe account and the whole point of replacing OAuth. Legacy
+  // Connect accounts (stripeAccount header on the platform Stripe object) are
+  // only used as a fallback for clients who never re-keyed.
+  let chargesClient = platformStripe
+  let chargesOptions
+
+  if (client.stripe_secret_key_encrypted) {
+    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
+    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  } else if (client.stripe_account_id) {
+    chargesOptions = { stripeAccount: client.stripe_account_id }
+  } else {
+    throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
+  }
+
+  // "Since joining VirtueCore"
+  const joinDate = client.onboarding_started_at || client.created_at
+  const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
+  const ninetyDaysAgoUnix = Math.floor(Date.now() / 1000) - 90 * 86400
+  // Never look further back than "since joining" for the 90-day figure either
+  const last90StartUnix = Math.max(joinUnix, ninetyDaysAgoUnix)
+
+  let totalRevenue = 0
+  let revenueLast90Days = 0
+  let chargeCount = 0
+  let hasMore = true
+  let startingAfter
+
+  while (hasMore) {
+    const params = { created: { gte: joinUnix }, limit: 100 }
+    if (startingAfter) params.starting_after = startingAfter
+    const charges = await chargesClient.charges.list(params, chargesOptions)
+
+    for (const charge of charges.data) {
+      if (charge.status === 'succeeded') {
+        const net = (charge.amount - (charge.amount_refunded || 0)) / 100
+        totalRevenue += net
+        chargeCount++
+        if (charge.created >= last90StartUnix) revenueLast90Days += net
+      }
+    }
+
+    hasMore = charges.has_more
+    startingAfter = charges.data.length > 0 ? charges.data[charges.data.length - 1].id : undefined
+  }
+
+  await supabase.from('clients').update({
+    stripe_total_revenue: totalRevenue,
+    stripe_revenue_last_90d: revenueLast90Days,
+    stripe_revenue_synced_at: new Date().toISOString(),
+  }).eq('id', clientId)
+
+  return { totalRevenue, revenueLast90Days, chargeCount, joinDate }
+}
+
+// ── /api/stripe/sync-revenue (POST) ─────────────────────────────────────────
 async function handleSyncRevenue(req, res, authProfile) {
   if (req.method !== 'POST') return res.status(405).end()
   const stripeSecret = process.env.STRIPE_SECRET_KEY
@@ -269,74 +347,17 @@ async function handleSyncRevenue(req, res, authProfile) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
-  const { data: client } = await supabase.from('clients')
-    .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
-    .eq('id', clientId).maybeSingle()
-  if (!client) return res.status(404).json({ error: 'Client not found' })
-
-  // A pasted secret key always wins if one has been saved — it's the client's
-  // own real Stripe account and the whole point of replacing OAuth. Legacy
-  // Connect accounts (stripeAccount header on the platform Stripe object) are
-  // only used as a fallback for clients who never re-keyed.
-  let chargesClient = stripe
-  let chargesOptions
-
-  if (client.stripe_secret_key_encrypted) {
-    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
-    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
-  } else if (client.stripe_account_id) {
-    chargesOptions = { stripeAccount: client.stripe_account_id }
-  } else {
-    return res.status(400).json({ error: 'Stripe not connected — please add your Stripe secret key first' })
-  }
-
-  // "Since joining VirtueCore"
-  const joinDate = client.onboarding_started_at || client.created_at
-  const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
-  const ninetyDaysAgoUnix = Math.floor(Date.now() / 1000) - 90 * 86400
-  // Never look further back than "since joining" for the 90-day figure either
-  const last90StartUnix = Math.max(joinUnix, ninetyDaysAgoUnix)
-
   try {
-    let totalRevenue = 0
-    let revenueLast90Days = 0
-    let chargeCount = 0
-    let hasMore = true
-    let startingAfter
-
-    while (hasMore) {
-      const params = { created: { gte: joinUnix }, limit: 100 }
-      if (startingAfter) params.starting_after = startingAfter
-      const charges = await chargesClient.charges.list(params, chargesOptions)
-
-      for (const charge of charges.data) {
-        if (charge.status === 'succeeded') {
-          const net = (charge.amount - (charge.amount_refunded || 0)) / 100
-          totalRevenue += net
-          chargeCount++
-          if (charge.created >= last90StartUnix) revenueLast90Days += net
-        }
-      }
-
-      hasMore = charges.has_more
-      startingAfter = charges.data.length > 0 ? charges.data[charges.data.length - 1].id : undefined
-    }
-
-    await supabase.from('clients').update({
-      stripe_total_revenue: totalRevenue,
-      stripe_revenue_last_90d: revenueLast90Days,
-      stripe_revenue_synced_at: new Date().toISOString(),
-    }).eq('id', clientId)
-
+    const result = await syncRevenueForClient(clientId, { supabase, platformStripe: stripe })
     return res.status(200).json({
       ok: true,
-      total_revenue: totalRevenue,
-      revenue_last_90_days: revenueLast90Days,
-      charge_count: chargeCount,
-      since: joinDate,
+      total_revenue: result.totalRevenue,
+      revenue_last_90_days: result.revenueLast90Days,
+      charge_count: result.chargeCount,
+      since: result.joinDate,
     })
   } catch (err) {
-    return res.status(500).json({ error: err?.message || 'Sync failed' })
+    return res.status(err?.status || 500).json({ error: err?.message || 'Sync failed' })
   }
 }
 
