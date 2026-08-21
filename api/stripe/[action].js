@@ -94,9 +94,11 @@ async function handleClientConnect(req, res) {
     if (clientError) return res.status(clientError.status).json({ error: clientError.message })
 
     // Fetch revenue totals + payment method status for this client
-    const { data: clientFull } = await supabase.from('clients')
+    const { data: clientFull, error: clientFullError } = await supabase.from('clients')
       .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
       .eq('id', client.id).maybeSingle()
+    if (clientFullError) return res.status(500).json({ error: `Failed to load client record: ${clientFullError.message}` })
+    if (!clientFull) return res.status(404).json({ error: 'Client record not found' })
     const stripeAccountId = clientFull?.stripe_account_id || null
 
     // Legacy Connect accounts (if any remain) still report live status from Stripe;
