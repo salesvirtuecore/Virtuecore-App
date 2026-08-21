@@ -117,6 +117,19 @@ async function handleAdminListContracts(req, res, profile, supabase) {
   res.status(200).json({ contracts: data || [] })
 }
 
+// ── update-contract-status (POST) — admin marks a contract signed/archived ──
+const CONTRACT_STATUSES = new Set(['submitted', 'signed', 'archived'])
+async function handleUpdateContractStatus(req, res, profile, supabase) {
+  if (!requireRole(res, profile, 'admin')) return
+  const { contract_id, status } = req.body ?? {}
+  if (!contract_id || !CONTRACT_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'contract_id and a valid status are required' })
+  }
+  const { error } = await supabase.from('contracts').update({ status }).eq('id', contract_id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.status(200).json({ ok: true })
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
@@ -132,5 +145,6 @@ export default async function handler(req, res) {
   if (action === 'submit-contract') return handleSubmitContract(req, res, profile, supabase)
   if (action === 'admin-list-credentials') return handleAdminListCredentials(req, res, profile, supabase)
   if (action === 'admin-list-contracts') return handleAdminListContracts(req, res, profile, supabase)
+  if (action === 'update-contract-status') return handleUpdateContractStatus(req, res, profile, supabase)
   res.status(404).json({ error: 'Unknown action' })
 }

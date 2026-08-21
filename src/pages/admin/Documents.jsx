@@ -47,6 +47,20 @@ export default function Documents() {
     }
   }
 
+  async function updateContractStatus(contractId, status) {
+    try {
+      const res = await apiFetch('/api/onboarding/update-contract-status', {
+        method: 'POST',
+        body: JSON.stringify({ contract_id: contractId, status }),
+      })
+      if (!res.ok) throw new Error()
+      setContracts((prev) => prev.map((c) => (c.id === contractId ? { ...c, status } : c)))
+      showToast(`Marked ${status}`)
+    } catch {
+      showToast('Failed to update status', 'error')
+    }
+  }
+
   const tabs = [
     { key: 'contracts', label: `Contracts (${contracts.length})` },
     { key: 'credentials', label: `Credentials (${credentials.length})` },
@@ -94,7 +108,17 @@ export default function Documents() {
                     <tr key={c.id}>
                       <td className="whitespace-nowrap">{c.clients?.company_name || '—'}</td>
                       <td className="flex items-center gap-2 whitespace-nowrap"><FileText size={14} className="text-text-secondary" />{c.file_name || 'contract.pdf'}</td>
-                      <td className="whitespace-nowrap capitalize">{c.status}</td>
+                      <td className="whitespace-nowrap">
+                        <select
+                          value={c.status}
+                          onChange={(e) => updateContractStatus(c.id, e.target.value)}
+                          className="text-xs bg-bg-tertiary border border-white/[0.08] rounded px-2 py-1 text-text-primary capitalize"
+                        >
+                          <option value="submitted">Submitted</option>
+                          <option value="signed">Signed</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </td>
                       <td className="whitespace-nowrap">{formatDate(c.created_at)}</td>
                       <td className="whitespace-nowrap">
                         <button onClick={() => openDocument(c.file_path)} className="text-vc-primary hover:underline text-xs flex items-center gap-1">
