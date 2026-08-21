@@ -63,7 +63,7 @@ async function handleCallback(req, res) {
   const accounts = (accountsData.data || []).map((a) => ({
     id: a.id, account_id: a.account_id, name: a.name, status: a.account_status, currency: a.currency,
   }))
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  const supabase = makeSupabase()
   const { error: updateError } = await supabase.from('clients')
     .update({ meta_access_token: accessToken, meta_token_expires_at: expiresAt })
     .eq('id', client_id)
