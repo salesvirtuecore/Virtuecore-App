@@ -95,7 +95,7 @@ async function handleClientConnect(req, res) {
 
     // Fetch revenue totals + payment method status for this client
     const { data: clientFull, error: clientFullError } = await supabase.from('clients')
-      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
+      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
       .eq('id', client.id).maybeSingle()
     if (clientFullError) return res.status(500).json({ error: `Failed to load client record: ${clientFullError.message}` })
     if (!clientFull) return res.status(404).json({ error: 'Client record not found' })
@@ -142,6 +142,10 @@ async function handleClientConnect(req, res) {
       totalRevenue: Number(clientFull.stripe_total_revenue || 0),
       revenueLast90Days: Number(clientFull.stripe_revenue_last_90d || 0),
       revenueSyncedAt: clientFull.stripe_revenue_synced_at,
+      revenueByMonth: clientFull.stripe_revenue_by_month || {},
+      activeSubscriptions: Number(clientFull.stripe_active_subscriptions || 0),
+      mrr: Number(clientFull.stripe_mrr || 0),
+      customerCount: Number(clientFull.stripe_customer_count || 0),
       savedCard,
       nextBillingDate: clientFull.next_billing_date,
       monthlyRetainer: Number(clientFull.monthly_retainer || 0),
@@ -256,12 +260,30 @@ async function handleSetupPaymentMethod(req, res, authProfile) {
   }
 }
 
+// Normalizes a Stripe subscription price to a monthly-equivalent amount —
+// e.g. an annual £1200 plan and a monthly £100 plan both report as £100/mo,
+// so MRR is comparable across mixed billing intervals.
+function monthlyEquivalent(price, quantity) {
+  if (!price?.unit_amount || !price?.recurring) return 0
+  const amount = (price.unit_amount * (quantity || 1)) / 100
+  const intervalCount = price.recurring.interval_count || 1
+  switch (price.recurring.interval) {
+    case 'year': return amount / (12 * intervalCount)
+    case 'month': return amount / intervalCount
+    case 'week': return (amount * 4.345) / intervalCount
+    case 'day': return (amount * 30.44) / intervalCount
+    default: return 0
+  }
+}
+
 // ── Shared revenue-sync core ────────────────────────────────────────────────
-// Fetches all successful charges from the client's connected Stripe account
-// since their VirtueCore join date, then stores the total. Used both by the
-// standalone sync-revenue action and immediately after a key is (re)saved,
-// so a freshly pasted key is never left showing stale/zero revenue until
-// someone happens to click "Sync now".
+// Fetches all successful charges, active subscriptions, and customers from
+// the client's connected Stripe account since their VirtueCore join date,
+// then stores the totals plus a month-by-month revenue breakdown (used to
+// drive the real revenue trend chart and forecaster on the client dashboard).
+// Used both by the standalone sync-revenue action and immediately after a
+// key is (re)saved, so a freshly pasted key is never left showing stale/zero
+// data until someone happens to click "Sync now".
 async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
   const { data: client } = await supabase.from('clients')
     .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
@@ -294,6 +316,7 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
   let totalRevenue = 0
   let revenueLast90Days = 0
   let chargeCount = 0
+  const revenueByMonth = {}
   let hasMore = true
   let startingAfter
 
@@ -308,6 +331,8 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
         totalRevenue += net
         chargeCount++
         if (charge.created >= last90StartUnix) revenueLast90Days += net
+        const monthKey = new Date(charge.created * 1000).toISOString().slice(0, 7)
+        revenueByMonth[monthKey] = Number(((revenueByMonth[monthKey] || 0) + net).toFixed(2))
       }
     }
 
@@ -315,13 +340,54 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
     startingAfter = charges.data.length > 0 ? charges.data[charges.data.length - 1].id : undefined
   }
 
+  // Active/trialing subscriptions -> count + normalized MRR
+  let activeSubscriptions = 0
+  let mrr = 0
+  hasMore = true
+  startingAfter = undefined
+  while (hasMore) {
+    const params = { status: 'all', limit: 100 }
+    if (startingAfter) params.starting_after = startingAfter
+    const subs = await chargesClient.subscriptions.list(params, chargesOptions)
+
+    for (const sub of subs.data) {
+      if (sub.status === 'active' || sub.status === 'trialing') {
+        activeSubscriptions++
+        for (const item of sub.items?.data || []) {
+          mrr += monthlyEquivalent(item.price, item.quantity)
+        }
+      }
+    }
+
+    hasMore = subs.has_more
+    startingAfter = subs.data.length > 0 ? subs.data[subs.data.length - 1].id : undefined
+  }
+  mrr = Number(mrr.toFixed(2))
+
+  // Customers -> total count
+  let customerCount = 0
+  hasMore = true
+  startingAfter = undefined
+  while (hasMore) {
+    const params = { limit: 100 }
+    if (startingAfter) params.starting_after = startingAfter
+    const customers = await chargesClient.customers.list(params, chargesOptions)
+    customerCount += customers.data.length
+    hasMore = customers.has_more
+    startingAfter = customers.data.length > 0 ? customers.data[customers.data.length - 1].id : undefined
+  }
+
   await supabase.from('clients').update({
     stripe_total_revenue: totalRevenue,
     stripe_revenue_last_90d: revenueLast90Days,
     stripe_revenue_synced_at: new Date().toISOString(),
+    stripe_revenue_by_month: revenueByMonth,
+    stripe_active_subscriptions: activeSubscriptions,
+    stripe_mrr: mrr,
+    stripe_customer_count: customerCount,
   }).eq('id', clientId)
 
-  return { totalRevenue, revenueLast90Days, chargeCount, joinDate }
+  return { totalRevenue, revenueLast90Days, chargeCount, joinDate, revenueByMonth, activeSubscriptions, mrr, customerCount }
 }
 
 // ── /api/stripe/sync-revenue (POST) ─────────────────────────────────────────
@@ -355,6 +421,10 @@ async function handleSyncRevenue(req, res, authProfile) {
       revenue_last_90_days: result.revenueLast90Days,
       charge_count: result.chargeCount,
       since: result.joinDate,
+      revenue_by_month: result.revenueByMonth,
+      active_subscriptions: result.activeSubscriptions,
+      mrr: result.mrr,
+      customer_count: result.customerCount,
     })
   } catch (err) {
     return res.status(err?.status || 500).json({ error: err?.message || 'Sync failed' })

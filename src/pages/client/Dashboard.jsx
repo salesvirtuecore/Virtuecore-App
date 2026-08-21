@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { RefreshCw, TrendingUp, Users, PoundSterling, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { RefreshCw, TrendingUp, Users, PoundSterling, BarChart2, ArrowUpRight, ArrowDownRight, Repeat, UserCheck, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Modal from '../../components/ui/Modal'
 import OnboardingChecklist from '../../components/ui/OnboardingChecklist'
@@ -10,12 +10,12 @@ import { apiFetch } from '../../lib/api'
 
 // Placeholder chart data shown when real data is empty
 const PLACEHOLDER_TREND = [
-  { month: 'Oct', leads: 18, revenueEstimate: 4200 },
-  { month: 'Nov', leads: 24, revenueEstimate: 5800 },
-  { month: 'Dec', leads: 21, revenueEstimate: 5100 },
-  { month: 'Jan', leads: 31, revenueEstimate: 7400 },
-  { month: 'Feb', leads: 28, revenueEstimate: 6900 },
-  { month: 'Mar', leads: 38, revenueEstimate: 9200 },
+  { month: 'Oct', leads: 18, revenue: 4200 },
+  { month: 'Nov', leads: 24, revenue: 5800 },
+  { month: 'Dec', leads: 21, revenue: 5100 },
+  { month: 'Jan', leads: 31, revenue: 7400 },
+  { month: 'Feb', leads: 28, revenue: 6900 },
+  { month: 'Mar', leads: 38, revenue: 9200 },
 ]
 
 function formatCurrency(value) {
@@ -34,47 +34,110 @@ function getInvoiceDate(invoice) {
   return invoice?.due_date || invoice?.paid_date || invoice?.created_at || null
 }
 
-function aggregatePerformanceRows(rows) {
-  if (!rows?.length) return []
-  if (rows[0]?.month) {
-    return rows.map((row, index) => ({
-      month: row.month, sortKey: index,
-      spend: Number(row.spend || 0), leads: Number(row.leads || 0),
-      clicks: Number(row.clicks || 0), impressions: Number(row.impressions || 0),
-      conversions: Number(row.conversions || 0), cpl: Number(row.cpl || 0),
-      ctr: Number(row.ctr || 0), roas: Number(row.roas || 0),
-      revenueEstimate: Number(row.spend || 0) * Number(row.roas || 0),
-    }))
-  }
+// Merges ad_performance rows with the real month-by-month Stripe revenue
+// map into one set of monthly buckets — the trend chart always prefers the
+// real synced revenue for a given month, only falling back to a spend*ROAS
+// estimate for months where no Stripe revenue has been recorded. Buckets are
+// keyed off the union of both sources so a month with real revenue but no ad
+// spend (or vice versa) still shows up.
+function aggregatePerformanceRows(rows, revenueByMonth = {}) {
   const buckets = new Map()
-  for (const row of rows) {
+
+  function ensureBucket(key, dateForLabel) {
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        monthKey: key,
+        month: dateForLabel.toLocaleDateString('en-GB', { month: 'short' }),
+        sortKey: dateForLabel.getTime(),
+        spend: 0, leads: 0, clicks: 0, impressions: 0, conversions: 0, roasWeighted: 0,
+      })
+    }
+    return buckets.get(key)
+  }
+
+  for (const row of rows || []) {
     const rawDate = row.date || row.created_at
     const date = new Date(rawDate)
     if (Number.isNaN(date.getTime())) continue
     const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
-    const existing = buckets.get(key) || {
-      month: date.toLocaleDateString('en-GB', { month: 'short' }),
-      sortKey: Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
-      spend: 0, leads: 0, clicks: 0, impressions: 0, conversions: 0, roasWeighted: 0,
-    }
-    existing.spend += Number(row.spend || 0)
-    existing.leads += Number(row.leads || 0)
-    existing.clicks += Number(row.clicks || 0)
-    existing.impressions += Number(row.impressions || 0)
-    existing.conversions += Number(row.conversions || 0)
-    existing.roasWeighted += Number(row.spend || 0) * Number(row.roas || 0)
-    buckets.set(key, existing)
+    const bucket = ensureBucket(key, new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)))
+    bucket.spend += Number(row.spend || 0)
+    bucket.leads += Number(row.leads || 0)
+    bucket.clicks += Number(row.clicks || 0)
+    bucket.impressions += Number(row.impressions || 0)
+    bucket.conversions += Number(row.conversions || 0)
+    bucket.roasWeighted += Number(row.spend || 0) * Number(row.roas || 0)
   }
+
+  for (const key of Object.keys(revenueByMonth || {})) {
+    const [year, month] = key.split('-').map(Number)
+    if (!year || !month) continue
+    ensureBucket(key, new Date(Date.UTC(year, month - 1, 1)))
+  }
+
   return [...buckets.values()]
     .sort((a, b) => a.sortKey - b.sortKey)
     .slice(-6)
-    .map((row) => ({
-      ...row,
-      cpl: row.leads ? Math.round(row.spend / row.leads) : 0,
-      ctr: row.impressions ? Number(((row.clicks / row.impressions) * 100).toFixed(2)) : 0,
-      roas: row.spend ? Number((row.roasWeighted / row.spend).toFixed(1)) : 0,
-      revenueEstimate: row.spend ? Number(row.roasWeighted.toFixed(0)) : 0,
-    }))
+    .map((row) => {
+      const realRevenue = revenueByMonth?.[row.monthKey]
+      const estimatedRevenue = row.spend ? Number(row.roasWeighted.toFixed(0)) : 0
+      return {
+        month: row.month,
+        monthKey: row.monthKey,
+        sortKey: row.sortKey,
+        spend: row.spend,
+        leads: row.leads,
+        clicks: row.clicks,
+        impressions: row.impressions,
+        conversions: row.conversions,
+        cpl: row.leads ? Math.round(row.spend / row.leads) : 0,
+        ctr: row.impressions ? Number(((row.clicks / row.impressions) * 100).toFixed(2)) : 0,
+        roas: row.spend ? Number((row.roasWeighted / row.spend).toFixed(1)) : 0,
+        revenue: realRevenue !== undefined ? realRevenue : estimatedRevenue,
+        hasRealRevenue: realRevenue !== undefined,
+      }
+    })
+}
+
+// Least-squares linear fit over {x, y} points — used to project revenue and
+// ad spend forward from real monthly history. With fewer than 2 points there's
+// no trend to fit, so the forecast just holds flat at the last known value.
+function linearRegression(points) {
+  const n = points.length
+  if (n < 2) return { slope: 0, intercept: points[0]?.y || 0 }
+  const sumX = points.reduce((s, p) => s + p.x, 0)
+  const sumY = points.reduce((s, p) => s + p.y, 0)
+  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0)
+  const sumXX = points.reduce((s, p) => s + p.x * p.x, 0)
+  const denom = n * sumXX - sumX * sumX
+  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0
+  const intercept = (sumY - slope * sumX) / n
+  return { slope, intercept }
+}
+
+// Projects revenue and ad spend forward `monthsAhead` months from real
+// monthly history using an independent linear trend for each series.
+function buildForecast(monthlyRows, monthsAhead = 3) {
+  const real = (monthlyRows || []).filter((row) => row.hasRealRevenue || row.spend > 0)
+  if (real.length < 2) return []
+  const revenuePoints = real.map((row, i) => ({ x: i, y: Number(row.revenue || 0) }))
+  const spendPoints = real.map((row, i) => ({ x: i, y: Number(row.spend || 0) }))
+  const revReg = linearRegression(revenuePoints)
+  const spendReg = linearRegression(spendPoints)
+  const lastDate = new Date(real[real.length - 1].sortKey)
+
+  const forecast = []
+  for (let i = 1; i <= monthsAhead; i++) {
+    const x = real.length - 1 + i
+    const forecastDate = new Date(Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth() + i, 1))
+    forecast.push({
+      month: forecastDate.toLocaleDateString('en-GB', { month: 'short' }),
+      sortKey: forecastDate.getTime(),
+      revenueForecast: Math.max(0, Math.round(revReg.slope * x + revReg.intercept)),
+      spendForecast: Math.max(0, Math.round(spendReg.slope * x + spendReg.intercept)),
+    })
+  }
+  return forecast
 }
 
 function buildPlatformSplit(rows, fallbackSplit = []) {
@@ -127,7 +190,7 @@ function summarizeInvoices(invoices) {
 
 function buildDashboardMetrics({ performanceRows, invoices }) {
   const performance = performanceRows.length ? performanceRows : []
-  const latest = performance[performance.length - 1] || { month: 'Current', spend: 0, leads: 0, clicks: 0, impressions: 0, conversions: 0, cpl: 0, ctr: 0, roas: 0, revenueEstimate: 0 }
+  const latest = performance[performance.length - 1] || { month: 'Current', spend: 0, leads: 0, clicks: 0, impressions: 0, conversions: 0, cpl: 0, ctr: 0, roas: 0, revenue: 0 }
   const invoiceSummary = summarizeInvoices(invoices)
   const platformSplit = buildPlatformSplit(performanceRows, [])
   const revenuePrimary = invoiceSummary.totalRevenue || invoiceSummary.collectedRevenue
@@ -184,7 +247,7 @@ export default function ClientDashboard() {
   const [adPerformance, setAdPerformance] = useState([])
   const [invoiceRows, setInvoiceRows] = useState([])
   const [metaConnected, setMetaConnected] = useState(null)
-  const [stripeRevenue, setStripeRevenue] = useState({ total: 0, last90: 0 })
+  const [stripeRevenue, setStripeRevenue] = useState({ total: 0, last90: 0, byMonth: {}, activeSubscriptions: 0, mrr: 0, customerCount: 0 })
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
 
@@ -198,7 +261,7 @@ export default function ClientDashboard() {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').eq('client_id', clientId).order('date', { ascending: true }),
           supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').eq('client_id', clientId).order('created_at', { ascending: false }),
-          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d').eq('id', clientId).maybeSingle(),
+          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
         if (invoiceError) throw invoiceError
@@ -208,6 +271,10 @@ export default function ClientDashboard() {
         setStripeRevenue({
           total: Number(clientRow?.stripe_total_revenue || 0),
           last90: Number(clientRow?.stripe_revenue_last_90d || 0),
+          byMonth: clientRow?.stripe_revenue_by_month || {},
+          activeSubscriptions: Number(clientRow?.stripe_active_subscriptions || 0),
+          mrr: Number(clientRow?.stripe_mrr || 0),
+          customerCount: Number(clientRow?.stripe_customer_count || 0),
         })
       } catch (error) {
         console.error('Failed to load client dashboard data:', error)
@@ -237,13 +304,26 @@ export default function ClientDashboard() {
   }
 
   const metrics = buildDashboardMetrics({
-    performanceRows: aggregatePerformanceRows(adPerformance),
+    performanceRows: aggregatePerformanceRows(adPerformance, stripeRevenue.byMonth),
     invoices: invoiceRows,
   })
 
   const hasRealData = adPerformance.length > 0 || invoiceRows.length > 0 || stripeRevenue.total > 0
   const chartData = metrics.performance.length ? metrics.performance : PLACEHOLDER_TREND
   const isPlaceholder = !hasRealData
+
+  const forecastRows = !isPlaceholder ? buildForecast(metrics.performance) : []
+  const combinedChartData = isPlaceholder || !forecastRows.length
+    ? chartData
+    : (() => {
+        const withNulls = chartData.map((row) => ({ ...row, revenueForecast: null, spendForecast: null }))
+        const lastReal = withNulls[withNulls.length - 1]
+        if (lastReal) {
+          lastReal.revenueForecast = lastReal.revenue
+          lastReal.spendForecast = lastReal.spend
+        }
+        return [...withNulls, ...forecastRows.map((row) => ({ ...row, revenue: null, spend: null, leads: null }))]
+      })()
 
   const revenuePrimary = stripeRevenue.total > 0 ? stripeRevenue.total : metrics.revenuePrimary
   const revenueSub = stripeRevenue.total > 0
@@ -256,6 +336,18 @@ export default function ClientDashboard() {
     { label: 'Leads', value: metrics.leads || '—', icon: Users, color: 'text-status-success', sub: metrics.cpl > 0 ? `${formatCurrency(metrics.cpl)} CPL` : null },
     { label: 'Outstanding', value: formatCurrency(metrics.outstandingRevenue), icon: TrendingUp, color: metrics.outstandingRevenue > 0 ? 'text-status-warning' : 'text-text-tertiary', sub: metrics.outstandingCount > 0 ? `${metrics.outstandingCount} invoice${metrics.outstandingCount > 1 ? 's' : ''}` : null },
   ]
+
+  const subscriptionCards = [
+    { label: 'Active Subscriptions', value: stripeRevenue.activeSubscriptions || '—', icon: Repeat, color: 'text-vc-accent' },
+    { label: 'MRR', value: formatCurrency(stripeRevenue.mrr), icon: Activity, color: 'text-status-info', sub: 'Monthly recurring revenue' },
+    { label: 'Customers', value: stripeRevenue.customerCount || '—', icon: UserCheck, color: 'text-status-success' },
+  ]
+  const showSubscriptionCards = stripeRevenue.total > 0 || stripeRevenue.customerCount > 0 || stripeRevenue.activeSubscriptions > 0
+
+  const nextMonthForecast = forecastRows[0] || null
+  const forecastRoas = nextMonthForecast?.spendForecast > 0
+    ? Number((nextMonthForecast.revenueForecast / nextMonthForecast.spendForecast).toFixed(1))
+    : 0
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1440px] mx-auto">
@@ -308,6 +400,24 @@ export default function ClientDashboard() {
         ))}
       </div>
 
+      {/* Subscriptions & customer accounts (from Stripe) */}
+      {showSubscriptionCards && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {subscriptionCards.map((card) => (
+            <div key={card.label} className="vc-card">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className="vc-section-label">{card.label}</p>
+                <div className="p-1.5 rounded bg-bg-tertiary flex-shrink-0">
+                  <card.icon size={14} className={card.color} />
+                </div>
+              </div>
+              <p className="text-2xl font-mono-data font-semibold text-text-primary">{card.value}</p>
+              {card.sub && <p className="text-xs text-text-tertiary mt-1">{card.sub}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Trend chart */}
       <div className={`vc-card ${isPlaceholder ? 'relative' : ''}`}>
         <div className="flex items-center justify-between gap-4 mb-5">
@@ -332,7 +442,7 @@ export default function ClientDashboard() {
           className={`w-full ${!isPlaceholder ? 'cursor-pointer' : 'cursor-default'}`}
         >
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData}>
+            <AreaChart data={combinedChartData}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6C5CE7" stopOpacity={0.3} />
@@ -348,7 +458,10 @@ export default function ClientDashboard() {
               <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
               <Tooltip content={<CustomAreaTooltip />} />
               <Area type="monotone" dataKey="leads" stroke="#A29BFE" strokeWidth={2} fill="url(#leadGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Leads" isAnimationActive animationBegin={0} animationDuration={900} animationEasing="ease-out" />
-              <Area type="monotone" dataKey="revenueEstimate" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue Estimate" isAnimationActive animationBegin={150} animationDuration={900} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="revenue" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue" isAnimationActive animationBegin={150} animationDuration={900} animationEasing="ease-out" />
+              {forecastRows.length > 0 && (
+                <Line type="monotone" dataKey="revenueForecast" stroke="#6C5CE7" strokeWidth={2} strokeDasharray="6 4" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Revenue Forecast" connectNulls isAnimationActive={false} />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </button>
@@ -360,6 +473,50 @@ export default function ClientDashboard() {
           </div>
         )}
       </div>
+
+      {/* Revenue & ad spend forecast */}
+      {nextMonthForecast && (
+        <div className="vc-card">
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary font-heading flex items-center gap-1.5">
+                <Activity size={14} className="text-vc-accent" />
+                Revenue & Spend Forecast
+              </h2>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                Trend-based projection from your last {metrics.performance.length} months of real data — not a guarantee.
+              </p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={combinedChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip content={<CustomAreaTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="revenue" stroke="#6C5CE7" strokeWidth={2} dot={false} name="Revenue" connectNulls />
+              <Line type="monotone" dataKey="revenueForecast" stroke="#6C5CE7" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Revenue Forecast" connectNulls />
+              <Line type="monotone" dataKey="spend" stroke="#4DA3FF" strokeWidth={2} dot={false} name="Ad Spend" connectNulls />
+              <Line type="monotone" dataKey="spendForecast" stroke="#4DA3FF" strokeWidth={2} strokeDasharray="6 4" dot={false} name="Ad Spend Forecast" connectNulls />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/[0.06]">
+            <div>
+              <p className="text-xs text-text-secondary">Next month revenue</p>
+              <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(nextMonthForecast.revenueForecast)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-secondary">Next month ad spend</p>
+              <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(nextMonthForecast.spendForecast)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text-secondary">Projected ROAS</p>
+              <p className="text-lg font-semibold text-text-primary mt-0.5">{forecastRoas > 0 ? `${forecastRoas.toFixed(1)}x` : '—'}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
