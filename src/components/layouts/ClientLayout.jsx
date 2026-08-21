@@ -30,7 +30,7 @@ const NAV = [
   { to: '/client/billing',        label: 'Billing',         icon: CreditCard },
   { to: '/client/meetings',       label: 'Meetings',        icon: Video },
   { to: '/client/analytics',      label: 'Web Analytics',   icon: BarChart2 },
-  { to: '/client/integrations',   label: 'Connect Ads',     icon: Plug },
+  { to: '/client/integrations',   label: 'Ad Account',      icon: Plug },
 ]
 
 function SidebarContent({ profile, onLogout, onNavClick }) {

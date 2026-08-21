@@ -24,6 +24,7 @@ import Revenue from './pages/admin/Revenue'
 import WebAnalytics from './pages/admin/WebAnalytics'
 import Webhooks from './pages/admin/Webhooks'
 import Documents from './pages/admin/Documents'
+import MetaMatching from './pages/admin/MetaMatching'
 
 // Client
 import ClientDashboard from './pages/client/Dashboard'
@@ -33,7 +34,6 @@ import Messages from './pages/client/Messages'
 import Invoices from './pages/client/Invoices'
 import Billing from './pages/client/Billing'
 import Meetings from './pages/client/Meetings'
-import MetaCallback from './pages/client/MetaCallback'
 import ClientWebAnalytics from './pages/client/WebAnalytics'
 import Integrations from './pages/client/Integrations'
 import AdPerformance from './pages/client/AdPerformance'
@@ -106,7 +106,6 @@ function AppRoutes() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup/va" element={<SignupVA />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/meta/callback" element={<MetaCallback />} />
       <Route path="/preview/ad-feed" element={<AdPerformance />} />
       <Route path="/preview/scorecard" element={<GrowthScorecard />} />
       <Route path="/preview/weekly-pulse" element={<WeeklyPulse />} />
@@ -128,6 +127,7 @@ function AppRoutes() {
         <Route path="analytics" element={<WebAnalytics />} />
         <Route path="webhooks" element={<Webhooks />} />
         <Route path="documents" element={<Documents />} />
+        <Route path="meta-matching" element={<MetaMatching />} />
       </Route>
 
       {/* Client */}

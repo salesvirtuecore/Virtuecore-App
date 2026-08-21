@@ -19,6 +19,7 @@ const NAV = [
   { to: '/admin/analytics',label: 'Web Analytics', icon: Globe },
   { to: '/admin/webhooks', label: 'Integrations',  icon: Webhook },
   { to: '/admin/documents',label: 'Documents',      icon: FolderLock },
+  { to: '/admin/meta-matching', label: 'Meta Matching', icon: Zap },
 ]
 
 const EXTERNAL = [

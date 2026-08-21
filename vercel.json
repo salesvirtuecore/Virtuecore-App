@@ -5,7 +5,8 @@
   "framework": "vite",
   "crons": [
     { "path": "/api/admin/monthly-report", "schedule": "0 9 1 * *" },
-    { "path": "/api/admin/run-billing-cycle", "schedule": "0 10 * * *" }
+    { "path": "/api/admin/run-billing-cycle", "schedule": "0 10 * * *" },
+    { "path": "/api/meta/sync-client-insights", "schedule": "0 6 * * *" }
   ],
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
