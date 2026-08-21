@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { authenticateUser, requireRole, requireClientOwnership, makeSupabase, checkRateLimit } from '../_lib/auth.js'
+import { authenticateUser, requireRole, requireClientOwnership, makeSupabase, checkRateLimit, getAppUrl } from '../_lib/auth.js'
 import { encryptSecret, decryptSecret, maskSecret } from '../_lib/crypto.js'
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ async function handleSetupPaymentMethod(req, res, authProfile) {
     }
 
     // Create a Checkout Session in setup mode
-    const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+    const appUrl = getAppUrl()
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: customerId,
@@ -364,7 +364,7 @@ async function handleCreateCheckout(req, res, authProfile) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const appUrl = process.env.APP_URL || process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+  const appUrl = getAppUrl()
   if (!stripeSecret || !supabaseUrl || !serviceRoleKey) return res.status(500).json({ error: 'Server not configured' })
   const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
   const supabase = createClient(supabaseUrl, serviceRoleKey)

@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
+// ── App base URL (used for Stripe redirect URLs, email links, etc.) ─────────
+// Normalizes VITE_APP_URL so a misconfigured env var (missing scheme, trailing
+// slash, stray whitespace) can't produce an invalid URL downstream — Stripe's
+// API rejects success_url/cancel_url outright if the scheme is missing.
+export function getAppUrl() {
+  let url = (process.env.APP_URL || process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk').trim()
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+  return url.replace(/\/+$/, '')
+}
+
 // ── Shared Supabase client (service role) ────────────────────────────────────
 export function makeSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL

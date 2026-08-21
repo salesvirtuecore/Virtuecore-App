@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { getAppUrl } from '../_lib/auth.js'
 
 // Facebook Data Deletion Callback
 // Required by Meta for apps using Facebook Login
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
       // Best effort — don't block the response
     }
 
-    const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+    const appUrl = getAppUrl()
 
     // Facebook requires this exact response format
     return res.status(200).json({

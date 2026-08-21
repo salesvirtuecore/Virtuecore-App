@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import { getAppUrl } from './auth.js'
 
 // Single source of truth for the app's brand colour in emails — the app UI's
 // real token is vc-primary #6C5CE7; earlier emails had drifted to #7C3AED.
@@ -58,7 +59,7 @@ export async function sendInviteEmail({ email, fullName, role, signupUrl }) {
 }
 
 export async function sendWelcomeOnboardingEmail({ email, fullName }) {
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+  const appUrl = getAppUrl()
   const onboardingUrl = `${appUrl}/client/onboarding`
   const body = `
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
@@ -71,7 +72,7 @@ export async function sendWelcomeOnboardingEmail({ email, fullName }) {
 }
 
 export async function sendPaymentReminderEmail({ email, fullName, amount, dueDate }) {
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+  const appUrl = getAppUrl()
   const body = `
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
@@ -83,7 +84,7 @@ export async function sendPaymentReminderEmail({ email, fullName, amount, dueDat
 }
 
 export async function sendPaymentFailedEmail({ email, fullName, amount }) {
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+  const appUrl = getAppUrl()
   const body = `
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">Hi ${fullName || 'there'},</p>
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
@@ -95,7 +96,7 @@ export async function sendPaymentFailedEmail({ email, fullName, amount }) {
 
 export async function sendBillingReceiptEmail(client, invoice) {
   if (!client.contact_email) return { sent: false }
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
+  const appUrl = getAppUrl()
   const body = `
     <p style="font-size: 15px; color: #111827; margin: 0 0 16px;">Hi ${client.contact_name || 'there'},</p>
     <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 24px;">
