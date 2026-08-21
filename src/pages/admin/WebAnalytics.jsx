@@ -40,7 +40,7 @@ export default function WebAnalytics() {
       supabase
         .from('clients')
         .select('id, company_name')
-        .eq('status', 'active')
+        .neq('status', 'churned')
         .order('company_name'),
     ]).then(([{ data: siteRows }, { data: clientRows }]) => {
       if (siteRows) {

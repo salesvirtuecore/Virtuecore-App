@@ -44,6 +44,13 @@ async function handleMatchAccounts(req, res, supabase) {
 
   for (const { account, client } of exactMatches) {
     await supabase.from('clients').update({ meta_ad_account_id: account.account_id }).eq('id', client.id)
+    // Sync immediately rather than waiting for tomorrow's cron — a client
+    // matched today may already have months of real ad history in Meta.
+    try {
+      await syncInsightsForClient(supabase, token, { id: client.id, meta_ad_account_id: account.account_id })
+    } catch {
+      // Best effort — the match itself already succeeded; the daily cron will retry.
+    }
   }
 
   if (queueRows.length > 0) {
@@ -68,6 +75,16 @@ async function handleConfirmMatch(req, res, supabase, profile) {
 
   const { error: clientError } = await supabase.from('clients').update({ meta_ad_account_id: row.ad_account_id }).eq('id', client_id)
   if (clientError) return res.status(500).json({ error: clientError.message })
+
+  // Sync immediately rather than waiting for tomorrow's cron.
+  const token = systemUserToken()
+  if (token) {
+    try {
+      await syncInsightsForClient(supabase, token, { id: client_id, meta_ad_account_id: row.ad_account_id })
+    } catch {
+      // Best effort — the confirm itself already succeeded; the daily cron will retry.
+    }
+  }
 
   await supabase.from('meta_account_match_queue').update({
     status: 'confirmed', resolved_by: profile.id, resolved_at: new Date().toISOString(),
@@ -94,6 +111,43 @@ async function handleListQueue(req, res, supabase) {
   res.status(200).json({ queue: data || [] })
 }
 
+// Pulls a trailing 90-day window (not just "since matched") so a client who
+// was already running ads long before being matched in VirtueCore gets their
+// real recent history backfilled the moment they're connected, rather than
+// only accumulating data day-by-day from the match date forward.
+async function syncInsightsForClient(supabase, token, client) {
+  const today = new Date()
+  const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400 * 1000)
+  const url = new URL(`https://graph.facebook.com/v21.0/${client.meta_ad_account_id}/insights`)
+  url.searchParams.set('fields', INSIGHT_FIELDS)
+  url.searchParams.set('level', 'account')
+  url.searchParams.set('time_range', JSON.stringify({ since: ninetyDaysAgo.toISOString().split('T')[0], until: today.toISOString().split('T')[0] }))
+  url.searchParams.set('time_increment', '1')
+  url.searchParams.set('access_token', token)
+  const metaRes = await fetch(url.toString())
+  const metaData = await metaRes.json()
+  if (!metaRes.ok) throw new Error(metaData?.error?.message || 'Meta API error')
+
+  const rows = (metaData.data || []).map((row) => {
+    const actions = Array.isArray(row.actions) ? row.actions : []
+    const leadAction = actions.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
+    const spend = parseFloat(row.spend ?? 0)
+    const leads = parseInt(leadAction?.value ?? 0, 10)
+    return {
+      client_id: client.id, platform: 'meta',
+      date: row.date_start ?? new Date().toISOString().split('T')[0],
+      spend, impressions: parseInt(row.impressions ?? 0, 10), clicks: parseInt(row.clicks ?? 0, 10),
+      leads, conversions: leads,
+      ctr: parseFloat(row.ctr ?? 0), cpl: leads > 0 ? spend / leads : 0, roas: 0,
+    }
+  })
+  if (rows.length > 0) {
+    const { error: upsertError } = await supabase.from('ad_performance').upsert(rows, { onConflict: 'client_id,platform,date' })
+    if (upsertError) throw new Error(upsertError.message)
+  }
+  return rows.length
+}
+
 // ── /api/meta/sync-client-insights (POST) — admin, or CRON_SECRET ──────────
 // client_id: a specific client's id, or 'all' to sync every matched client.
 async function handleSyncClientInsights(req, res, supabase) {
@@ -116,34 +170,7 @@ async function handleSyncClientInsights(req, res, supabase) {
   const errors = []
   for (const client of targets) {
     try {
-      const url = new URL(`https://graph.facebook.com/v21.0/${client.meta_ad_account_id}/insights`)
-      url.searchParams.set('fields', INSIGHT_FIELDS)
-      url.searchParams.set('level', 'account')
-      url.searchParams.set('date_preset', 'last_30d')
-      url.searchParams.set('time_increment', '1')
-      url.searchParams.set('access_token', token)
-      const metaRes = await fetch(url.toString())
-      const metaData = await metaRes.json()
-      if (!metaRes.ok) { errors.push({ client_id: client.id, error: metaData?.error?.message }); continue }
-
-      const rows = (metaData.data || []).map((row) => {
-        const actions = Array.isArray(row.actions) ? row.actions : []
-        const leadAction = actions.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
-        const spend = parseFloat(row.spend ?? 0)
-        const leads = parseInt(leadAction?.value ?? 0, 10)
-        return {
-          client_id: client.id, platform: 'meta',
-          date: row.date_start ?? new Date().toISOString().split('T')[0],
-          spend, impressions: parseInt(row.impressions ?? 0, 10), clicks: parseInt(row.clicks ?? 0, 10),
-          leads, conversions: leads,
-          ctr: parseFloat(row.ctr ?? 0), cpl: leads > 0 ? spend / leads : 0, roas: 0,
-        }
-      })
-      if (rows.length > 0) {
-        const { error: upsertError } = await supabase.from('ad_performance').upsert(rows, { onConflict: 'client_id,platform,date' })
-        if (upsertError) { errors.push({ client_id: client.id, error: upsertError.message }); continue }
-        totalRowsSynced += rows.length
-      }
+      totalRowsSynced += await syncInsightsForClient(supabase, token, client)
     } catch (err) {
       errors.push({ client_id: client.id, error: err.message })
     }
