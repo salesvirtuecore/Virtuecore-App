@@ -6,26 +6,103 @@ import { authenticateUser, requireClientOwnership, requireRole, checkRateLimit }
 // and degrades to `null` on any failure rather than breaking the page. Sites
 // without the add-on purchased simply come back with an empty series (not
 // an error), which reads to the client as "no data" rather than "broken".
+function dayKey(msTimestamp) {
+  return new Date(msTimestamp).toISOString().split('T')[0]
+}
+
+function dayLabel(dateKey) {
+  return new Date(dateKey).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+}
+
+// A ranking endpoint call that never throws and never blocks the others —
+// any single one failing (e.g. Netlify changes/removes it) just means that
+// one panel comes back empty, not that the whole page breaks.
+async function fetchRanking(url, headers) {
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) return []
+    const json = await res.json()
+    return json.data || []
+  } catch {
+    return []
+  }
+}
+
 async function fetchNetlifyTraffic(siteId, token, days = 30) {
   try {
-    // This endpoint takes from/to as millisecond epoch timestamps, not
+    // These endpoints take from/to as millisecond epoch timestamps, not
     // seconds — passing seconds silently "succeeds" with an empty series
     // (the implied range lands in 1970), which looks like "no traffic" when
     // the site actually has plenty. Verified against Netlify's own dashboard
     // numbers for a known site before relying on this.
     const to = Date.now()
     const from = to - days * 86400 * 1000
-    const [pvRes, visRes] = await Promise.all([
-      fetch(`https://analytics.services.netlify.com/v2/${siteId}/pageviews?from=${from}&to=${to}&timezone=0&resolution=day`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`https://analytics.services.netlify.com/v2/${siteId}/visitors?from=${from}&to=${to}&timezone=0&resolution=range`, { headers: { Authorization: `Bearer ${token}` } }),
+    const common = `from=${from}&to=${to}&timezone=0`
+    const headers = { Authorization: `Bearer ${token}` }
+
+    const [pvRes, visRes, visRangeRes, bwRes, topCountries, topPages, topNotFound, topSources] = await Promise.all([
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/pageviews?${common}&resolution=day`, { headers }),
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/visitors?${common}&resolution=day`, { headers }),
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/visitors?${common}&resolution=range`, { headers }),
+      fetch(`https://analytics.services.netlify.com/v2/${siteId}/bandwidth?${common}&resolution=hour`, { headers }),
+      fetchRanking(`https://analytics.services.netlify.com/v2/${siteId}/ranking/countries?${common}`, headers),
+      fetchRanking(`https://analytics.services.netlify.com/v2/${siteId}/ranking/pages?${common}&limit=10`, headers),
+      fetchRanking(`https://analytics.services.netlify.com/v2/${siteId}/ranking/not_found?${common}&limit=10`, headers),
+      fetchRanking(`https://analytics.services.netlify.com/v2/${siteId}/ranking/sources?${common}&limit=10`, headers),
     ])
+
+    // Pageviews + visitors day-series are the core of the traffic chart —
+    // if either of those fails, treat the whole traffic block as unavailable.
     if (!pvRes.ok || !visRes.ok) return null
     const pvData = await pvRes.json()
     const visData = await visRes.json()
-    const series = (pvData.data || []).map(([ts, v]) => ({ date: new Date(ts).toISOString().split('T')[0], pageviews: Number(v || 0) }))
+    const visRangeData = visRangeRes.ok ? await visRangeRes.json() : null
+    const bwData = bwRes.ok ? await bwRes.json() : null
+
+    const pvByDate = new Map((pvData.data || []).map(([ts, v]) => [dayKey(ts), Number(v || 0)]))
+    const visByDate = new Map((visData.data || []).map(([ts, v]) => [dayKey(ts), Number(v || 0)]))
+    const allDates = [...new Set([...pvByDate.keys(), ...visByDate.keys()])].sort()
+    const series = allDates.map((date) => ({
+      date,
+      label: dayLabel(date),
+      pageviews: pvByDate.get(date) || 0,
+      visitors: visByDate.get(date) || 0,
+    }))
     const pageviews = series.reduce((sum, row) => sum + row.pageviews, 0)
-    const visitors = Number((visData.data || [])[0]?.[1] || 0)
-    return { days, pageviews, visitors, series }
+    // Summing daily uniques would double-count a visitor active on multiple
+    // days — use the dedicated range-resolution total instead for the real
+    // period-wide unique count (falls back to the daily sum if that call failed).
+    const visitors = visRangeData
+      ? Number((visRangeData.data || [])[0]?.[1] || 0)
+      : series.reduce((sum, row) => sum + row.visitors, 0)
+
+    // Bandwidth is additive (unlike unique visitors), so summing hourly
+    // buckets per day gives both an accurate daily bar chart AND an accurate
+    // total from the same single call.
+    const bwByDate = new Map()
+    for (const row of bwData?.data || []) {
+      const date = dayKey(row.start)
+      bwByDate.set(date, (bwByDate.get(date) || 0) + Number(row.siteBandwidth || 0))
+    }
+    const bandwidthSeries = [...bwByDate.keys()].sort().map((date) => ({
+      date,
+      label: dayLabel(date),
+      bytes: bwByDate.get(date),
+    }))
+    const bandwidthBytes = bandwidthSeries.reduce((sum, row) => sum + row.bytes, 0)
+
+    return {
+      days,
+      pageviews,
+      visitors,
+      bandwidthBytes,
+      series,
+      bandwidthSeries,
+      topCountries: topCountries.map((r) => ({ name: r.country_name, code: r.resource, count: r.count })),
+      topPages: topPages.map((r) => ({ path: r.resource, count: r.count })),
+      topNotFound: topNotFound.map((r) => ({ path: r.resource, count: r.count })),
+      topSources: topSources.map((r) => ({ name: r.resource || 'Direct traffic', count: r.count })),
+    }
   } catch {
     return null
   }

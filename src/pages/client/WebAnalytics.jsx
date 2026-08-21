@@ -1,8 +1,142 @@
 import { useState, useEffect } from 'react'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { BarChart2, ExternalLink, Copy, Check, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 MB'
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`
+  return `${mb.toFixed(1)} MB`
+}
+
+const TrafficTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated space-y-1">
+      <p className="text-text-secondary">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="font-mono-data font-semibold" style={{ color: p.stroke || p.fill }}>
+          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+const BandwidthTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-bg-elevated border border-white/[0.08] rounded px-3 py-2 text-xs shadow-elevated">
+      <p className="text-text-secondary">{label}</p>
+      <p className="font-mono-data font-semibold text-vc-accent">{payload[0].value.toLocaleString()} MB</p>
+    </div>
+  )
+}
+
+function RankingTable({ title, rows, labelKey }) {
+  if (!rows?.length) return null
+  return (
+    <div>
+      <p className="text-xs font-medium text-text-primary mb-2">{title}</p>
+      <div className="border border-white/[0.06] divide-y divide-white/[0.06]">
+        {rows.slice(0, 8).map((row, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
+            <span className="text-text-secondary truncate">{row[labelKey]}</span>
+            <span className="text-text-primary font-mono-data flex-shrink-0">{row.count.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function NetlifyTrafficPanel({ traffic }) {
+  if (!traffic) return null
+  const hasData = traffic.pageviews > 0 || traffic.visitors > 0
+  if (!hasData) {
+    return (
+      <p className="text-xs text-text-secondary italic">
+        No traffic data available — either Netlify Analytics isn't enabled for this site, or there hasn't been any traffic yet.
+      </p>
+    )
+  }
+  const bandwidthChartData = (traffic.bandwidthSeries || []).map((row) => ({
+    ...row,
+    mb: Number((row.bytes / (1024 * 1024)).toFixed(2)),
+  }))
+  return (
+    <div className="space-y-5">
+      <p className="text-xs font-medium text-text-primary">Traffic (last {traffic.days} days, via Netlify Analytics)</p>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-text-tertiary text-[11px]">Pageviews</p>
+          <p className="text-lg font-semibold text-text-primary font-mono-data">{traffic.pageviews.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-text-tertiary text-[11px]">Unique visitors</p>
+          <p className="text-lg font-semibold text-text-primary font-mono-data">{traffic.visitors.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-text-tertiary text-[11px]">Bandwidth used</p>
+          <p className="text-lg font-semibold text-text-primary font-mono-data">{formatBytes(traffic.bandwidthBytes)}</p>
+        </div>
+      </div>
+
+      {/* Pageviews & Visitors trend */}
+      <div>
+        <p className="text-xs font-medium text-text-primary mb-2">Pageviews & Visitors</p>
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={traffic.series}>
+            <defs>
+              <linearGradient id="pvGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6C5CE7" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6C5CE7" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="visGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#A29BFE" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#A29BFE" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#5A5A5E' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={36} />
+            <Tooltip content={<TrafficTooltip />} />
+            <Area type="monotone" dataKey="pageviews" stroke="#6C5CE7" strokeWidth={2.5} fill="url(#pvGrad)" dot={false} activeDot={{ r: 4, fill: '#6C5CE7' }} name="Pageviews" isAnimationActive animationDuration={900} animationEasing="ease-out" />
+            <Area type="monotone" dataKey="visitors" stroke="#A29BFE" strokeWidth={2} fill="url(#visGrad)" dot={false} activeDot={{ r: 4, fill: '#A29BFE' }} name="Visitors" isAnimationActive animationBegin={150} animationDuration={900} animationEasing="ease-out" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Bandwidth per day */}
+      {bandwidthChartData.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-text-primary mb-2">Bandwidth used per day</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <BarChart data={bandwidthChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#5A5A5E' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 11, fill: '#5A5A5E' }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip content={<BandwidthTooltip />} />
+              <Bar dataKey="mb" fill="#6C5CE7" radius={[3, 3, 0, 0]} name="Bandwidth (MB)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Rankings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <RankingTable title="Top Locations" rows={traffic.topCountries} labelKey="name" />
+        <RankingTable title="Top Pages" rows={traffic.topPages} labelKey="path" />
+        <RankingTable title="Top Resources Not Found" rows={traffic.topNotFound} labelKey="path" />
+        <RankingTable title="Top Sources" rows={traffic.topSources} labelKey="name" />
+      </div>
+    </div>
+  )
+}
 
 export default function ClientWebAnalytics() {
   const { profile } = useAuth()
@@ -192,25 +326,7 @@ export default function ClientWebAnalytics() {
                   {/* Netlify traffic analytics */}
                   {netlifyBySite[site.id] && !netlifyBySite[site.id]?.error && (
                     <div className="border-t border-white/[0.06] pt-3">
-                      <p className="text-xs font-medium text-text-primary mb-2">
-                        Traffic (last {netlifyBySite[site.id].traffic?.days ?? 30} days, via Netlify Analytics)
-                      </p>
-                      {netlifyBySite[site.id].traffic?.pageviews > 0 || netlifyBySite[site.id].traffic?.visitors > 0 ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-text-tertiary text-[11px]">Pageviews</p>
-                            <p className="text-lg font-semibold text-text-primary font-mono-data">{netlifyBySite[site.id].traffic.pageviews.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-text-tertiary text-[11px]">Unique visitors</p>
-                            <p className="text-lg font-semibold text-text-primary font-mono-data">{netlifyBySite[site.id].traffic.visitors.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-text-secondary italic">
-                          No traffic data available — either Netlify Analytics isn't enabled for this site, or there hasn't been any traffic yet.
-                        </p>
-                      )}
+                      <NetlifyTrafficPanel traffic={netlifyBySite[site.id].traffic} />
                     </div>
                   )}
 
