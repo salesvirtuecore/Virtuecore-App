@@ -1,18 +1,29 @@
-import { useMemo, useState } from 'react'
-import { Bot, MessageCircle, Send, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Bot, MessageCircle, Send, X, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useLocation } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 
-// Small dependency-free renderer for the handful of markdown constructs the
-// assistant actually produces (bold, paragraphs, bullet lists) — a full
-// markdown library is overkill for a chat bubble, but plain text left the
-// model's **bold** markers and blank-line paragraphs showing up literally.
+// Capped well under Vercel's ~4.5MB serverless request-body limit — base64
+// inflates the raw file by ~33%, so a 5MB image would already blow past
+// that limit on its own before the rest of the JSON payload is even added.
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+
+// Small dependency-free renderer for the markdown constructs the assistant
+// actually produces — bold, inline code, headings, horizontal rules, bullet
+// lists (including a label line immediately followed by bullets, which a
+// naive "whole block must be a list" check misses), and paragraphs with
+// line breaks. A full markdown library is overkill for a chat bubble, but
+// plain text left every one of these showing up as literal characters.
 function renderInline(text, keyPrefix) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
       return <strong key={`${keyPrefix}-${i}`}>{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return <code key={`${keyPrefix}-${i}`} className="px-1 py-0.5 rounded bg-black/10 font-mono text-[0.85em]">{part.slice(1, -1)}</code>
     }
     return part ? <span key={`${keyPrefix}-${i}`}>{part}</span> : null
   })
@@ -20,31 +31,67 @@ function renderInline(text, keyPrefix) {
 
 function renderMarkdownLite(text) {
   if (!text) return null
-  const blocks = text.split(/\n{2,}/)
-  return blocks.map((block, bi) => {
-    const lines = block.split('\n')
-    const nonEmpty = lines.filter((l) => l.trim())
-    const isList = nonEmpty.length > 0 && nonEmpty.every((l) => /^[-*•]\s+/.test(l.trim()))
-    if (isList) {
-      return (
-        <ul key={bi} className={`list-disc list-inside space-y-0.5 ${bi > 0 ? 'mt-2' : ''}`}>
-          {nonEmpty.map((line, li) => (
-            <li key={li}>{renderInline(line.trim().replace(/^[-*•]\s+/, ''), `${bi}-${li}`)}</li>
-          ))}
-        </ul>
-      )
-    }
-    return (
-      <p key={bi} className={bi > 0 ? 'mt-2' : ''}>
-        {lines.map((line, li) => (
+  const lines = text.split('\n')
+  const nodes = []
+  let paragraphBuffer = []
+  let listBuffer = []
+
+  function flushParagraph() {
+    if (paragraphBuffer.length === 0) return
+    const buf = paragraphBuffer
+    nodes.push(
+      <p key={nodes.length} className={nodes.length > 0 ? 'mt-2' : ''}>
+        {buf.map((line, li) => (
           <span key={li}>
-            {renderInline(line, `${bi}-${li}`)}
-            {li < lines.length - 1 && <br />}
+            {renderInline(line, `p-${nodes.length}-${li}`)}
+            {li < buf.length - 1 && <br />}
           </span>
         ))}
       </p>
     )
-  })
+    paragraphBuffer = []
+  }
+  function flushList() {
+    if (listBuffer.length === 0) return
+    const buf = listBuffer
+    nodes.push(
+      <ul key={nodes.length} className={`list-disc list-inside space-y-0.5 ${nodes.length > 0 ? 'mt-2' : ''}`}>
+        {buf.map((line, li) => (
+          <li key={li}>{renderInline(line, `l-${nodes.length}-${li}`)}</li>
+        ))}
+      </ul>
+    )
+    listBuffer = []
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) { flushParagraph(); flushList(); continue }
+    if (/^-{3,}$/.test(line)) {
+      flushParagraph(); flushList()
+      nodes.push(<hr key={nodes.length} className="my-2 border-white/10" />)
+      continue
+    }
+    const heading = line.match(/^(#{1,3})\s+(.*)$/)
+    if (heading) {
+      flushParagraph(); flushList()
+      const level = heading[1].length
+      const sizeClass = level === 1 ? 'text-sm font-bold' : level === 2 ? 'text-sm font-semibold' : 'text-xs font-semibold'
+      nodes.push(<p key={nodes.length} className={`${sizeClass} ${nodes.length > 0 ? 'mt-2' : ''}`}>{renderInline(heading[2], `h-${nodes.length}`)}</p>)
+      continue
+    }
+    const bullet = line.match(/^[-*•]\s+(.*)$/)
+    if (bullet) {
+      flushParagraph()
+      listBuffer.push(bullet[1])
+      continue
+    }
+    flushList()
+    paragraphBuffer.push(line)
+  }
+  flushParagraph()
+  flushList()
+  return nodes
 }
 
 function generateReply(input, role) {
@@ -83,6 +130,9 @@ export default function HelpChatWidget() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [pendingImage, setPendingImage] = useState(null) // { dataUrl, mediaType, base64 }
+  const [imageError, setImageError] = useState('')
+  const fileInputRef = useRef(null)
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -101,38 +151,69 @@ export default function HelpChatWidget() {
     return ['How do I book a meeting?', 'Where are my invoices?', 'How do I review deliverables?']
   }, [profile?.role])
 
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+    setImageError('')
+    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      setImageError('Please upload a JPEG, PNG, GIF, or WEBP image.')
+      return
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError('Image is too large (max 3MB).')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result
+      const base64 = String(dataUrl).split(',')[1] || ''
+      setPendingImage({ dataUrl, mediaType: file.type, base64 })
+    }
+    reader.onerror = () => setImageError('Could not read that image — try again.')
+    reader.readAsDataURL(file)
+  }
+
   async function pushUserAndReply(text) {
     const trimmed = text.trim()
-    if (!trimmed || sending) return
+    const image = pendingImage
+    if ((!trimmed && !image) || sending) return
 
-    const userMessage = { id: `u-${Date.now()}`, role: 'user', text: trimmed }
+    const userMessage = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      text: trimmed || 'What do you make of this?',
+      imageDataUrl: image?.dataUrl || null,
+    }
     const historySnapshot = [...messages, userMessage]
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    setPendingImage(null)
     setSending(true)
 
     try {
       const response = await apiFetch('/api/admin/help-chat', {
         method: 'POST',
         body: JSON.stringify({
-          message: trimmed,
-          messages: historySnapshot,
+          message: userMessage.text,
+          messages: historySnapshot.map((m) => ({ role: m.role, text: m.text })),
           role: profile?.role || 'client',
           page: location.pathname,
           context: {
             fullName: profile?.full_name || '',
             email: profile?.email || '',
           },
+          image: image ? { media_type: image.mediaType, data: image.base64 } : undefined,
         }),
       })
 
       if (!response.ok) throw new Error('Help chat request failed')
 
       const payload = await response.json()
-      const reply = payload?.reply || generateReply(trimmed, profile?.role)
+      const reply = payload?.reply || generateReply(userMessage.text, profile?.role)
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: reply }])
     } catch {
-      const reply = generateReply(trimmed, profile?.role)
+      const reply = generateReply(userMessage.text, profile?.role)
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: reply }])
     } finally {
       setSending(false)
@@ -195,6 +276,9 @@ export default function HelpChatWidget() {
                     : 'ml-auto bg-vc-primary text-white'
                 }`}
               >
+                {message.imageDataUrl && (
+                  <img src={message.imageDataUrl} alt="Attachment" className="max-w-full rounded mb-1.5 border border-white/20" />
+                )}
                 {message.role === 'assistant' ? renderMarkdownLite(message.text) : message.text}
               </div>
             ))}
@@ -205,6 +289,26 @@ export default function HelpChatWidget() {
             )}
           </div>
 
+          {(pendingImage || imageError) && (
+            <div className="px-2 pt-2 border-t border-white/[0.06] bg-bg-tertiary">
+              {pendingImage && (
+                <div className="flex items-center gap-2 mb-2">
+                  <img src={pendingImage.dataUrl} alt="Selected attachment" className="h-10 w-10 object-cover rounded border border-white/[0.08]" />
+                  <span className="text-xs text-text-secondary flex-1">Image attached</span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingImage(null)}
+                    className="text-text-tertiary hover:text-text-primary"
+                    aria-label="Remove attached image"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+              {imageError && <p className="text-xs text-status-danger mb-2">{imageError}</p>}
+            </div>
+          )}
+
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -213,14 +317,29 @@ export default function HelpChatWidget() {
             className="p-2 border-t border-white/[0.06] flex items-center gap-2"
           >
             <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-9 w-9 flex-shrink-0 rounded border border-white/[0.06] text-text-secondary hover:text-text-primary hover:border-white/[0.16] flex items-center justify-center transition-colors"
+              aria-label="Attach an image"
+            >
+              <ImageIcon size={15} />
+            </button>
+            <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask for help..."
+              placeholder={pendingImage ? 'Ask about this image...' : 'Ask for help...'}
               className="flex-1 border border-white/[0.06] rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-vc-primary"
             />
             <button
               type="submit"
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && !pendingImage) || sending}
               className="h-9 w-9 rounded bg-vc-primary text-white flex items-center justify-center disabled:opacity-50"
               aria-label="Send message"
             >

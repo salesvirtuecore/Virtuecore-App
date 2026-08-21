@@ -315,14 +315,29 @@ async function buildClientSummary(clientId) {
   }
 }
 
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+const MAX_IMAGE_BASE64_CHARS = 4.5 * 1024 * 1024 // ~3MB raw file, base64-encoded — matches the client-side cap
+
 async function handleHelpChat(req, res, profile) {
   if (req.method !== 'POST') return res.status(405).end()
-  const { message, messages = [], role = 'client', page = '', context = {} } = req.body || {}
+  const { message, messages = [], role = 'client', page = '', context = {}, image } = req.body || {}
   if (!message || typeof message !== 'string') return res.status(400).json({ error: 'Message is required' })
   const roleKnowledge = APP_KNOWLEDGE[role] || APP_KNOWLEDGE.client
   const trimmedMessage = message.trim().slice(0, 1200)
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!anthropicKey) return res.status(200).json({ reply: fallbackReply(trimmedMessage, role), source: 'fallback' })
+
+  let imageBlock = null
+  if (image && typeof image === 'object') {
+    if (!SUPPORTED_IMAGE_TYPES.has(image.media_type)) {
+      return res.status(400).json({ error: 'Unsupported image type — use JPEG, PNG, GIF, or WEBP' })
+    }
+    if (typeof image.data !== 'string' || !image.data || image.data.length > MAX_IMAGE_BASE64_CHARS) {
+      return res.status(400).json({ error: 'Image missing or too large' })
+    }
+    imageBlock = { type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } }
+  }
+
   try {
     const client = new Anthropic({ apiKey: anthropicKey })
     const history = Array.isArray(messages) ? messages.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').slice(-10).map((m) => ({ role: m.role, content: m.text.slice(0, 1000) })) : []
@@ -336,12 +351,16 @@ async function handleHelpChat(req, res, profile) {
 VirtueCore Academy knowledge base (marketing/ops training content — use this to answer substantive questions, not just navigation):
 ${ACADEMY_SUMMARY}${moduleSnippet}${clientSummary ? `\n\n${clientSummary}` : ''}
 
+If an image is attached, it's most likely a screenshot of their own dashboard/numbers they don't understand — read it carefully and explain what it shows in plain terms.
+
 Be concise, practical, under 120 words.`
+
+    const userContent = imageBlock ? [imageBlock, { type: 'text', text: trimmedMessage }] : trimmedMessage
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 360, temperature: 0.3,
       system,
-      messages: [...history, { role: 'user', content: trimmedMessage }],
+      messages: [...history, { role: 'user', content: userContent }],
     })
     const reply = response?.content?.find((b) => b.type === 'text')?.text?.trim()
     return res.status(200).json({ reply: reply || fallbackReply(trimmedMessage, role), source: reply ? 'anthropic' : 'fallback' })
