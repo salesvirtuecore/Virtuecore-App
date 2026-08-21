@@ -8,8 +8,13 @@ import { authenticateUser, requireClientOwnership, requireRole, checkRateLimit }
 // an error), which reads to the client as "no data" rather than "broken".
 async function fetchNetlifyTraffic(siteId, token, days = 30) {
   try {
-    const to = Math.floor(Date.now() / 1000)
-    const from = to - days * 86400
+    // This endpoint takes from/to as millisecond epoch timestamps, not
+    // seconds — passing seconds silently "succeeds" with an empty series
+    // (the implied range lands in 1970), which looks like "no traffic" when
+    // the site actually has plenty. Verified against Netlify's own dashboard
+    // numbers for a known site before relying on this.
+    const to = Date.now()
+    const from = to - days * 86400 * 1000
     const [pvRes, visRes] = await Promise.all([
       fetch(`https://analytics.services.netlify.com/v2/${siteId}/pageviews?from=${from}&to=${to}&timezone=0&resolution=day`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`https://analytics.services.netlify.com/v2/${siteId}/visitors?from=${from}&to=${to}&timezone=0&resolution=range`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -17,7 +22,7 @@ async function fetchNetlifyTraffic(siteId, token, days = 30) {
     if (!pvRes.ok || !visRes.ok) return null
     const pvData = await pvRes.json()
     const visData = await visRes.json()
-    const series = (pvData.data || []).map(([ts, v]) => ({ date: new Date(ts * 1000).toISOString().split('T')[0], pageviews: Number(v || 0) }))
+    const series = (pvData.data || []).map(([ts, v]) => ({ date: new Date(ts).toISOString().split('T')[0], pageviews: Number(v || 0) }))
     const pageviews = series.reduce((sum, row) => sum + row.pageviews, 0)
     const visitors = Number((visData.data || [])[0]?.[1] || 0)
     return { days, pageviews, visitors, series }
