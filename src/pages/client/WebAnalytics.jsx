@@ -18,7 +18,7 @@ export default function ClientWebAnalytics() {
     if (!supabase || !clientId) { setLoading(false); return }
     supabase
       .from('client_websites')
-      .select('id, client_id, name, url, ga_measurement_id, meta_pixel_id, notes, created_at')
+      .select('id, client_id, name, url, ga_measurement_id, meta_pixel_id, netlify_site_id, notes, created_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -147,6 +147,16 @@ export default function ClientWebAnalytics() {
                       <span className="font-mono text-text-primary">{site.meta_pixel_id}</span>
                     </div>
                   )}
+
+                  {/* Website hosting (Netlify) — stubbed until connected */}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-text-secondary">Hosting:</span>
+                    {site.netlify_site_id ? (
+                      <span className="font-mono text-text-primary">{site.netlify_site_id}</span>
+                    ) : (
+                      <span className="text-text-secondary italic">Deploy/traffic data not connected yet</span>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-1">

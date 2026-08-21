@@ -19,6 +19,34 @@ function Trend({ value, unit = '', inverted = false }) {
   )
 }
 
+function RevenueCard({ revenue, weekSpend }) {
+  if (!revenue) return null
+  const net = weekSpend != null ? revenue.total - weekSpend : null
+  return (
+    <div className="vc-card border-vc-primary/20 bg-vc-primary/5">
+      <p className="vc-section-label mb-2">Revenue & Ad Spend</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div>
+          <p className="text-xs text-text-secondary">Revenue tracked (Stripe)</p>
+          <p className="text-xl font-semibold text-text-primary mt-0.5">£{revenue.total.toLocaleString()}</p>
+        </div>
+        {weekSpend != null && (
+          <div>
+            <p className="text-xs text-text-secondary">Ad spend this week</p>
+            <p className="text-xl font-semibold text-text-primary mt-0.5">£{weekSpend.toLocaleString()}</p>
+          </div>
+        )}
+        {net != null && (
+          <div>
+            <p className="text-xs text-text-secondary">Net (revenue − this week's spend)</p>
+            <p className={`text-xl font-semibold mt-0.5 ${net >= 0 ? 'text-status-success' : 'text-status-danger'}`}>£{net.toLocaleString()}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function StatCard({ label, value, sub }) {
   return (
     <div className="vc-card">
@@ -34,6 +62,19 @@ export default function AdPerformance() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedTest, setExpandedTest] = useState(null)
+  const [revenue, setRevenue] = useState(null)
+
+  useEffect(() => {
+    if (!supabase || !profile?.client_id) return
+    supabase
+      .from('clients')
+      .select('stripe_total_revenue, stripe_revenue_synced_at')
+      .eq('id', profile.client_id)
+      .maybeSingle()
+      .then(({ data: row }) => {
+        if (row) setRevenue({ total: Number(row.stripe_total_revenue || 0), syncedAt: row.stripe_revenue_synced_at })
+      })
+  }, [profile?.client_id])
 
   useEffect(() => {
     if (!supabase || !profile?.client_id) { setLoading(false); return }
@@ -83,7 +124,12 @@ export default function AdPerformance() {
       </div>
     </div>
   )
-  if (!data) return <div className="p-6 text-sm text-text-secondary">No ad performance data yet. Connect your ad account to see live data here.</div>
+  if (!data) return (
+    <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
+      <RevenueCard revenue={revenue} />
+      <div className="text-sm text-text-secondary">No ad performance data yet — this fills in once your ad account is matched.</div>
+    </div>
+  )
 
   const s = data.week_summary
   const maxLeads = Math.max(...(data.daily_feed?.map((d) => d.leads) || [1]), 1)
@@ -105,6 +151,8 @@ export default function AdPerformance() {
           </p>
         </div>
       </div>
+
+      <RevenueCard revenue={revenue} weekSpend={s.spend} />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

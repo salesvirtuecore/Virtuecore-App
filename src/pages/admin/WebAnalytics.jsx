@@ -11,6 +11,7 @@ const EMPTY_FORM = {
   url: '',
   ga_measurement_id: '',
   meta_pixel_id: '',
+  netlify_site_id: '',
   notes: '',
 }
 
@@ -64,6 +65,7 @@ export default function WebAnalytics() {
           url: form.url.trim(),
           ga_measurement_id: form.ga_measurement_id.trim() || null,
           meta_pixel_id: form.meta_pixel_id.trim() || null,
+          netlify_site_id: form.netlify_site_id.trim() || null,
           notes: form.notes.trim() || null,
         })
         .select('*, clients(company_name)')
@@ -196,6 +198,12 @@ export default function WebAnalytics() {
                           {site.meta_pixel_id || <span className="text-text-secondary italic">Not set</span>}
                         </span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary">Netlify site:</span>
+                        <span className="text-xs font-mono text-text-primary">
+                          {site.netlify_site_id || <span className="text-text-secondary italic">Not connected yet</span>}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Tracking snippet panel */}
@@ -301,6 +309,15 @@ export default function WebAnalytics() {
               />
             </FormField>
           </div>
+
+          <FormField label="Netlify site ID (optional — enables live deploy/traffic data once connected)">
+            <input
+              className="w-full border border-white/[0.06] px-3 py-2 text-sm focus:outline-none focus:border-vc-primary"
+              value={form.netlify_site_id}
+              onChange={(e) => setForm((p) => ({ ...p, netlify_site_id: e.target.value }))}
+              placeholder="e.g. 8f2c1a90-..."
+            />
+          </FormField>
 
           <FormField label="Notes">
             <input

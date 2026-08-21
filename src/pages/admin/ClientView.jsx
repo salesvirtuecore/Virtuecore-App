@@ -85,7 +85,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -200,7 +200,7 @@ export default function ClientView() {
   // ── Bill Now (manual trigger of billing cycle) ───────────────────────────────
   const [billing, setBilling] = useState(false)
   async function handleBillNow() {
-    if (!client?.stripe_account_id) {
+    if (!client?.stripe_account_id && !client?.stripe_secret_key_valid) {
       showToast('Client has not connected their Stripe revenue account', 'error')
       return
     }
@@ -227,6 +227,25 @@ export default function ClientView() {
     }
   }
 
+  const [editingRevShare, setEditingRevShare] = useState(false)
+  const [revShareInput, setRevShareInput] = useState('')
+  async function handleSaveRevenueShare() {
+    const parsed = Number(revShareInput)
+    if (Number.isNaN(parsed) || parsed < 0 || parsed > 100) {
+      showToast('Enter a percentage between 0 and 100', 'error')
+      return
+    }
+    try {
+      const { error } = await supabase.from('clients').update({ revenue_share_percentage: parsed }).eq('id', client.id)
+      if (error) throw error
+      setClient((prev) => ({ ...prev, revenue_share_percentage: parsed }))
+      setEditingRevShare(false)
+      showToast('Revenue share updated')
+    } catch (err) {
+      showToast(err.message ?? 'Update failed', 'error')
+    }
+  }
+
   async function handleToggleAutoCharge() {
     const next = !client?.auto_charge_enabled
     try {
@@ -243,7 +262,7 @@ export default function ClientView() {
 
   // ── Sync Stripe Revenue ──────────────────────────────────────────────────────
   async function handleSyncRevenue() {
-    if (!client?.stripe_account_id) {
+    if (!client?.stripe_account_id && !client?.stripe_secret_key_valid) {
       showToast('Client has not connected their Stripe account yet', 'error')
       return
     }
@@ -653,11 +672,15 @@ export default function ClientView() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard label="Ad Spend (Mar)" value={`£${metrics.ad_spend.toLocaleString()}`} />
         <StatCard label="Leads (Mar)" value={metrics.leads} />
         <StatCard label="CPL" value={`£${metrics.cpl}`} />
         <StatCard label="ROAS" value={`${metrics.roas}x`} />
+        <StatCard
+          label="Revenue − Ad Spend"
+          value={`£${(Number(client?.stripe_total_revenue || 0) - metrics.ad_spend).toLocaleString()}`}
+        />
       </div>
 
       {/* Stripe Revenue + Auto Billing */}
@@ -669,13 +692,13 @@ export default function ClientView() {
               £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              {client?.stripe_account_id
+              {(client?.stripe_account_id || client?.stripe_secret_key_valid)
                 ? client?.stripe_revenue_synced_at
                   ? `Last synced ${new Date(client.stripe_revenue_synced_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
                   : 'Not yet synced'
                 : 'Client has not connected their Stripe account yet'}
             </p>
-            {client?.stripe_account_id && Number(client?.revenue_share_percentage || 0) > 0 && (
+            {(client?.stripe_account_id || client?.stripe_secret_key_valid) && Number(client?.revenue_share_percentage || 0) > 0 && (
               <p className="text-xs text-text-primary mt-2">
                 Estimated commission ({client.revenue_share_percentage}%):{' '}
                 <span className="font-semibold">
@@ -684,7 +707,7 @@ export default function ClientView() {
               </p>
             )}
           </div>
-          {client?.stripe_account_id && (
+          {(client?.stripe_account_id || client?.stripe_secret_key_valid) && (
             <button
               onClick={handleSyncRevenue}
               disabled={syncingRevenue}
@@ -713,7 +736,28 @@ export default function ClientView() {
             </div>
             <div>
               <p className="text-text-tertiary">Revenue share</p>
-              <p className="text-text-primary mt-0.5">{client?.revenue_share_percentage || 0}%</p>
+              {editingRevShare ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <input
+                    type="number" min="0" max="100" step="0.5"
+                    autoFocus
+                    value={revShareInput}
+                    onChange={(e) => setRevShareInput(e.target.value)}
+                    className="w-16 bg-bg-tertiary border border-white/[0.08] rounded px-1.5 py-0.5 text-text-primary text-xs"
+                  />
+                  <button onClick={handleSaveRevenueShare} className="text-vc-primary hover:underline">Save</button>
+                  <button onClick={() => setEditingRevShare(false)} className="text-text-tertiary hover:text-text-secondary">Cancel</button>
+                </div>
+              ) : (
+                <p
+                  className="text-text-primary mt-0.5 cursor-pointer hover:text-vc-accent inline-flex items-center gap-1"
+                  onClick={() => { setRevShareInput(String(client?.revenue_share_percentage || 0)); setEditingRevShare(true) }}
+                  title="Click to edit"
+                >
+                  {client?.revenue_share_percentage || 0}%
+                  <Pencil size={10} className="text-text-tertiary" />
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -729,7 +773,7 @@ export default function ClientView() {
             </button>
             <button
               onClick={handleBillNow}
-              disabled={billing || !client?.stripe_account_id || !client?.default_payment_method_id}
+              disabled={billing || (!client?.stripe_account_id && !client?.stripe_secret_key_valid) || !client?.default_payment_method_id}
               className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
             >
               {billing ? 'Charging...' : 'Bill now'}
