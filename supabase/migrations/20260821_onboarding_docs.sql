@@ -92,7 +92,7 @@ create policy "clients and admins select own documents" on storage.objects
   );
 
 create policy "admins manage all documents" on storage.objects
-  for update, delete to authenticated
+  for all to authenticated
   using (
     bucket_id = 'client-documents'
     and (select role from profiles where id = auth.uid()) = 'admin'

@@ -15,9 +15,12 @@ create table if not exists va_invoices (
 
 alter table va_invoices enable row level security;
 
-create policy "vas manage own invoices" on va_invoices
-  for select, insert to authenticated
-  using (va_id = auth.uid())
+create policy "vas view own invoices" on va_invoices
+  for select to authenticated
+  using (va_id = auth.uid());
+
+create policy "vas submit own invoices" on va_invoices
+  for insert to authenticated
   with check (va_id = auth.uid());
 
 create policy "admins manage all invoices" on va_invoices
