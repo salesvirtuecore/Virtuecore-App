@@ -22,7 +22,9 @@ function formatCurrency(amount) {
 export default function Billing() {
   const { profile } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [connecting, setConnecting] = useState(false)
+  const [savingKey, setSavingKey] = useState(false)
+  const [editingKey, setEditingKey] = useState(false)
+  const [secretKeyInput, setSecretKeyInput] = useState('')
   const [savingCard, setSavingCard] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +32,9 @@ export default function Billing() {
   const [status, setStatus] = useState({
     connected: false,
     stripeAccountId: null,
+    stripeKeyValid: false,
+    stripeKeyMasked: null,
+    stripeKeyAddedAt: null,
     clientId: null,
     companyName: null,
     connectedAt: null,
@@ -52,10 +57,6 @@ export default function Billing() {
   // Detect query params after redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('connected') === 'true') {
-      setSuccessMessage('Stripe account connected — sync revenue to get started.')
-      window.history.replaceState({}, '', window.location.pathname)
-    }
     if (params.get('card_added') === 'true') {
       setSuccessMessage('Card saved successfully — your future invoices will be charged automatically.')
       window.history.replaceState({}, '', window.location.pathname)
@@ -86,8 +87,11 @@ export default function Billing() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not load status')
       setStatus({
-        connected: Boolean(data?.stripeAccountId),
+        connected: Boolean(data?.stripeAccountId || data?.stripeKeyValid),
         stripeAccountId: data?.stripeAccountId || null,
+        stripeKeyValid: Boolean(data?.stripeKeyValid),
+        stripeKeyMasked: data?.stripeKeyMasked || null,
+        stripeKeyAddedAt: data?.stripeKeyAddedAt || null,
         clientId: data?.clientId || null,
         companyName: data?.companyName || null,
         connectedAt: data?.connectedAt || null,
@@ -107,21 +111,29 @@ export default function Billing() {
     }
   }
 
-  async function connectStripe() {
-    setConnecting(true)
+  async function saveSecretKey() {
+    if (!secretKeyInput.trim()) {
+      setError('Paste your Stripe secret key first')
+      return
+    }
+    setSavingKey(true)
     setError('')
+    setSuccessMessage('')
     try {
-      const accessToken = await getAccessToken()
-      const response = await fetch('/api/stripe/client-connect', {
+      const response = await apiFetch('/api/stripe/save-secret-key', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ secret_key: secretKeyInput.trim() }),
       })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload.error || 'Stripe connect failed')
-      if (payload.connectUrl) window.location.assign(payload.connectUrl)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not save your Stripe key')
+      setSuccessMessage('Stripe key saved — sync revenue to get started.')
+      setSecretKeyInput('')
+      setEditingKey(false)
+      await refreshStatus()
     } catch (err) {
-      setError(err.message || 'Stripe connect failed')
-      setConnecting(false)
+      setError(err.message || 'Could not save your Stripe key')
+    } finally {
+      setSavingKey(false)
     }
   }
 
@@ -214,30 +226,23 @@ export default function Billing() {
 
       {/* Stripe Connect section */}
       <div className="vc-card">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex-1">
             <h2 className="text-sm font-semibold text-text-primary mb-1">Stripe Revenue Connection</h2>
             <p className="text-xs text-text-secondary mb-2">
-              Read-only access so we can track the revenue we help you generate.
+              Paste your Stripe secret key so we can read (read-only) the revenue we help you generate. Find it at{' '}
+              <span className="text-text-primary">dashboard.stripe.com/apikeys</span>.
             </p>
             <span className={statusPillClass}>
               {status.connected ? 'Connected' : 'Not connected'}
             </span>
-            {status.connected && status.connectedAt && (
+            {status.connected && status.stripeKeyAddedAt && (
               <p className="text-xs text-text-secondary mt-2">
-                Connected on {formatDateTime(status.connectedAt)}
+                Key added on {formatDateTime(status.stripeKeyAddedAt)}
               </p>
             )}
           </div>
-          {!status.connected ? (
-            <button
-              onClick={connectStripe}
-              disabled={connecting || loading}
-              className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
-            >
-              {connecting ? 'Redirecting...' : 'Connect Stripe'}
-            </button>
-          ) : (
+          {status.connected && !editingKey && (
             <button
               onClick={syncRevenue}
               disabled={syncing || loading}
@@ -247,6 +252,45 @@ export default function Billing() {
             </button>
           )}
         </div>
+
+        {status.connected && !editingKey ? (
+          <div className="flex items-center justify-between gap-3 bg-bg-tertiary rounded px-3 py-2">
+            <span className="text-sm font-mono text-text-secondary">{status.stripeKeyMasked || '••••••••'}</span>
+            <button
+              onClick={() => setEditingKey(true)}
+              className="text-xs px-3 py-1.5 border border-white/[0.08] text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
+            >
+              Replace key
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="password"
+              value={secretKeyInput}
+              onChange={(e) => setSecretKeyInput(e.target.value)}
+              placeholder="sk_live_..."
+              className="flex-1 text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveSecretKey}
+                disabled={savingKey}
+                className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
+              >
+                {savingKey ? 'Saving...' : 'Save key'}
+              </button>
+              {status.connected && (
+                <button
+                  onClick={() => { setEditingKey(false); setSecretKeyInput(''); setError('') }}
+                  className="text-xs px-3 py-2 text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Billing summary card */}

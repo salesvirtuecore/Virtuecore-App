@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { authenticateUser, requireRole, checkRateLimit } from '../_lib/auth.js'
+import { authenticateUser, requireRole, requireClientOwnership, makeSupabase, checkRateLimit } from '../_lib/auth.js'
+import { encryptSecret, decryptSecret, maskSecret } from '../_lib/crypto.js'
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 function normalizeEmail(email) {
@@ -70,15 +71,13 @@ async function loadStripeAccountStatus({ stripe, stripeAccountId }) {
   }
 }
 
-// ── /api/stripe/client-connect (GET or POST) ────────────────────────────────
-// GET  → returns connection status + revenue totals
-// POST → returns Stripe Standard OAuth URL for the client to authorise
+// ── /api/stripe/client-connect (GET) ────────────────────────────────────────
+// Returns connection status + revenue totals for the authenticated client.
 async function handleClientConnect(req, res) {
-  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const stripeSecret = process.env.STRIPE_SECRET_KEY
-  const stripeClientId = process.env.STRIPE_CLIENT_ID
   if (!supabaseUrl) return res.status(500).json({ error: 'Server not configured: missing Supabase URL' })
   if (!serviceRoleKey) return res.status(500).json({ error: 'Server not configured: missing Supabase service role key' })
   if (!stripeSecret) return res.status(500).json({ error: 'Server not configured: missing Stripe secret key' })
@@ -96,114 +95,97 @@ async function handleClientConnect(req, res) {
 
     // Fetch revenue totals + payment method status for this client
     const { data: clientFull } = await supabase.from('clients')
-      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id')
+      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
       .eq('id', client.id).maybeSingle()
     const stripeAccountId = clientFull?.stripe_account_id || null
 
-    if (req.method === 'GET') {
-      const stripeStatus = await loadStripeAccountStatus({ stripe, stripeAccountId })
-
-      // Fetch saved card details for display (last4, brand)
-      let savedCard = null
-      if (clientFull?.stripe_customer_id && clientFull?.default_payment_method_id) {
-        try {
-          const pm = await stripe.paymentMethods.retrieve(clientFull.default_payment_method_id)
-          if (pm?.card) {
-            savedCard = { brand: pm.card.brand, last4: pm.card.last4, exp_month: pm.card.exp_month, exp_year: pm.card.exp_year }
-          }
-        } catch {
-          // Card might have been deleted in Stripe
+    // Legacy Connect accounts (if any remain) still report live status from Stripe;
+    // everyone else reports based on whether their pasted secret key validated.
+    const stripeStatus = stripeAccountId
+      ? await loadStripeAccountStatus({ stripe, stripeAccountId })
+      : {
+          connected: Boolean(clientFull?.stripe_secret_key_valid),
+          onboardingComplete: Boolean(clientFull?.stripe_secret_key_valid),
+          chargesEnabled: Boolean(clientFull?.stripe_secret_key_valid),
+          payoutsEnabled: false,
         }
-      }
 
-      return res.status(200).json({
-        clientId: clientFull.id,
-        companyName: clientFull.company_name || null,
-        contactEmail: clientFull.contact_email || user.email || null,
-        stripeAccountId,
-        connectedAt: clientFull.stripe_connected_at,
-        totalRevenue: Number(clientFull.stripe_total_revenue || 0),
-        revenueSyncedAt: clientFull.stripe_revenue_synced_at,
-        savedCard,
-        nextBillingDate: clientFull.next_billing_date,
-        monthlyRetainer: Number(clientFull.monthly_retainer || 0),
-        revenueSharePercentage: Number(clientFull.revenue_share_percentage || 0),
-        metaConnected: Boolean(clientFull.meta_ad_account_id),
-        ...stripeStatus,
-      })
+    // Fetch saved card details for display (last4, brand) — this is the PLATFORM's
+    // own Stripe customer/payment-method (used for auto-billing), unrelated to the
+    // client's own pasted Stripe key above.
+    let savedCard = null
+    if (clientFull?.stripe_customer_id && clientFull?.default_payment_method_id) {
+      try {
+        const pm = await stripe.paymentMethods.retrieve(clientFull.default_payment_method_id)
+        if (pm?.card) {
+          savedCard = { brand: pm.card.brand, last4: pm.card.last4, exp_month: pm.card.exp_month, exp_year: pm.card.exp_year }
+        }
+      } catch {
+        // Card might have been deleted in Stripe
+      }
     }
 
-    // POST → return Stripe Standard OAuth URL
-    if (!stripeClientId) return res.status(500).json({ error: 'STRIPE_CLIENT_ID not configured in environment' })
-    const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
-    const redirectUri = `${appUrl}/api/stripe/oauth-callback`
-    const oauthUrl = new URL('https://connect.stripe.com/oauth/authorize')
-    oauthUrl.searchParams.set('response_type', 'code')
-    oauthUrl.searchParams.set('client_id', stripeClientId)
-    oauthUrl.searchParams.set('scope', 'read_only')
-    oauthUrl.searchParams.set('redirect_uri', redirectUri)
-    oauthUrl.searchParams.set('state', token)
-    oauthUrl.searchParams.set('stripe_user[email]', clientFull.contact_email || user.email || '')
-    oauthUrl.searchParams.set('stripe_user[business_name]', clientFull.company_name || '')
-    return res.status(200).json({ connectUrl: oauthUrl.toString(), stripeAccountId, clientId: clientFull.id })
+    return res.status(200).json({
+      clientId: clientFull.id,
+      companyName: clientFull.company_name || null,
+      contactEmail: clientFull.contact_email || user.email || null,
+      stripeAccountId,
+      connectedAt: clientFull.stripe_connected_at,
+      stripeKeyValid: Boolean(clientFull.stripe_secret_key_valid),
+      stripeKeyMasked: clientFull.stripe_secret_key_masked || null,
+      stripeKeyAddedAt: clientFull.stripe_key_added_at || null,
+      totalRevenue: Number(clientFull.stripe_total_revenue || 0),
+      revenueSyncedAt: clientFull.stripe_revenue_synced_at,
+      savedCard,
+      nextBillingDate: clientFull.next_billing_date,
+      monthlyRetainer: Number(clientFull.monthly_retainer || 0),
+      revenueSharePercentage: Number(clientFull.revenue_share_percentage || 0),
+      metaConnected: Boolean(clientFull.meta_ad_account_id),
+      ...stripeStatus,
+    })
   } catch (err) {
     return res.status(500).json({ error: err?.message || 'Stripe connect failed' })
   }
 }
 
-// ── /api/stripe/oauth-callback (GET) ────────────────────────────────────────
-// Stripe redirects the user here after OAuth authorisation.
-// Exchanges the code for the connected account ID and stores it.
-async function handleOAuthCallback(req, res) {
-  if (req.method !== 'GET') return res.status(405).end()
-  const appUrl = process.env.VITE_APP_URL || 'https://app.virtuecore.co.uk'
-  const { code, state, error: stripeError, error_description } = req.query
+// ── /api/stripe/save-secret-key (POST) ──────────────────────────────────────
+// Client pastes their own Stripe secret key. We verify it against Stripe,
+// then encrypt it at rest — the plaintext key is never stored or returned.
+async function handleSaveSecretKey(req, res, authProfile) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!requireRole(res, authProfile, 'client', 'admin')) return
 
-  function redirectWithError(msg) {
-    res.writeHead(302, { Location: `${appUrl}/client/billing?error=${encodeURIComponent(msg)}` })
-    res.end()
+  const { secret_key } = req.body ?? {}
+  const targetClientId = authProfile.role === 'admin' ? req.body?.client_id : authProfile.client_id
+  if (!targetClientId) return res.status(400).json({ error: 'client_id required' })
+  if (!requireClientOwnership(res, authProfile, targetClientId)) return
+
+  if (!secret_key || typeof secret_key !== 'string' || !/^sk_(live|test)_/.test(secret_key)) {
+    return res.status(400).json({ error: "That doesn't look like a valid Stripe secret key — it should start with sk_live_ or sk_test_" })
   }
 
-  if (stripeError) return redirectWithError(error_description || stripeError)
-  if (!code || !state) return redirectWithError('Missing code or state')
+  try {
+    const clientStripe = new Stripe(secret_key, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+    await clientStripe.balance.retrieve() // proves the key actually works before we save it
+  } catch (err) {
+    return res.status(400).json({ error: `Stripe rejected this key: ${err?.message || 'invalid key'}` })
+  }
 
   try {
-    const supabase = createClient(
-      process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-    const { data: { user }, error: userError } = await supabase.auth.getUser(state)
-    if (userError || !user) return redirectWithError('Session expired — please try again')
-
-    const { data: profile } = await supabase.from('profiles')
-      .select('client_id, role').eq('id', user.id).maybeSingle()
-    if (!profile?.client_id) return redirectWithError('No client record found')
-
-    // Exchange the code for an access token + connected account ID
-    const tokenRes = await fetch('https://connect.stripe.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_secret: process.env.STRIPE_SECRET_KEY,
-        code,
-        grant_type: 'authorization_code',
-      }),
-    })
-    const tokenData = await tokenRes.json()
-    if (!tokenRes.ok || !tokenData.stripe_user_id) {
-      return redirectWithError(tokenData.error_description || 'Stripe token exchange failed')
-    }
-
-    await supabase.from('clients').update({
-      stripe_account_id: tokenData.stripe_user_id,
-      stripe_connected_at: new Date().toISOString(),
-    }).eq('id', profile.client_id)
-
-    res.writeHead(302, { Location: `${appUrl}/client/billing?connected=true` })
-    res.end()
+    const encrypted = encryptSecret(secret_key)
+    const masked = maskSecret(secret_key)
+    const supabase = makeSupabase()
+    const { error } = await supabase.from('clients').update({
+      stripe_secret_key_encrypted: encrypted,
+      stripe_secret_key_masked: masked,
+      stripe_secret_key_valid: true,
+      stripe_key_added_at: new Date().toISOString(),
+      stripe_key_last_validated_at: new Date().toISOString(),
+    }).eq('id', targetClientId)
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ ok: true, masked })
   } catch (err) {
-    return redirectWithError(err?.message || 'Unexpected error')
+    return res.status(500).json({ error: err?.message || 'Failed to save key' })
   }
 }
 
@@ -282,10 +264,22 @@ async function handleSyncRevenue(req, res, authProfile) {
   }
 
   const { data: client } = await supabase.from('clients')
-    .select('id, stripe_account_id, onboarding_started_at, created_at')
+    .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
     .eq('id', clientId).maybeSingle()
   if (!client) return res.status(404).json({ error: 'Client not found' })
-  if (!client.stripe_account_id) return res.status(400).json({ error: 'Stripe not connected — please connect your Stripe account first' })
+
+  // Legacy OAuth Connect accounts read through the platform Stripe object with a
+  // stripeAccount header; everyone else reads through their own pasted secret key directly.
+  let chargesClient = stripe
+  let chargesOptions = {}
+  if (client.stripe_account_id) {
+    chargesOptions = { stripeAccount: client.stripe_account_id }
+  } else if (client.stripe_secret_key_encrypted) {
+    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
+    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  } else {
+    return res.status(400).json({ error: 'Stripe not connected — please add your Stripe secret key first' })
+  }
 
   // "Since joining VirtueCore"
   const joinDate = client.onboarding_started_at || client.created_at
@@ -300,7 +294,7 @@ async function handleSyncRevenue(req, res, authProfile) {
     while (hasMore) {
       const params = { created: { gte: joinUnix }, limit: 100 }
       if (startingAfter) params.starting_after = startingAfter
-      const charges = await stripe.charges.list(params, { stripeAccount: client.stripe_account_id })
+      const charges = await chargesClient.charges.list(params, chargesOptions)
 
       for (const charge of charges.data) {
         if (charge.status === 'succeeded') {
@@ -402,9 +396,6 @@ export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
   const action = req.query.action
 
-  // OAuth callback is hit by Stripe directly (no Bearer token possible) — verifies state internally
-  if (action === 'oauth-callback') return handleOAuthCallback(req, res)
-
   // client-connect already has its own Bearer token auth internally
   if (action === 'client-connect') return handleClientConnect(req, res)
 
@@ -412,6 +403,7 @@ export default async function handler(req, res) {
   const auth = await authenticateUser(req, res)
   if (!auth) return
 
+  if (action === 'save-secret-key') return handleSaveSecretKey(req, res, auth.profile)
   if (action === 'sync-revenue') return handleSyncRevenue(req, res, auth.profile)
   if (action === 'setup-payment-method') return handleSetupPaymentMethod(req, res, auth.profile)
   if (action === 'connect') {

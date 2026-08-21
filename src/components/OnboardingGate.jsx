@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/api'
 
 // Locks the client portal until they have completed:
-// 1. Connected their Stripe account (read-only revenue tracking)
+// 1. Added their Stripe secret key (read-only revenue tracking)
 // 2. Saved a payment method on file
 // 3. Connected their Facebook Ads account
 export default function OnboardingGate({ children }) {
@@ -16,7 +16,6 @@ export default function OnboardingGate({ children }) {
     paymentMethod: false,
     facebook: false,
   })
-  const [connectingStripe, setConnectingStripe] = useState(false)
   const [savingCard, setSavingCard] = useState(false)
   const [connectingMeta, setConnectingMeta] = useState(false)
   const [error, setError] = useState('')
@@ -28,11 +27,11 @@ export default function OnboardingGate({ children }) {
     }
     try {
       const { data } = await supabase.from('clients')
-        .select('stripe_account_id, default_payment_method_id, meta_ad_account_id')
+        .select('stripe_account_id, stripe_secret_key_valid, default_payment_method_id, meta_ad_account_id')
         .eq('id', profile.client_id)
         .single()
       setSetup({
-        stripeRevenue: Boolean(data?.stripe_account_id),
+        stripeRevenue: Boolean(data?.stripe_account_id || data?.stripe_secret_key_valid),
         paymentMethod: Boolean(data?.default_payment_method_id),
         facebook: Boolean(data?.meta_ad_account_id),
       })
@@ -53,24 +52,6 @@ export default function OnboardingGate({ children }) {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [profile?.client_id])
-
-  async function startStripeConnect() {
-    setError('')
-    setConnectingStripe(true)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/stripe/client-connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to start Stripe connect')
-      window.location.assign(data.connectUrl)
-    } catch (err) {
-      setError(err.message)
-      setConnectingStripe(false)
-    }
-  }
 
   async function startSaveCard() {
     setError('')
@@ -119,11 +100,11 @@ export default function OnboardingGate({ children }) {
     {
       key: 'stripeRevenue',
       done: setup.stripeRevenue,
-      title: 'Connect your Stripe account',
-      description: 'Read-only access so we can track the revenue we help you generate. We can never move funds.',
-      buttonLabel: connectingStripe ? 'Redirecting…' : 'Connect Stripe',
-      onClick: startStripeConnect,
-      loading: connectingStripe,
+      title: 'Add your Stripe secret key',
+      description: 'Paste your Stripe secret key (read-only use) so we can track the revenue we help you generate. We can never move funds.',
+      buttonLabel: 'Go to Billing',
+      onClick: () => window.location.assign('/client/billing'),
+      loading: false,
     },
     {
       key: 'paymentMethod',
