@@ -23,13 +23,15 @@ function toDateString(date) {
 // legacy Connect accounts go through the platform Stripe object with a
 // stripeAccount header; everyone else (pasted secret key) gets their own
 // Stripe instance built from their decrypted key.
+// A pasted secret key always wins if one has been saved — see the matching
+// note in api/stripe/[action].js's handleSyncRevenue.
 function resolveClientChargesReader(platformStripe, client) {
-  if (client.stripe_account_id) {
-    return { chargesClient: platformStripe, chargesOptions: { stripeAccount: client.stripe_account_id } }
-  }
   if (client.stripe_secret_key_encrypted) {
     const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
     return { chargesClient: new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() }), chargesOptions: undefined }
+  }
+  if (client.stripe_account_id) {
+    return { chargesClient: platformStripe, chargesOptions: { stripeAccount: client.stripe_account_id } }
   }
   throw new Error('Client has no Stripe connection (neither Connect account nor secret key)')
 }

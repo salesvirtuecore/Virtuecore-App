@@ -101,16 +101,19 @@ async function handleClientConnect(req, res) {
     if (!clientFull) return res.status(404).json({ error: 'Client record not found' })
     const stripeAccountId = clientFull?.stripe_account_id || null
 
-    // Legacy Connect accounts (if any remain) still report live status from Stripe;
-    // everyone else reports based on whether their pasted secret key validated.
-    const stripeStatus = stripeAccountId
-      ? await loadStripeAccountStatus({ stripe, stripeAccountId })
-      : {
-          connected: Boolean(clientFull?.stripe_secret_key_valid),
-          onboardingComplete: Boolean(clientFull?.stripe_secret_key_valid),
-          chargesEnabled: Boolean(clientFull?.stripe_secret_key_valid),
+    // A pasted secret key always wins if one has been saved — same priority
+    // as handleSyncRevenue. Legacy Connect accounts only report live OAuth
+    // status for clients who never re-keyed.
+    const stripeStatus = clientFull?.stripe_secret_key_valid
+      ? {
+          connected: true,
+          onboardingComplete: true,
+          chargesEnabled: true,
           payoutsEnabled: false,
         }
+      : stripeAccountId
+        ? await loadStripeAccountStatus({ stripe, stripeAccountId })
+        : { connected: false, onboardingComplete: false, chargesEnabled: false, payoutsEnabled: false }
 
     // Fetch saved card details for display (last4, brand) — this is the PLATFORM's
     // own Stripe customer/payment-method (used for auto-billing), unrelated to the
@@ -270,16 +273,18 @@ async function handleSyncRevenue(req, res, authProfile) {
     .eq('id', clientId).maybeSingle()
   if (!client) return res.status(404).json({ error: 'Client not found' })
 
-  // Legacy OAuth Connect accounts read through the platform Stripe object with a
-  // stripeAccount header; everyone else reads through their own pasted secret key directly.
+  // A pasted secret key always wins if one has been saved — it's the client's
+  // own real Stripe account and the whole point of replacing OAuth. Legacy
+  // Connect accounts (stripeAccount header on the platform Stripe object) are
+  // only used as a fallback for clients who never re-keyed.
   let chargesClient = stripe
   let chargesOptions
 
-  if (client.stripe_account_id) {
-    chargesOptions = { stripeAccount: client.stripe_account_id }
-  } else if (client.stripe_secret_key_encrypted) {
+  if (client.stripe_secret_key_encrypted) {
     const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
     chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+  } else if (client.stripe_account_id) {
+    chargesOptions = { stripeAccount: client.stripe_account_id }
   } else {
     return res.status(400).json({ error: 'Stripe not connected — please add your Stripe secret key first' })
   }

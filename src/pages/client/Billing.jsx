@@ -236,9 +236,14 @@ export default function Billing() {
             <span className={statusPillClass}>
               {status.connected ? 'Connected' : 'Not connected'}
             </span>
-            {status.connected && status.stripeKeyAddedAt && (
+            {status.stripeKeyValid && status.stripeKeyAddedAt && (
               <p className="text-xs text-text-secondary mt-2">
                 Key added on {formatDateTime(status.stripeKeyAddedAt)}
+              </p>
+            )}
+            {status.connected && !status.stripeKeyValid && (
+              <p className="text-xs text-text-secondary mt-2">
+                Connected via our older method — paste your Stripe secret key below to switch to the simpler, direct method.
               </p>
             )}
           </div>
@@ -253,7 +258,7 @@ export default function Billing() {
           )}
         </div>
 
-        {status.connected && !editingKey ? (
+        {status.stripeKeyValid && !editingKey ? (
           <div className="flex items-center justify-between gap-3 bg-bg-tertiary rounded px-3 py-2">
             <span className="text-sm font-mono text-text-secondary">{status.stripeKeyMasked || '••••••••'}</span>
             <button
@@ -280,7 +285,7 @@ export default function Billing() {
               >
                 {savingKey ? 'Saving...' : 'Save key'}
               </button>
-              {status.connected && (
+              {status.stripeKeyValid && (
                 <button
                   onClick={() => { setEditingKey(false); setSecretKeyInput(''); setError('') }}
                   className="text-xs px-3 py-2 text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
