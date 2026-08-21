@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { format, parseISO } from 'date-fns'
 
 const PLATFORM_COLOR = { Meta: '#1877F2', Google: '#34A853', TikTok: '#000000' }
+const RANGE_OPTIONS = [7, 30, 60]
 
 function Trend({ value, unit = '', inverted = false }) {
   if (value == null || value === 0) return <span className="text-xs text-text-secondary">—</span>
@@ -19,7 +20,7 @@ function Trend({ value, unit = '', inverted = false }) {
   )
 }
 
-function RevenueCard({ revenue, weekSpend }) {
+function RevenueCard({ revenue, weekSpend, rangeDays }) {
   if (!revenue) return null
   const net = weekSpend != null ? revenue.total - weekSpend : null
   return (
@@ -32,13 +33,13 @@ function RevenueCard({ revenue, weekSpend }) {
         </div>
         {weekSpend != null && (
           <div>
-            <p className="text-xs text-text-secondary">Ad spend this week</p>
+            <p className="text-xs text-text-secondary">Ad spend last {rangeDays} days</p>
             <p className="text-xl font-semibold text-text-primary mt-0.5">£{weekSpend.toLocaleString()}</p>
           </div>
         )}
         {net != null && (
           <div>
-            <p className="text-xs text-text-secondary">Net (revenue − this week's spend)</p>
+            <p className="text-xs text-text-secondary">Net (revenue − last {rangeDays}d spend)</p>
             <p className={`text-xl font-semibold mt-0.5 ${net >= 0 ? 'text-status-success' : 'text-status-danger'}`}>£{net.toLocaleString()}</p>
           </div>
         )}
@@ -63,6 +64,7 @@ export default function AdPerformance() {
   const [loading, setLoading] = useState(true)
   const [expandedTest, setExpandedTest] = useState(null)
   const [revenue, setRevenue] = useState(null)
+  const [rangeDays, setRangeDays] = useState(7)
 
   useEffect(() => {
     if (!supabase || !profile?.client_id) return
@@ -80,15 +82,15 @@ export default function AdPerformance() {
     if (!supabase || !profile?.client_id) { setLoading(false); return }
     setLoading(true)
     const now = new Date()
-    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
+    const rangeStart = new Date(now); rangeStart.setDate(now.getDate() - rangeDays)
     supabase
       .from('ad_performance')
       .select('client_id, date, spend, leads, impressions, clicks, roas, cpl, ctr')
       .eq('client_id', profile.client_id)
-      .gte('date', weekAgo.toISOString().split('T')[0])
+      .gte('date', rangeStart.toISOString().split('T')[0])
       .order('date', { ascending: false })
       .then(({ data: rows }) => {
-        if (!rows?.length) { setLoading(false); return }
+        if (!rows?.length) { setData(null); setLoading(false); return }
         const spend = rows.reduce((s, r) => s + Number(r.spend || 0), 0)
         const leads = rows.reduce((s, r) => s + Number(r.leads || 0), 0)
         const impressions = rows.reduce((s, r) => s + Number(r.impressions || 0), 0)
@@ -103,7 +105,7 @@ export default function AdPerformance() {
         })
         setLoading(false)
       })
-  }, [profile?.client_id])
+  }, [profile?.client_id, rangeDays])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">
@@ -124,10 +126,30 @@ export default function AdPerformance() {
       </div>
     </div>
   )
+  const rangeToggle = (
+    <div className="flex items-center gap-1 bg-bg-tertiary border border-white/[0.06] rounded p-0.5">
+      {RANGE_OPTIONS.map((days) => (
+        <button
+          key={days}
+          onClick={() => setRangeDays(days)}
+          className={`text-xs px-2.5 py-1 rounded transition-colors ${
+            rangeDays === days ? 'bg-vc-primary text-white' : 'text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          {days}d
+        </button>
+      ))}
+    </div>
+  )
+
   if (!data) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-h2 font-heading text-text-primary">Live Ad Performance</h1>
+        {rangeToggle}
+      </div>
       <RevenueCard revenue={revenue} />
-      <div className="text-sm text-text-secondary">No ad performance data yet — this fills in once your ad account is matched.</div>
+      <div className="text-sm text-text-secondary">No ad performance data in the last {rangeDays} days — try a wider range, or this fills in once your ad account is matched.</div>
     </div>
   )
 
@@ -147,17 +169,18 @@ export default function AdPerformance() {
             </span>
           </div>
           <p className="text-sm text-text-secondary mt-0.5">
-            Updated {data.last_updated ? format(parseISO(data.last_updated), 'd MMM yyyy, HH:mm') : 'today'} · Last 7 days
+            Updated {data.last_updated ? format(parseISO(data.last_updated), 'd MMM yyyy, HH:mm') : 'today'} · Last {rangeDays} days
           </p>
         </div>
+        {rangeToggle}
       </div>
 
-      <RevenueCard revenue={revenue} weekSpend={s.spend} />
+      <RevenueCard revenue={revenue} weekSpend={s.spend} rangeDays={rangeDays} />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Ad Spend" value={`£${s.spend.toLocaleString()}`} sub="this week" />
-        <StatCard label="Leads" value={s.leads} sub="this week" />
+        <StatCard label="Ad Spend" value={`£${s.spend.toLocaleString()}`} sub={`last ${rangeDays}d`} />
+        <StatCard label="Leads" value={s.leads} sub={`last ${rangeDays}d`} />
         <StatCard label="Cost Per Lead" value={s.cpl > 0 ? `£${s.cpl}` : '—'} sub="avg CPL" />
         <StatCard label="ROAS" value={s.roas > 0 ? `${Number(s.roas).toFixed(1)}x` : '—'} sub="return on spend" />
       </div>
