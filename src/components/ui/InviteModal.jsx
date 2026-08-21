@@ -13,6 +13,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
     package_tier: 'Starter',
     monthly_retainer: '',
     revenue_share_percentage: '',
+    revenue_share_basis: 'revenue',
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -32,6 +33,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
       package_tier: 'Starter',
       monthly_retainer: '',
       revenue_share_percentage: '',
+      revenue_share_basis: 'revenue',
     })
     setLoading(false)
     setSuccess(false)
@@ -56,6 +58,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
           revenue_share_percentage: formData.revenue_share_percentage
             ? Number(formData.revenue_share_percentage)
             : 0,
+          revenue_share_basis: formData.revenue_share_basis,
         }),
       }
 
@@ -206,6 +209,39 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
                       className={inputClass}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Revenue Share Basis</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, revenue_share_basis: 'revenue' }))}
+                      className={`text-xs px-3 py-2 rounded-btn border transition-colors ${
+                        formData.revenue_share_basis === 'revenue'
+                          ? 'bg-vc-primary/10 border-vc-primary text-vc-primary'
+                          : 'border-white/[0.08] text-text-secondary hover:bg-bg-tertiary'
+                      }`}
+                    >
+                      % of Revenue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, revenue_share_basis: 'revenue_minus_ad_spend' }))}
+                      className={`text-xs px-3 py-2 rounded-btn border transition-colors ${
+                        formData.revenue_share_basis === 'revenue_minus_ad_spend'
+                          ? 'bg-vc-primary/10 border-vc-primary text-vc-primary'
+                          : 'border-white/[0.08] text-text-secondary hover:bg-bg-tertiary'
+                      }`}
+                    >
+                      % of (Revenue − Ad Spend)
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-text-tertiary mt-1">
+                    {formData.revenue_share_basis === 'revenue_minus_ad_spend'
+                      ? 'Commission is calculated on profit — revenue minus what they spent on ads that cycle.'
+                      : 'Commission is calculated on gross revenue.'}
+                  </p>
                 </div>
               </>
             )}

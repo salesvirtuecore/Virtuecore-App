@@ -22,6 +22,7 @@ const EMPTY_FORM = {
   package_tier: 'Starter',
   monthly_retainer: '',
   revenue_share_percentage: '',
+  revenue_share_basis: 'revenue',
   status: 'active',
   health_score: 'green',
 }
@@ -45,7 +46,7 @@ export default function Clients() {
     setLoadingClients(true)
     try {
       const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, stripe_account_id, created_at').order('created_at', { ascending: false }),
+        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, status, health_score, stripe_account_id, created_at').order('created_at', { ascending: false }),
         supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       ])
 
@@ -99,6 +100,7 @@ export default function Clients() {
       package_tier: client.package_tier,
       monthly_retainer: client.monthly_retainer,
       revenue_share_percentage: client.revenue_share_percentage,
+      revenue_share_basis: client.revenue_share_basis || 'revenue',
       status: client.status,
       health_score: client.health_score,
     })
@@ -133,6 +135,7 @@ export default function Clients() {
         package_tier: form.package_tier,
         monthly_retainer: Number(form.monthly_retainer),
         revenue_share_percentage: Number(form.revenue_share_percentage),
+        revenue_share_basis: form.revenue_share_basis === 'revenue_minus_ad_spend' ? 'revenue_minus_ad_spend' : 'revenue',
         status: form.status,
         health_score: form.health_score,
       }
@@ -368,6 +371,13 @@ export default function Clients() {
                 <input type="number" className={inputClass} value={form.revenue_share_percentage} onChange={(e) => setForm({ ...form, revenue_share_percentage: e.target.value })} min="0" max="100" step="0.1" />
               </FormField>
             </div>
+
+            <FormField label="Revenue Share Basis">
+              <select className={selectClass} value={form.revenue_share_basis} onChange={(e) => setForm({ ...form, revenue_share_basis: e.target.value })}>
+                <option value="revenue">% of Revenue</option>
+                <option value="revenue_minus_ad_spend">% of (Revenue − Ad Spend)</option>
+              </select>
+            </FormField>
 
             <FormField label="Health Score" required>
               <select className={selectClass} value={form.health_score} onChange={(e) => setForm({ ...form, health_score: e.target.value })}>

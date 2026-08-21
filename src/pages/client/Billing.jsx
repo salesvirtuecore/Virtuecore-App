@@ -45,6 +45,8 @@ export default function Billing() {
     nextBillingDate: null,
     monthlyRetainer: 0,
     revenueSharePercentage: 0,
+    revenueShareBasis: 'revenue',
+    adSpendTotal: 0,
     metaConnected: false,
     lastCheckedAt: null,
   })
@@ -87,6 +89,13 @@ export default function Billing() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not load status')
+
+      let adSpendTotal = 0
+      if (data?.clientId) {
+        const { data: adRows } = await supabase.from('ad_performance').select('spend').eq('client_id', data.clientId)
+        adSpendTotal = (adRows || []).reduce((sum, row) => sum + Number(row.spend || 0), 0)
+      }
+
       setStatus({
         connected: Boolean(data?.stripeAccountId || data?.stripeKeyValid),
         stripeAccountId: data?.stripeAccountId || null,
@@ -103,6 +112,8 @@ export default function Billing() {
         nextBillingDate: data?.nextBillingDate || null,
         monthlyRetainer: Number(data?.monthlyRetainer || 0),
         revenueSharePercentage: Number(data?.revenueSharePercentage || 0),
+        revenueShareBasis: data?.revenueShareBasis || 'revenue',
+        adSpendTotal,
         metaConnected: Boolean(data?.metaConnected),
         lastCheckedAt: new Date().toISOString(),
       })
@@ -175,7 +186,9 @@ export default function Billing() {
   }, [profile?.id, profile?.client_id, profile?.email])
 
   // Estimate next bill amount
-  const estimatedCommission = Math.round(status.totalRevenue * status.revenueSharePercentage / 100) || 0
+  const usesAdSpendBasis = status.revenueShareBasis === 'revenue_minus_ad_spend'
+  const commissionBase = usesAdSpendBasis ? Math.max(0, status.totalRevenue - status.adSpendTotal) : status.totalRevenue
+  const estimatedCommission = Math.round(commissionBase * status.revenueSharePercentage / 100) || 0
   const estimatedNextBill = estimatedCommission + status.monthlyRetainer
 
   return (
@@ -332,7 +345,9 @@ export default function Billing() {
             </div>
             <div>
               <p className="text-xs text-text-secondary">Revenue share</p>
-              <p className="text-base font-medium text-text-primary mt-1">{status.revenueSharePercentage}%</p>
+              <p className="text-base font-medium text-text-primary mt-1">
+                {status.revenueSharePercentage}% {usesAdSpendBasis ? 'of (revenue − ad spend)' : 'of revenue'}
+              </p>
             </div>
           </div>
 
@@ -343,6 +358,12 @@ export default function Billing() {
                 <span>Revenue tracked from Stripe</span>
                 <span>{formatCurrency(status.totalRevenue)}</span>
               </div>
+              {usesAdSpendBasis && (
+                <div className="flex justify-between text-text-secondary">
+                  <span>Ad spend (deducted)</span>
+                  <span>−{formatCurrency(status.adSpendTotal)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-text-secondary">
                 <span>Commission ({status.revenueSharePercentage}%)</span>
                 <span>{formatCurrency(estimatedCommission)}</span>
@@ -357,7 +378,7 @@ export default function Billing() {
               </div>
             </div>
             <p className="text-xs text-text-tertiary mt-3">
-              On your billing date we'll charge your saved card automatically based on the revenue you actually generated in the prior 28 days. You'll receive a receipt with the full breakdown.
+              On your billing date we'll charge your saved card automatically based on the revenue you actually generated in the prior 28 days{usesAdSpendBasis ? ', minus your ad spend for that same period,' : ''}. You'll receive a receipt with the full breakdown.
             </p>
           </div>
         </div>
@@ -367,8 +388,13 @@ export default function Billing() {
       <div className="vc-card">
         <h2 className="text-sm font-medium text-text-primary mb-2">How automated billing works</h2>
         <ol className="text-sm text-text-secondary space-y-2 list-decimal list-inside">
-          <li>We read your Stripe revenue (read-only) for the last 28 days, net of refunds.</li>
-          <li>We calculate: <span className="text-text-primary">(revenue × {status.revenueSharePercentage}%) + {formatCurrency(status.monthlyRetainer)} retainer</span></li>
+          <li>We read your Stripe revenue (read-only) for the last 28 days, net of refunds{usesAdSpendBasis ? ', and your ad spend for the same period' : ''}.</li>
+          <li>
+            We calculate:{' '}
+            <span className="text-text-primary">
+              {usesAdSpendBasis ? '((revenue − ad spend)' : '(revenue'} × {status.revenueSharePercentage}%) + {formatCurrency(status.monthlyRetainer)} retainer
+            </span>
+          </li>
           <li>We charge your saved card automatically on your billing date.</li>
           <li>You receive a receipt email with a full breakdown of every charge.</li>
         </ol>

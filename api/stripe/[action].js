@@ -95,7 +95,7 @@ async function handleClientConnect(req, res) {
 
     // Fetch revenue totals + payment method status for this client
     const { data: clientFull, error: clientFullError } = await supabase.from('clients')
-      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
+      .select('id, company_name, contact_email, stripe_account_id, stripe_connected_at, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, stripe_customer_id, default_payment_method_id, payment_method_added_at, next_billing_date, monthly_retainer, revenue_share_percentage, revenue_share_basis, manual_costs_by_month, meta_ad_account_id, stripe_secret_key_valid, stripe_secret_key_masked, stripe_key_added_at')
       .eq('id', client.id).maybeSingle()
     if (clientFullError) return res.status(500).json({ error: `Failed to load client record: ${clientFullError.message}` })
     if (!clientFull) return res.status(404).json({ error: 'Client record not found' })
@@ -150,6 +150,8 @@ async function handleClientConnect(req, res) {
       nextBillingDate: clientFull.next_billing_date,
       monthlyRetainer: Number(clientFull.monthly_retainer || 0),
       revenueSharePercentage: Number(clientFull.revenue_share_percentage || 0),
+      revenueShareBasis: clientFull.revenue_share_basis || 'revenue',
+      manualCostsByMonth: clientFull.manual_costs_by_month || {},
       metaConnected: Boolean(clientFull.meta_ad_account_id),
       ...stripeStatus,
     })
@@ -498,6 +500,43 @@ async function handleCreateCheckout(req, res, authProfile) {
   }
 }
 
+// ── /api/stripe/save-manual-cost (POST) ─────────────────────────────────────
+// Lets a client (or admin, on their behalf) record their own monthly
+// operating cost — subscriptions/tools not visible in Stripe — for a given
+// month. This feeds the CAC figure on the client dashboard: (ad spend +
+// manual cost) / conversions, so cost-per-acquisition isn't blind to
+// spend outside ad platforms.
+async function handleSaveManualCost(req, res, authProfile) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!requireRole(res, authProfile, 'client', 'admin')) return
+
+  const { month, amount } = req.body ?? {}
+  const targetClientId = authProfile.role === 'admin' ? req.body?.client_id : authProfile.client_id
+  if (!targetClientId) return res.status(400).json({ error: 'client_id required' })
+  if (!requireClientOwnership(res, authProfile, targetClientId)) return
+
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'month must be in YYYY-MM format' })
+  }
+  const numericAmount = Number(amount)
+  if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+    return res.status(400).json({ error: 'amount must be a non-negative number' })
+  }
+
+  const supabase = makeSupabase()
+  const { data: client, error: fetchError } = await supabase.from('clients')
+    .select('id, manual_costs_by_month').eq('id', targetClientId).maybeSingle()
+  if (fetchError) return res.status(500).json({ error: fetchError.message })
+  if (!client) return res.status(404).json({ error: 'Client not found' })
+
+  const updated = { ...(client.manual_costs_by_month || {}), [month]: numericAmount }
+  const { error: updateError } = await supabase.from('clients')
+    .update({ manual_costs_by_month: updated }).eq('id', targetClientId)
+  if (updateError) return res.status(500).json({ error: updateError.message })
+
+  return res.status(200).json({ ok: true, manual_costs_by_month: updated })
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
@@ -512,6 +551,7 @@ export default async function handler(req, res) {
 
   if (action === 'save-secret-key') return handleSaveSecretKey(req, res, auth.profile)
   if (action === 'sync-revenue') return handleSyncRevenue(req, res, auth.profile)
+  if (action === 'save-manual-cost') return handleSaveManualCost(req, res, auth.profile)
   if (action === 'setup-payment-method') return handleSetupPaymentMethod(req, res, auth.profile)
   if (action === 'connect') {
     if (!requireRole(res, auth.profile, 'admin')) return

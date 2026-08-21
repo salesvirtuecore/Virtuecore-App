@@ -9,7 +9,7 @@ import { sendInviteEmail } from '../_lib/email.js'
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const supabase = makeSupabase()
-  const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage } = req.body
+  const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis } = req.body
   if (!email || !role) return res.status(400).json({ error: 'Email and role are required' })
   try {
     if (role === 'client') {
@@ -20,7 +20,9 @@ async function handleInviteUser(req, res) {
       const { error: clientError } = await supabase.from('clients').insert({
         company_name: company_name || full_name, contact_name: full_name, contact_email: email,
         package_tier: package_tier || 'Starter', monthly_retainer: monthly_retainer || 0,
-        revenue_share_percentage: revenue_share_percentage || 0, status: 'onboarding',
+        revenue_share_percentage: revenue_share_percentage || 0,
+        revenue_share_basis: revenue_share_basis === 'revenue_minus_ad_spend' ? 'revenue_minus_ad_spend' : 'revenue',
+        status: 'onboarding',
         onboarding_started_at: today.toISOString(),
         billing_cycle_anchor_date: today.toISOString().split('T')[0],
         next_billing_date: anchorDate.toISOString().split('T')[0],

@@ -36,6 +36,19 @@ function resolveClientChargesReader(platformStripe, client) {
   throw new Error('Client has no Stripe connection (neither Connect account nor secret key)')
 }
 
+// Sums ad_performance spend for a client over a billing period — used when
+// the client's commission basis is "revenue minus ad spend" rather than
+// straight revenue, so the agency isn't taking a cut of money the client
+// spent on ads within the same period.
+async function fetchAdSpendForPeriod(supabase, clientId, periodStartDate, periodEndDate) {
+  const { data } = await supabase.from('ad_performance')
+    .select('spend')
+    .eq('client_id', clientId)
+    .gte('date', toDateString(periodStartDate))
+    .lte('date', toDateString(periodEndDate))
+  return (data || []).reduce((sum, row) => sum + Number(row.spend || 0), 0)
+}
+
 // Fetch successful charges from a client's Stripe, net of refunds
 async function fetchRevenueForPeriod(chargesClient, chargesOptions, periodStartUnix, periodEndUnix) {
   let revenue = 0
@@ -125,8 +138,16 @@ export async function processClientBillingCycle(supabase, stripe, client) {
     return { skipped: true, reason: `Stripe sync failed: ${err.message}`, retry_tomorrow: true }
   }
 
-  // 2. Calculate amounts
-  const commission = Math.round(revenue * Number(client.revenue_share_percentage || 0)) / 100
+  // 2. Calculate amounts — commission is either a straight % of revenue, or
+  // a % of (revenue minus what the client spent on ads this period), per
+  // client.revenue_share_basis.
+  const basis = client.revenue_share_basis || 'revenue'
+  let adSpend = 0
+  if (basis === 'revenue_minus_ad_spend') {
+    adSpend = await fetchAdSpendForPeriod(supabase, client.id, periodStart, periodEnd)
+  }
+  const commissionBase = Math.max(0, revenue - adSpend)
+  const commission = Math.round(commissionBase * Number(client.revenue_share_percentage || 0)) / 100
   const retainer = Number(client.monthly_retainer || 0)
   const total = Math.round((commission + retainer) * 100) / 100
 
@@ -147,9 +168,10 @@ export async function processClientBillingCycle(supabase, stripe, client) {
     period_start: toDateString(periodStart),
     period_end: toDateString(periodEnd),
     revenue_amount: revenue,
+    ad_spend_amount: adSpend,
     commission_amount: commission,
     retainer_amount: retainer,
-    revenue_snapshot: { charges: chargeSnapshot, percentage: client.revenue_share_percentage },
+    revenue_snapshot: { charges: chargeSnapshot, percentage: client.revenue_share_percentage, basis },
     due_date: today,
   }).select().single()
 
@@ -293,7 +315,7 @@ export async function runBillingCyclePass(supabase, stripe) {
   // 1. Process clients due for billing — either a legacy Connect account or a
   // pasted secret key counts as "has a Stripe revenue connection".
   const { data: candidateClients } = await supabase.from('clients')
-    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
+    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, revenue_share_basis, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
     .eq('status', 'active')
     .eq('auto_charge_enabled', true)
     .not('stripe_customer_id', 'is', null)

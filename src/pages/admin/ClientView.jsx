@@ -85,7 +85,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -241,6 +241,18 @@ export default function ClientView() {
       setClient((prev) => ({ ...prev, revenue_share_percentage: parsed }))
       setEditingRevShare(false)
       showToast('Revenue share updated')
+    } catch (err) {
+      showToast(err.message ?? 'Update failed', 'error')
+    }
+  }
+
+  async function handleToggleRevenueShareBasis(nextBasis) {
+    if (client?.revenue_share_basis === nextBasis) return
+    try {
+      const { error } = await supabase.from('clients').update({ revenue_share_basis: nextBasis }).eq('id', client.id)
+      if (error) throw error
+      setClient((prev) => ({ ...prev, revenue_share_basis: nextBasis }))
+      showToast('Revenue share basis updated')
     } catch (err) {
       showToast(err.message ?? 'Update failed', 'error')
     }
@@ -705,12 +717,18 @@ export default function ClientView() {
                 : 'Client has not connected their Stripe account yet'}
             </p>
             {(client?.stripe_account_id || client?.stripe_secret_key_valid) && Number(client?.revenue_share_percentage || 0) > 0 && (
-              <p className="text-xs text-text-primary mt-2">
-                Estimated commission ({client.revenue_share_percentage}%):{' '}
-                <span className="font-semibold">
-                  £{Math.round(Number(client?.stripe_total_revenue || 0) * Number(client.revenue_share_percentage) / 100).toLocaleString()}
-                </span>
-              </p>
+              client?.revenue_share_basis === 'revenue_minus_ad_spend' ? (
+                <p className="text-xs text-text-tertiary mt-2">
+                  Basis: {client.revenue_share_percentage}% of (revenue − ad spend) — computed per billing cycle at charge time, not shown as a lifetime estimate here.
+                </p>
+              ) : (
+                <p className="text-xs text-text-primary mt-2">
+                  Estimated commission ({client.revenue_share_percentage}% of revenue):{' '}
+                  <span className="font-semibold">
+                    £{Math.round(Number(client?.stripe_total_revenue || 0) * Number(client.revenue_share_percentage) / 100).toLocaleString()}
+                  </span>
+                </p>
+              )
             )}
           </div>
           {(client?.stripe_account_id || client?.stripe_secret_key_valid) && (
@@ -764,6 +782,31 @@ export default function ClientView() {
                   <Pencil size={10} className="text-text-tertiary" />
                 </p>
               )}
+            </div>
+            <div>
+              <p className="text-text-tertiary">Revenue share basis</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <button
+                  onClick={() => handleToggleRevenueShareBasis('revenue')}
+                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                    (client?.revenue_share_basis || 'revenue') === 'revenue'
+                      ? 'bg-vc-primary/10 border-vc-primary text-vc-primary'
+                      : 'border-white/[0.08] text-text-secondary hover:bg-bg-tertiary'
+                  }`}
+                >
+                  Revenue
+                </button>
+                <button
+                  onClick={() => handleToggleRevenueShareBasis('revenue_minus_ad_spend')}
+                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                    client?.revenue_share_basis === 'revenue_minus_ad_spend'
+                      ? 'bg-vc-primary/10 border-vc-primary text-vc-primary'
+                      : 'border-white/[0.08] text-text-secondary hover:bg-bg-tertiary'
+                  }`}
+                >
+                  Revenue − Ad Spend
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

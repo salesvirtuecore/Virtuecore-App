@@ -250,8 +250,13 @@ export default function ClientDashboard() {
   const [stripeRevenue, setStripeRevenue] = useState({ total: 0, last90: 0, byMonth: {}, activeSubscriptions: 0, mrr: 0, customerCount: 0 })
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null)
+  const [manualCosts, setManualCosts] = useState({})
+  const [costInput, setCostInput] = useState('')
+  const [savingCost, setSavingCost] = useState(false)
+  const [costMessage, setCostMessage] = useState(null)
 
   const clientId = profile?.client_id
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
 
   useEffect(() => {
     if (!clientId) { setDashboardLoading(false); return }
@@ -261,7 +266,7 @@ export default function ClientDashboard() {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').eq('client_id', clientId).order('date', { ascending: true }),
           supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').eq('client_id', clientId).order('created_at', { ascending: false }),
-          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count').eq('id', clientId).maybeSingle(),
+          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, manual_costs_by_month').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
         if (invoiceError) throw invoiceError
@@ -276,6 +281,9 @@ export default function ClientDashboard() {
           mrr: Number(clientRow?.stripe_mrr || 0),
           customerCount: Number(clientRow?.stripe_customer_count || 0),
         })
+        const costs = clientRow?.manual_costs_by_month || {}
+        setManualCosts(costs)
+        setCostInput(costs[currentMonthKey] !== undefined ? String(costs[currentMonthKey]) : '')
       } catch (error) {
         console.error('Failed to load client dashboard data:', error)
       } finally {
@@ -283,7 +291,32 @@ export default function ClientDashboard() {
       }
     }
     loadDashboardData()
-  }, [clientId])
+  }, [clientId, currentMonthKey])
+
+  async function handleSaveCost() {
+    if (!clientId) return
+    const numericAmount = Number(costInput)
+    if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+      setCostMessage('Enter a valid amount')
+      return
+    }
+    setSavingCost(true)
+    setCostMessage(null)
+    try {
+      const res = await apiFetch('/api/stripe/save-manual-cost', {
+        method: 'POST',
+        body: JSON.stringify({ month: currentMonthKey, amount: numericAmount }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setManualCosts(data.manual_costs_by_month || {})
+      setCostMessage('Saved')
+    } catch (err) {
+      setCostMessage(err.message || 'Save failed')
+    } finally {
+      setSavingCost(false)
+    }
+  }
 
   async function handleSyncMeta() {
     if (!clientId) return
@@ -324,6 +357,10 @@ export default function ClientDashboard() {
         }
         return [...withNulls, ...forecastRows.map((row) => ({ ...row, revenue: null, spend: null, leads: null }))]
       })()
+
+  const currentMonthCost = Number(manualCosts[currentMonthKey] || 0)
+  const totalMonthlyCost = metrics.adSpend + currentMonthCost
+  const cac = metrics.conversions > 0 ? totalMonthlyCost / metrics.conversions : 0
 
   const revenuePrimary = stripeRevenue.total > 0 ? stripeRevenue.total : metrics.revenuePrimary
   const revenueSub = stripeRevenue.total > 0
@@ -517,6 +554,52 @@ export default function ClientDashboard() {
           </div>
         </div>
       )}
+
+      {/* Cost & CAC */}
+      <div className="vc-card">
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold text-text-primary font-heading">Monthly Cost & CAC</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Add any monthly tool/subscription costs not visible in your ad accounts or Stripe — we'll factor them into your cost per acquisition.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <p className="text-xs text-text-secondary">Ad spend this month</p>
+            <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(metrics.adSpend)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-text-secondary">Total monthly cost</p>
+            <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(totalMonthlyCost)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-text-secondary">CAC (cost per acquisition)</p>
+            <p className="text-lg font-semibold text-text-primary mt-0.5">{cac > 0 ? formatCurrency(cac) : '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-end gap-2 pt-3 border-t border-white/[0.06]">
+          <div className="flex-1 max-w-[220px]">
+            <label className="text-xs text-text-secondary block mb-1">Your costs this month (£)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={costInput}
+              onChange={(e) => setCostInput(e.target.value)}
+              placeholder="e.g. 250"
+              className="bg-bg-tertiary border border-white/[0.08] rounded-btn px-3 py-2 w-full text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary focus:ring-1 focus:ring-vc-primary"
+            />
+          </div>
+          <button
+            onClick={handleSaveCost}
+            disabled={savingCost}
+            className="bg-vc-primary hover:bg-vc-accent text-white text-sm px-4 py-2 rounded-btn disabled:opacity-60 transition-colors"
+          >
+            {savingCost ? 'Saving...' : 'Save'}
+          </button>
+          {costMessage && <span className="text-xs text-text-tertiary pb-2">{costMessage}</span>}
+        </div>
+      </div>
 
       {/* Quick links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
