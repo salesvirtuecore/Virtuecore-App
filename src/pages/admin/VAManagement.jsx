@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../context/ToastContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
 import { notifySlack } from '../../lib/slackNotify'
+import { apiFetch } from '../../lib/api'
 
 const EMPTY_TASK_FORM = {
   title: '',
@@ -26,7 +27,39 @@ export default function VAManagement() {
   const [vas, setVas] = useState([])
   const [tasks, setTasks] = useState([])
   const [clients, setClients] = useState([])
+  const [vaInvoices, setVaInvoices] = useState([])
+  const [loadingInvoices, setLoadingInvoices] = useState(true)
   const { showToast } = useToast()
+
+  async function loadVaInvoices() {
+    setLoadingInvoices(true)
+    try {
+      const res = await apiFetch('/api/va/list-all')
+      const data = await res.json()
+      if (res.ok) setVaInvoices(data.invoices || [])
+    } finally {
+      setLoadingInvoices(false)
+    }
+  }
+
+  useEffect(() => {
+    loadVaInvoices()
+  }, [])
+
+  async function updateInvoiceStatus(invoiceId, status) {
+    try {
+      const res = await apiFetch('/api/va/update-status', {
+        method: 'POST',
+        body: JSON.stringify({ invoice_id: invoiceId, status }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      showToast(`Invoice marked ${status}`)
+      loadVaInvoices()
+    } catch (err) {
+      showToast(err.message || 'Update failed', 'error')
+    }
+  }
 
   useEffect(() => {
     if (!supabase) return
@@ -283,6 +316,56 @@ export default function VAManagement() {
             {tasks.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-5 py-6 text-center text-sm text-text-secondary">No tasks yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* VA Invoice Queue */}
+      <div className="border border-white/[0.06]">
+        <div className="px-5 py-3 border-b border-white/[0.06]">
+          <h2 className="text-sm font-medium text-text-primary">VA Invoice Queue</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-white/[0.06] bg-bg-tertiary">
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">VA</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Amount</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Note</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Status</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Submitted</th>
+              <th className="text-left px-5 py-2.5 text-xs text-text-secondary font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vaInvoices.map((inv) => {
+              const statusVariant = { pending: 'amber', approved: 'blue', paid: 'green', rejected: 'red' }
+              const statusLabel = { pending: 'Pending', approved: 'Approved', paid: 'Paid', rejected: 'Rejected' }
+              return (
+                <tr key={inv.id} className="border-b border-white/[0.06] last:border-0 hover:bg-bg-tertiary transition-colors">
+                  <td className="px-5 py-3 font-medium text-text-primary">{inv.profiles?.full_name ?? '—'}</td>
+                  <td className="px-5 py-3">£{Number(inv.amount).toFixed(2)}</td>
+                  <td className="px-5 py-3 text-text-secondary max-w-xs truncate">{inv.note || '—'}</td>
+                  <td className="px-5 py-3"><Badge variant={statusVariant[inv.status]} size="xs">{statusLabel[inv.status]}</Badge></td>
+                  <td className="px-5 py-3 text-text-secondary">{new Date(inv.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
+                  <td className="px-5 py-3">
+                    {inv.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => updateInvoiceStatus(inv.id, 'approved')} className="text-xs text-status-info hover:underline">Approve</button>
+                        <button onClick={() => updateInvoiceStatus(inv.id, 'rejected')} className="text-xs text-status-danger hover:underline">Reject</button>
+                      </div>
+                    )}
+                    {inv.status === 'approved' && (
+                      <button onClick={() => updateInvoiceStatus(inv.id, 'paid')} className="text-xs text-status-success hover:underline">Mark Paid</button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+            {!loadingInvoices && vaInvoices.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-6 text-center text-sm text-text-secondary">No invoices submitted yet.</td>
               </tr>
             )}
           </tbody>

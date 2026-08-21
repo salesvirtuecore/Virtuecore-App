@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { CheckSquare, Clock, BookOpen, FolderOpen, MessageCircle, LogOut, Menu, X, BarChart2, HelpCircle } from 'lucide-react'
+import { CheckSquare, Clock, BookOpen, FolderOpen, MessageCircle, LogOut, Menu, X, BarChart2, HelpCircle, Receipt } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
 import HelpChatWidget from '../ui/HelpChatWidget'
+import { subscribeToPush } from '../../lib/pushNotifications'
 
 const NAV = [
   { to: '/va',          label: 'My Tasks',     icon: CheckSquare, end: true },
@@ -11,6 +12,7 @@ const NAV = [
   { to: '/va/academy',  label: 'VC Academy',   icon: BookOpen },
   { to: '/va/sops',     label: 'SOPs & Docs',  icon: FolderOpen },
   { to: '/va/standup',  label: 'Daily Standup',icon: MessageCircle },
+  { to: '/va/invoices', label: 'Invoices',     icon: Receipt },
 ]
 
 function SidebarContent({ profile, onLogout, onNavClick }) {
@@ -79,6 +81,10 @@ export default function VALayout() {
   const { profile, logout } = useAuth()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    if (profile?.id) subscribeToPush(profile.id)
+  }, [profile?.id])
 
   useEffect(() => {
     if (drawerOpen) document.body.style.overflow = 'hidden'

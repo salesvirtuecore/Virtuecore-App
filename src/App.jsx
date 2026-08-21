@@ -49,6 +49,7 @@ import TimeTracker from './pages/va/TimeTracker'
 import Academy from './pages/va/Academy'
 import SOPs from './pages/va/SOPs'
 import Standup from './pages/va/Standup'
+import VAInvoices from './pages/va/Invoices'
 
 // Guard component — redirects based on auth state and role
 function RoleGate({ allowedRole, children }) {
@@ -155,6 +156,7 @@ function AppRoutes() {
         <Route path="academy" element={<Academy />} />
         <Route path="sops" element={<SOPs />} />
         <Route path="standup" element={<Standup />} />
+        <Route path="invoices" element={<VAInvoices />} />
       </Route>
 
       {/* Fallback */}
