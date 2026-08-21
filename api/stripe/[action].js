@@ -286,8 +286,12 @@ function monthlyEquivalent(price, quantity) {
 // and for the agency's own account (handleAgencyOverview, computed live on
 // each admin dashboard load, nothing to persist).
 async function computeStripeOverview(chargesClient, chargesOptions, sinceUnix) {
-  const ninetyDaysAgoUnix = Math.floor(Date.now() / 1000) - 90 * 86400
-  const last90StartUnix = Math.max(sinceUnix, ninetyDaysAgoUnix)
+  // Always a genuine trailing-90-calendar-days window — never floored by
+  // `sinceUnix`. Many clients were paying customers for months (sometimes
+  // years) before this portal existed, so if `sinceUnix` lands inside the
+  // last 90 days (e.g. their app onboarding date), flooring the 90-day
+  // window at that point would shrink it to almost nothing.
+  const last90StartUnix = Math.floor(Date.now() / 1000) - 90 * 86400
 
   let totalRevenue = 0
   let revenueLast90Days = 0
@@ -383,11 +387,13 @@ async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
     throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
   }
 
-  // "Since joining VirtueCore"
+  // Pull the client's ENTIRE Stripe history, not just "since joining
+  // VirtueCore" — most clients were already paying customers for months
+  // (sometimes years) before this portal existed, so gating total revenue
+  // by their app onboarding date massively undercounted real, already-paid
+  // revenue. `joinDate` is kept only as informational metadata below.
   const joinDate = client.onboarding_started_at || client.created_at
-  const joinUnix = Math.floor(new Date(joinDate).getTime() / 1000)
-
-  const overview = await computeStripeOverview(chargesClient, chargesOptions, joinUnix)
+  const overview = await computeStripeOverview(chargesClient, chargesOptions, 0)
 
   await supabase.from('clients').update({
     stripe_total_revenue: overview.totalRevenue,
