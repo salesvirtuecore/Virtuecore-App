@@ -1,10 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk'
 import Stripe from 'stripe'
-import { makeSupabase, authenticateUser, requireRole, checkRateLimit, getAppUrl } from '../_lib/auth.js'
+import { makeSupabase, authenticateUser, requireRole, requireClientOwnership, checkRateLimit, getAppUrl } from '../_lib/auth.js'
 import { runBillingCyclePass, processClientBillingCycle, runBillingReminderPass } from '../_lib/billing.js'
 import { runOnboardingReminderPass } from '../_lib/onboarding.js'
 import { ACADEMY_MODULES } from '../../src/data/academyModules.js'
-import { sendInviteEmail } from '../_lib/email.js'
+import { sendInviteEmail, sendMessageReplyEmail, sendStaffMessageAlertEmail } from '../_lib/email.js'
 
 // ── invite-user ──────────────────────────────────────────────────────────────
 async function handleInviteUser(req, res) {
@@ -560,6 +560,76 @@ async function handleSendOnboardingReminders(req, res) {
   }
 }
 
+// ── notify-message (POST) ─────────────────────────────────────────────────────
+// Fired right after a portal message is inserted (by either Messages.jsx or
+// admin ClientView.jsx) — a best-effort side channel alongside the existing
+// push notification, not the message send itself. A failure here never
+// undoes the message; it just means the extra email/Slack ping didn't go out.
+//   - Staff (admin) sends -> client gets an email reply notification.
+//   - Client sends -> every admin gets an email alert, plus a Slack ping if
+//     SLACK_BOT_TOKEN is configured.
+async function handleNotifyMessage(req, res, profile, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { client_id, content } = req.body ?? {}
+  if (!client_id || !content) return res.status(400).json({ error: 'client_id and content required' })
+  if (!requireClientOwnership(res, profile, client_id)) return
+
+  const { data: client } = await supabase.from('clients')
+    .select('id, company_name, contact_name, contact_email')
+    .eq('id', client_id).maybeSingle()
+  if (!client) return res.status(404).json({ error: 'Client not found' })
+
+  if (profile.role === 'admin' || profile.role === 'va') {
+    try {
+      await sendMessageReplyEmail({
+        email: client.contact_email,
+        fullName: client.contact_name,
+        senderName: profile.full_name,
+        preview: content,
+      })
+    } catch {
+      // Best effort — the message itself already sent successfully.
+    }
+    return res.status(200).json({ ok: true })
+  }
+
+  if (profile.role === 'client') {
+    const { data: admins } = await supabase.from('profiles').select('email, full_name').eq('role', 'admin')
+    await Promise.all((admins || []).map((admin) =>
+      sendStaffMessageAlertEmail({
+        email: admin.email,
+        clientName: client.company_name,
+        senderName: profile.full_name,
+        preview: content,
+        clientId: client_id,
+      }).catch(() => {})
+    ))
+
+    const slackToken = process.env.SLACK_BOT_TOKEN
+    if (slackToken) {
+      try {
+        await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({
+            channel: process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25',
+            text: `New portal message from ${client.company_name}`,
+            blocks: [{
+              type: 'section',
+              text: { type: 'mrkdwn', text: `*New portal message* from *${profile.full_name || 'a client'}* (${client.company_name})\n> ${content.slice(0, 300)}` },
+            }],
+          }),
+        })
+      } catch {
+        // Best effort
+      }
+    }
+    return res.status(200).json({ ok: true })
+  }
+
+  return res.status(403).json({ error: 'Forbidden' })
+}
+
 // ── manual-bill-client (admin "Bill now" button) ─────────────────────────────
 async function handleManualBillClient(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -662,6 +732,7 @@ export default async function handler(req, res) {
   if (action === 'parse-content-plan') return handleParseContentPlan(req, res)
   if (action === 'manual-bill-client') return handleManualBillClient(req, res)
   if (action === 'help-chat') return handleHelpChat(req, res, auth.profile)
+  if (action === 'notify-message') return handleNotifyMessage(req, res, auth.profile, auth.supabase)
   if (action === 'weekly-pulse') return handleWeeklyPulse(req, res)
   if (action === 'save-nps') return handleSaveNPS(req, res)
   if (action === 'smart-notifications') return handleSmartNotifications(req, res)

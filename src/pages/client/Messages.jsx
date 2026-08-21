@@ -105,7 +105,7 @@ export default function Messages() {
         })
       }
       // Email/Slack fallback for staff — push only reaches an already-subscribed device
-      apiFetch('/api/messages/notify', { method: 'POST', body: JSON.stringify({ client_id: clientId, content }) }).catch(() => {})
+      apiFetch('/api/admin/notify-message', { method: 'POST', body: JSON.stringify({ client_id: clientId, content }) }).catch(() => {})
     } catch (err) {
       console.error('Failed to send message', err)
       setSendError(err?.message || 'Failed to send. Please try again.')
