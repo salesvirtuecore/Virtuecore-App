@@ -13,7 +13,8 @@ import { buildMonthlyForecast } from '../../lib/forecast'
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
 function fmt(n) {
-  return n >= 1000 ? `£${(n / 1000).toFixed(1)}k` : `£${n}`
+  const num = Number(n) || 0
+  return num >= 1000 ? `£${(num / 1000).toFixed(1)}k` : `£${Math.round(num).toLocaleString()}`
 }
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -52,12 +53,14 @@ export default function AdminDashboard() {
   const [pipelineLeads, setPipelineLeads] = useState([])
   const [agencyRevenue, setAgencyRevenue] = useState(null)
 
-  useEffect(() => {
+  const loadAgencyOverview = useCallback(() => {
     apiFetch('/api/stripe/agency-overview')
       .then((r) => r.json())
       .then((data) => setAgencyRevenue(data?.connected ? data : null))
       .catch(() => setAgencyRevenue(null))
   }, [])
+
+  useEffect(() => { loadAgencyOverview() }, [loadAgencyOverview])
 
   const [totalAdSpendManaged, setTotalAdSpendManaged] = useState(0)
   const [adSpendByClient, setAdSpendByClient] = useState({})
@@ -101,22 +104,25 @@ export default function AdminDashboard() {
         if (payload?.new?.client_id || payload?.old?.client_id) loadClients()
       })
       .subscribe()
-    const onVisible = () => { if (document.visibilityState === 'visible') loadClients() }
+    const onVisible = () => { if (document.visibilityState === 'visible') { loadClients(); loadAgencyOverview() } }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
       supabase.removeChannel(channel)
     }
-  }, [loadClients])
+  }, [loadClients, loadAgencyOverview])
 
   const activeClients = clients.filter(c => c.status === 'active')
   const onboardingClients = clients.filter(c => c.status === 'onboarding')
   const joinedClients = clients.filter(c => c.portal_joined)
   const retainerSum = activeClients.reduce((sum, c) => sum + Number(c.monthly_retainer || 0), 0)
-  // Real Stripe MRR when the agency's own account is connected — falls back
-  // to summed contracted retainers (not what was actually charged/collected)
-  // if AGENCY_STRIPE_SECRET_KEY hasn't been set yet.
   const mrr = agencyRevenue ? agencyRevenue.mrr : retainerSum
+  // Revenue actually collected in the current calendar month — this is what
+  // a new payment landing today should move. MRR (above) only reflects
+  // active *subscriptions*, so a one-off charge correctly wouldn't touch it,
+  // which reads as "not updating" if it's the only revenue figure shown.
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const currentMonthRevenue = agencyRevenue?.revenueByMonth?.[currentMonthKey] || 0
   const revenueSeries = agencyRevenue ? buildRevenueSeries(agencyRevenue.revenueByMonth) : []
   const forecastRows = agencyRevenue ? buildMonthlyForecast(revenueSeries) : []
   const combinedRevenueData = forecastRows.length
@@ -148,9 +154,9 @@ export default function AdminDashboard() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label={agencyRevenue ? 'Monthly Revenue (Stripe)' : 'Monthly Revenue (retainers)'}
-          value={fmt(mrr)}
-          sub={agencyRevenue?.revenueLast90Days ? `£${Number(agencyRevenue.totalRevenue).toLocaleString()} last 12mo` : null}
+          label={agencyRevenue ? "This Month's Revenue (Stripe)" : 'Monthly Revenue (retainers)'}
+          value={fmt(agencyRevenue ? currentMonthRevenue : mrr)}
+          sub={agencyRevenue ? `£${Number(mrr).toLocaleString()} MRR · £${Number(agencyRevenue.totalRevenue).toLocaleString()} last 12mo` : null}
           icon={DollarSign}
         />
         <StatCard
