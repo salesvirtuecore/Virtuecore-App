@@ -70,6 +70,16 @@ export default function ClientView() {
   const [messageText, setMessageText] = useState(EMPTY_MESSAGE)
   const [saving, setSaving] = useState(false)
 
+  // Bill Now / revenue share / manual revenue UI state — must be declared before
+  // any conditional early return below, otherwise hook call count changes between
+  // the loading render and the loaded render and React throws.
+  const [billing, setBilling] = useState(false)
+  const [editingRevShare, setEditingRevShare] = useState(false)
+  const [revShareInput, setRevShareInput] = useState('')
+  const [manualRevenueInput, setManualRevenueInput] = useState('')
+  const [savingManualRevenue, setSavingManualRevenue] = useState(false)
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
+
   useEffect(() => {
     if (!supabase) return
 
@@ -199,7 +209,6 @@ export default function ClientView() {
   })) : []
 
   // ── Bill Now (manual trigger of billing cycle) ───────────────────────────────
-  const [billing, setBilling] = useState(false)
   async function handleBillNow() {
     if (!client?.stripe_account_id && !client?.stripe_secret_key_valid) {
       showToast('Client has not connected their Stripe revenue account', 'error')
@@ -228,8 +237,6 @@ export default function ClientView() {
     }
   }
 
-  const [editingRevShare, setEditingRevShare] = useState(false)
-  const [revShareInput, setRevShareInput] = useState('')
   async function handleSaveRevenueShare() {
     const parsed = Number(revShareInput)
     if (Number.isNaN(parsed) || parsed < 0 || parsed > 100) {
@@ -314,10 +321,6 @@ export default function ClientView() {
   }
 
   // ── Manual revenue entry (cash-based businesses, no Stripe) ─────────────────
-  const currentMonthKey = new Date().toISOString().slice(0, 7)
-  const [manualRevenueInput, setManualRevenueInput] = useState('')
-  const [savingManualRevenue, setSavingManualRevenue] = useState(false)
-
   async function handleSaveManualRevenue() {
     const numericAmount = Number(manualRevenueInput)
     if (!Number.isFinite(numericAmount) || numericAmount < 0) {
