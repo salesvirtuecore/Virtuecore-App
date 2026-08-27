@@ -22,6 +22,29 @@ async function handleListAdAccounts(req, res) {
   res.status(200).json({ accounts: metaData.data || [] })
 }
 
+// ── /api/meta/campaign-status (GET) — admin ─────────────────────────────────
+// Diagnostic: when synced insights look stale, this shows whether the ad
+// account's own campaigns are still delivering, vs. the sync pipeline being
+// broken — the two look identical from the ad_performance table alone.
+async function handleCampaignStatus(req, res, supabase) {
+  const client_id = req.query.client_id
+  if (!client_id) return res.status(400).json({ error: 'client_id required' })
+  const { data: client } = await supabase.from('clients').select('id, company_name, meta_ad_account_id').eq('id', client_id).maybeSingle()
+  if (!client?.meta_ad_account_id) return res.status(400).json({ error: 'This client has no matched ad account' })
+
+  const token = systemUserToken()
+  if (!token) return res.status(500).json({ error: 'META_SYSTEM_USER_TOKEN not configured' })
+  const accountId = client.meta_ad_account_id.startsWith('act_') ? client.meta_ad_account_id : `act_${client.meta_ad_account_id}`
+  const url = new URL(`https://graph.facebook.com/v21.0/${accountId}/campaigns`)
+  url.searchParams.set('fields', 'name,effective_status,updated_time,daily_budget,lifetime_budget')
+  url.searchParams.set('limit', '50')
+  url.searchParams.set('access_token', token)
+  const metaRes = await fetch(url.toString())
+  const metaData = await metaRes.json()
+  if (!metaRes.ok) return res.status(502).json({ error: `Meta API error: ${metaData?.error?.message || 'unknown'}`, detail: metaData })
+  res.status(200).json({ company_name: client.company_name, campaigns: metaData.data || [] })
+}
+
 // ── /api/meta/match-accounts (POST) — admin ─────────────────────────────────
 // Exact normalized-name matches are written directly; everything else lands
 // in meta_account_match_queue for a human to confirm or reject.
@@ -205,6 +228,7 @@ export default async function handler(req, res) {
   const { profile, supabase } = auth
 
   if (action === 'list-ad-accounts') return handleListAdAccounts(req, res)
+  if (action === 'campaign-status') return handleCampaignStatus(req, res, supabase)
   if (action === 'match-accounts') return handleMatchAccounts(req, res, supabase)
   if (action === 'list-queue') return handleListQueue(req, res, supabase)
   if (action === 'confirm-match') return handleConfirmMatch(req, res, supabase, profile)
