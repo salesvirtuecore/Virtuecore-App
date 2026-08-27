@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 import { sendPushNotification } from '../../lib/pushNotifications'
 import { apiFetch } from '../../lib/api'
 import { notifySlack } from '../../lib/slackNotify'
+import { computeManualRevenueTotals } from '../../lib/manualRevenue'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -85,7 +86,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business, manual_revenue_by_month, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -258,6 +259,18 @@ export default function ClientView() {
     }
   }
 
+  async function handleToggleCashBusiness() {
+    const next = !client?.is_cash_business
+    try {
+      const { error } = await supabase.from('clients').update({ is_cash_business: next }).eq('id', client.id)
+      if (error) throw error
+      setClient((prev) => ({ ...prev, is_cash_business: next }))
+      showToast(next ? 'Marked as a cash-based business' : 'Switched back to Stripe revenue tracking')
+    } catch (err) {
+      showToast(err.message ?? 'Update failed', 'error')
+    }
+  }
+
   async function handleToggleAutoCharge() {
     const next = !client?.auto_charge_enabled
     try {
@@ -297,6 +310,34 @@ export default function ClientView() {
       showToast(err.message ?? 'Sync failed', 'error')
     } finally {
       setSyncingRevenue(false)
+    }
+  }
+
+  // ── Manual revenue entry (cash-based businesses, no Stripe) ─────────────────
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const [manualRevenueInput, setManualRevenueInput] = useState('')
+  const [savingManualRevenue, setSavingManualRevenue] = useState(false)
+
+  async function handleSaveManualRevenue() {
+    const numericAmount = Number(manualRevenueInput)
+    if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+      showToast('Enter a valid amount', 'error')
+      return
+    }
+    setSavingManualRevenue(true)
+    try {
+      const res = await apiFetch('/api/stripe/save-manual-revenue', {
+        method: 'POST',
+        body: JSON.stringify({ client_id: client.id, month: currentMonthKey, amount: numericAmount }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      setClient((prev) => ({ ...prev, manual_revenue_by_month: data.manual_revenue_by_month }))
+      showToast('Revenue logged')
+    } catch (err) {
+      showToast(err.message ?? 'Save failed', 'error')
+    } finally {
+      setSavingManualRevenue(false)
     }
   }
 
@@ -698,51 +739,91 @@ export default function ClientView() {
         />
       </div>
 
-      {/* Stripe Revenue + Auto Billing */}
+      {/* Revenue (Stripe-synced, or manually logged for cash-based businesses) + Auto Billing */}
       <div className="vc-card">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining</h2>
-            <div className="flex items-baseline gap-4 mt-1">
-              <p className="text-3xl font-semibold text-text-primary">
-                £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
+        {client?.is_cash_business ? (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-sm font-medium text-text-secondary">Manually logged revenue (cash business)</h2>
+              {(() => {
+                const totals = computeManualRevenueTotals(client?.manual_revenue_by_month)
+                return (
+                  <div className="flex items-baseline gap-4 mt-1">
+                    <p className="text-3xl font-semibold text-text-primary">£{totals.total.toLocaleString()}</p>
+                    <p className="text-sm text-text-secondary">
+                      £{totals.last90Days.toLocaleString()} <span className="text-text-tertiary">last ~90 days</span>
+                    </p>
+                  </div>
+                )
+              })()}
+              <p className="text-xs text-text-secondary mt-1">
+                {client?.manual_revenue_by_month?.[currentMonthKey] !== undefined
+                  ? `${currentMonthKey}: £${Number(client.manual_revenue_by_month[currentMonthKey]).toLocaleString()} logged`
+                  : `No entry yet for ${currentMonthKey}`}
               </p>
-              <p className="text-sm text-text-secondary">
-                £{Number(client?.stripe_revenue_last_90d || 0).toLocaleString()} <span className="text-text-tertiary">last 90 days</span>
-              </p>
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="number" min="0" step="1"
+                  value={manualRevenueInput}
+                  onChange={(e) => setManualRevenueInput(e.target.value)}
+                  placeholder={`e.g. 3000 for ${currentMonthKey}`}
+                  className="w-48 bg-bg-tertiary border border-white/[0.08] rounded px-2.5 py-1.5 text-xs text-text-primary"
+                />
+                <button
+                  onClick={handleSaveManualRevenue}
+                  disabled={savingManualRevenue}
+                  className="text-xs px-3 py-1.5 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
+                >
+                  {savingManualRevenue ? 'Saving...' : `Log ${currentMonthKey} revenue`}
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-text-secondary mt-1">
-              {(client?.stripe_account_id || client?.stripe_secret_key_valid)
-                ? client?.stripe_revenue_synced_at
-                  ? `Last synced ${new Date(client.stripe_revenue_synced_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-                  : 'Not yet synced'
-                : 'Client has not connected their Stripe account yet'}
-            </p>
-            {(client?.stripe_account_id || client?.stripe_secret_key_valid) && Number(client?.revenue_share_percentage || 0) > 0 && (
-              client?.revenue_share_basis === 'revenue_minus_ad_spend' ? (
-                <p className="text-xs text-text-tertiary mt-2">
-                  Basis: {client.revenue_share_percentage}% of (revenue − ad spend) — computed per billing cycle at charge time, not shown as a lifetime estimate here.
+          </div>
+        ) : (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-sm font-medium text-text-secondary">Stripe revenue since joining</h2>
+              <div className="flex items-baseline gap-4 mt-1">
+                <p className="text-3xl font-semibold text-text-primary">
+                  £{Number(client?.stripe_total_revenue || 0).toLocaleString()}
                 </p>
-              ) : (
-                <p className="text-xs text-text-primary mt-2">
-                  Estimated commission ({client.revenue_share_percentage}% of revenue):{' '}
-                  <span className="font-semibold">
-                    £{Math.round(Number(client?.stripe_total_revenue || 0) * Number(client.revenue_share_percentage) / 100).toLocaleString()}
-                  </span>
+                <p className="text-sm text-text-secondary">
+                  £{Number(client?.stripe_revenue_last_90d || 0).toLocaleString()} <span className="text-text-tertiary">last 90 days</span>
                 </p>
-              )
+              </div>
+              <p className="text-xs text-text-secondary mt-1">
+                {(client?.stripe_account_id || client?.stripe_secret_key_valid)
+                  ? client?.stripe_revenue_synced_at
+                    ? `Last synced ${new Date(client.stripe_revenue_synced_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                    : 'Not yet synced'
+                  : 'Client has not connected their Stripe account yet'}
+              </p>
+              {(client?.stripe_account_id || client?.stripe_secret_key_valid) && Number(client?.revenue_share_percentage || 0) > 0 && (
+                client?.revenue_share_basis === 'revenue_minus_ad_spend' ? (
+                  <p className="text-xs text-text-tertiary mt-2">
+                    Basis: {client.revenue_share_percentage}% of (revenue − ad spend) — computed per billing cycle at charge time, not shown as a lifetime estimate here.
+                  </p>
+                ) : (
+                  <p className="text-xs text-text-primary mt-2">
+                    Estimated commission ({client.revenue_share_percentage}% of revenue):{' '}
+                    <span className="font-semibold">
+                      £{Math.round(Number(client?.stripe_total_revenue || 0) * Number(client.revenue_share_percentage) / 100).toLocaleString()}
+                    </span>
+                  </p>
+                )
+              )}
+            </div>
+            {(client?.stripe_account_id || client?.stripe_secret_key_valid) && (
+              <button
+                onClick={handleSyncRevenue}
+                disabled={syncingRevenue}
+                className="text-xs px-3 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors disabled:opacity-60 flex-shrink-0"
+              >
+                {syncingRevenue ? 'Syncing...' : 'Sync now'}
+              </button>
             )}
           </div>
-          {(client?.stripe_account_id || client?.stripe_secret_key_valid) && (
-            <button
-              onClick={handleSyncRevenue}
-              disabled={syncingRevenue}
-              className="text-xs px-3 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors disabled:opacity-60 flex-shrink-0"
-            >
-              {syncingRevenue ? 'Syncing...' : 'Sync now'}
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Billing controls */}
         <div className="border-t border-white/[0.06] pt-4">
@@ -809,6 +890,19 @@ export default function ClientView() {
                   Revenue − Ad Spend
                 </button>
               </div>
+            </div>
+            <div>
+              <p className="text-text-tertiary">Revenue source</p>
+              <button
+                onClick={handleToggleCashBusiness}
+                className={`text-[11px] px-2 py-1 rounded border transition-colors mt-0.5 ${
+                  client?.is_cash_business
+                    ? 'bg-vc-primary/10 border-vc-primary text-vc-primary'
+                    : 'border-white/[0.08] text-text-secondary hover:bg-bg-tertiary'
+                }`}
+              >
+                {client?.is_cash_business ? 'Cash business (manual)' : 'Stripe-connected'}
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

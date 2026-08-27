@@ -22,6 +22,7 @@ export default function OnboardingGate({ children }) {
     stripeRevenue: false,
     paymentMethod: false,
     contract: false,
+    isCashBusiness: false,
   })
   const [savingCard, setSavingCard] = useState(false)
   const [error, setError] = useState('')
@@ -34,7 +35,7 @@ export default function OnboardingGate({ children }) {
     try {
       const [{ data }, { count }] = await Promise.all([
         supabase.from('clients')
-          .select('stripe_account_id, stripe_secret_key_valid, default_payment_method_id')
+          .select('stripe_account_id, stripe_secret_key_valid, default_payment_method_id, is_cash_business')
           .eq('id', profile.client_id)
           .single(),
         supabase.from('contracts')
@@ -42,9 +43,12 @@ export default function OnboardingGate({ children }) {
           .eq('client_id', profile.client_id),
       ])
       setSetup({
-        stripeRevenue: Boolean(data?.stripe_account_id || data?.stripe_secret_key_valid),
+        // Cash-based businesses have no Stripe account to connect at all —
+        // they log revenue manually instead, so this requirement doesn't apply.
+        stripeRevenue: Boolean(data?.stripe_account_id || data?.stripe_secret_key_valid || data?.is_cash_business),
         paymentMethod: Boolean(data?.default_payment_method_id),
         contract: Boolean(count && count > 0),
+        isCashBusiness: Boolean(data?.is_cash_business),
       })
     } catch {
       // Default to all false if we can't read
@@ -95,9 +99,12 @@ export default function OnboardingGate({ children }) {
   const allComplete = setup.stripeRevenue && setup.paymentMethod && setup.contract
   if (allComplete) return children
 
-  // Render onboarding wall
+  // Render onboarding wall — the Stripe step is left out entirely for
+  // cash-based businesses rather than shown as an already-"done" step they
+  // never actually completed (setup.stripeRevenue is true for them by
+  // design, since they log revenue manually instead).
   const steps = [
-    {
+    ...(setup.isCashBusiness ? [] : [{
       key: 'stripeRevenue',
       done: setup.stripeRevenue,
       title: 'Add your Stripe secret key',
@@ -105,7 +112,7 @@ export default function OnboardingGate({ children }) {
       buttonLabel: 'Go to Billing',
       onClick: () => window.location.assign('/client/billing'),
       loading: false,
-    },
+    }]),
     {
       key: 'paymentMethod',
       done: setup.paymentMethod,

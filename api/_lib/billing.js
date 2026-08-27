@@ -126,16 +126,23 @@ export async function processClientBillingCycle(supabase, stripe, client) {
   const periodStartUnix = Math.floor(periodStart.getTime() / 1000)
   const periodEndUnix = Math.floor(periodEnd.getTime() / 1000)
 
-  // 1. Fetch revenue from the client's Stripe (Connect account or their own pasted key)
+  // 1. Fetch revenue — from the client's Stripe (Connect account or their own
+  // pasted key), or from their manually-logged monthly figure for cash-based
+  // businesses with no Stripe account to read from at all.
   let revenue = 0
   let chargeSnapshot = []
-  try {
-    const { chargesClient, chargesOptions } = resolveClientChargesReader(stripe, client)
-    const result = await fetchRevenueForPeriod(chargesClient, chargesOptions, periodStartUnix, periodEndUnix)
-    revenue = result.revenue
-    chargeSnapshot = result.chargeSnapshot
-  } catch (err) {
-    return { skipped: true, reason: `Stripe sync failed: ${err.message}`, retry_tomorrow: true }
+  if (client.is_cash_business) {
+    const monthKey = toDateString(periodEnd).slice(0, 7)
+    revenue = Number(client.manual_revenue_by_month?.[monthKey] || 0)
+  } else {
+    try {
+      const { chargesClient, chargesOptions } = resolveClientChargesReader(stripe, client)
+      const result = await fetchRevenueForPeriod(chargesClient, chargesOptions, periodStartUnix, periodEndUnix)
+      revenue = result.revenue
+      chargeSnapshot = result.chargeSnapshot
+    } catch (err) {
+      return { skipped: true, reason: `Stripe sync failed: ${err.message}`, retry_tomorrow: true }
+    }
   }
 
   // 2. Calculate amounts — commission is either a straight % of revenue, or
@@ -315,14 +322,14 @@ export async function runBillingCyclePass(supabase, stripe) {
   // 1. Process clients due for billing — either a legacy Connect account or a
   // pasted secret key counts as "has a Stripe revenue connection".
   const { data: candidateClients } = await supabase.from('clients')
-    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, revenue_share_basis, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
+    .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, revenue_share_basis, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date, is_cash_business, manual_revenue_by_month')
     .eq('status', 'active')
     .eq('auto_charge_enabled', true)
     .not('stripe_customer_id', 'is', null)
     .not('default_payment_method_id', 'is', null)
     .lte('next_billing_date', today)
 
-  const dueClients = (candidateClients || []).filter((c) => c.stripe_account_id || c.stripe_secret_key_encrypted)
+  const dueClients = (candidateClients || []).filter((c) => c.stripe_account_id || c.stripe_secret_key_encrypted || c.is_cash_business)
 
   for (const client of dueClients) {
     try {
@@ -358,14 +365,17 @@ export async function runBillingCyclePass(supabase, stripe) {
 export async function runBillingReminderPass(supabase) {
   const reminderDate = toDateString(addDays(new Date(), 3))
   const { data: clients } = await supabase.from('clients')
-    .select('id, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_total_revenue, next_billing_date')
+    .select('id, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_total_revenue, is_cash_business, manual_revenue_by_month, next_billing_date')
     .eq('status', 'active')
     .eq('auto_charge_enabled', true)
     .eq('next_billing_date', reminderDate)
 
   const results = []
   for (const client of clients || []) {
-    const estimatedCommission = Math.round(Number(client.stripe_total_revenue || 0) * Number(client.revenue_share_percentage || 0)) / 100
+    const revenueEstimateSource = client.is_cash_business
+      ? Number(client.manual_revenue_by_month?.[toDateString(new Date()).slice(0, 7)] || 0)
+      : Number(client.stripe_total_revenue || 0)
+    const estimatedCommission = Math.round(revenueEstimateSource * Number(client.revenue_share_percentage || 0)) / 100
     const estimatedTotal = estimatedCommission + Number(client.monthly_retainer || 0)
     try {
       await sendPaymentReminderEmail({

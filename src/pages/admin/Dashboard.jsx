@@ -9,6 +9,7 @@ import { withPortalStatus } from '../../lib/clientUtils'
 import { useAuth } from '../../context/AuthContext'
 import { apiFetch } from '../../lib/api'
 import { buildMonthlyForecast } from '../../lib/forecast'
+import { computeManualRevenueTotals } from '../../lib/manualRevenue'
 
 const HEALTH_BADGE = { green: 'green', amber: 'amber', red: 'red' }
 
@@ -29,6 +30,16 @@ const CustomTooltip = ({ active, payload, label }) => {
       ))}
     </div>
   )
+}
+
+// A client's own revenue — from Stripe if connected, or from their manually
+// logged monthly figures if they're a cash-based business with no Stripe.
+function getClientRevenue(client) {
+  if (client.is_cash_business) {
+    const totals = computeManualRevenueTotals(client.manual_revenue_by_month)
+    return { total: totals.total, last90: totals.last90Days }
+  }
+  return { total: Number(client.stripe_total_revenue || 0), last90: Number(client.stripe_revenue_last_90d || 0) }
 }
 
 // Turns { "2026-01": 400, ... } into a sorted, chart-ready array.
@@ -68,7 +79,7 @@ export default function AdminDashboard() {
   const loadClients = useCallback(async () => {
     if (!supabase) return
     const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }, { data: leads }] = await Promise.all([
-      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, health_score, package_tier, created_at, stripe_total_revenue, stripe_revenue_last_90d').order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, status, company_name, contact_name, monthly_retainer, health_score, package_tier, created_at, stripe_total_revenue, stripe_revenue_last_90d, is_cash_business, manual_revenue_by_month').order('created_at', { ascending: false }),
       supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       supabase.from('pipeline_leads').select('id, score, stage').neq('stage', 'contract_signed'),
     ])
@@ -134,10 +145,11 @@ export default function AdminDashboard() {
       })()
     : revenueSeries
   const nextMonthForecast = forecastRows[0] || null
-  // Rollup across every client's OWN Stripe revenue (distinct from the
-  // agency's own income above) and the ad spend managed on their behalf.
-  const totalClientRevenue = clients.reduce((sum, c) => sum + Number(c.stripe_total_revenue || 0), 0)
-  const totalClientRevenueLast90d = clients.reduce((sum, c) => sum + Number(c.stripe_revenue_last_90d || 0), 0)
+  // Rollup across every client's OWN revenue — Stripe-synced, or manually
+  // logged for cash-based businesses — distinct from the agency's own
+  // income above, plus the ad spend managed on their behalf.
+  const totalClientRevenue = clients.reduce((sum, c) => sum + getClientRevenue(c).total, 0)
+  const totalClientRevenueLast90d = clients.reduce((sum, c) => sum + getClientRevenue(c).last90, 0)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 
@@ -293,10 +305,17 @@ export default function AdminDashboard() {
                   <td className="text-text-secondary">{c.package_tier}</td>
                   <td className="mono">£{Number(c.monthly_retainer || 0).toLocaleString()}</td>
                   <td className="mono">
-                    <p>£{Number(c.stripe_total_revenue || 0).toLocaleString()}</p>
-                    {Number(c.stripe_revenue_last_90d || 0) > 0 && (
-                      <p className="text-xs text-text-tertiary">£{Number(c.stripe_revenue_last_90d).toLocaleString()} last 90d</p>
-                    )}
+                    {(() => {
+                      const rev = getClientRevenue(c)
+                      return (
+                        <>
+                          <p>£{rev.total.toLocaleString()}{c.is_cash_business && <span className="text-text-tertiary text-[10px]"> (cash)</span>}</p>
+                          {rev.last90 > 0 && (
+                            <p className="text-xs text-text-tertiary">£{rev.last90.toLocaleString()} last 90d</p>
+                          )}
+                        </>
+                      )
+                    })()}
                   </td>
                   <td className="mono">£{Number(adSpendByClient[c.id] || 0).toLocaleString()}</td>
                   <td>

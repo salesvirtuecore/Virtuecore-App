@@ -10,7 +10,7 @@ import { sendInviteEmail, sendMessageReplyEmail, sendStaffMessageAlertEmail } fr
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   const supabase = makeSupabase()
-  const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis } = req.body
+  const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business } = req.body
   if (!email || !role) return res.status(400).json({ error: 'Email and role are required' })
   try {
     if (role === 'client') {
@@ -23,6 +23,7 @@ async function handleInviteUser(req, res) {
         package_tier: package_tier || 'Starter', monthly_retainer: monthly_retainer || 0,
         revenue_share_percentage: revenue_share_percentage || 0,
         revenue_share_basis: revenue_share_basis === 'revenue_minus_ad_spend' ? 'revenue_minus_ad_spend' : 'revenue',
+        is_cash_business: Boolean(is_cash_business),
         status: 'onboarding',
         onboarding_started_at: today.toISOString(),
         billing_cycle_anchor_date: today.toISOString().split('T')[0],
@@ -660,10 +661,10 @@ async function handleManualBillClient(req, res) {
   const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
   try {
     const { data: client } = await supabase.from('clients')
-      .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date')
+      .select('id, company_name, contact_name, contact_email, monthly_retainer, revenue_share_percentage, revenue_share_basis, stripe_account_id, stripe_secret_key_encrypted, stripe_customer_id, default_payment_method_id, next_billing_date, is_cash_business, manual_revenue_by_month')
       .eq('id', client_id).single()
     if (!client) return res.status(404).json({ error: 'Client not found' })
-    if (!client.stripe_account_id && !client.stripe_secret_key_encrypted) return res.status(400).json({ error: 'Client has not connected their Stripe revenue account' })
+    if (!client.stripe_account_id && !client.stripe_secret_key_encrypted && !client.is_cash_business) return res.status(400).json({ error: 'Client has not connected their Stripe revenue account' })
     if (!client.default_payment_method_id) return res.status(400).json({ error: 'Client has not saved a payment method' })
 
     // For manual billing, use today as the next_billing_date so the period is the last 28 days

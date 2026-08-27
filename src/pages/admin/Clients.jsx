@@ -24,6 +24,7 @@ const EMPTY_FORM = {
   monthly_retainer: '',
   revenue_share_percentage: '',
   revenue_share_basis: 'revenue',
+  is_cash_business: false,
   status: 'active',
   health_score: 'green',
 }
@@ -47,7 +48,7 @@ export default function Clients() {
     setLoadingClients(true)
     try {
       const [{ data: clientRows, error: clientError }, { data: profileRows, error: profileError }] = await Promise.all([
-        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, status, health_score, stripe_account_id, created_at').order('created_at', { ascending: false }),
+        supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business, status, health_score, stripe_account_id, created_at').order('created_at', { ascending: false }),
         supabase.from('profiles').select('client_id, created_at').not('client_id', 'is', null),
       ])
 
@@ -102,6 +103,7 @@ export default function Clients() {
       monthly_retainer: client.monthly_retainer,
       revenue_share_percentage: client.revenue_share_percentage,
       revenue_share_basis: client.revenue_share_basis || 'revenue',
+      is_cash_business: Boolean(client.is_cash_business),
       status: client.status,
       health_score: client.health_score,
     })
@@ -137,6 +139,7 @@ export default function Clients() {
         monthly_retainer: Number(form.monthly_retainer),
         revenue_share_percentage: Number(form.revenue_share_percentage),
         revenue_share_basis: form.revenue_share_basis === 'revenue_minus_ad_spend' ? 'revenue_minus_ad_spend' : 'revenue',
+        is_cash_business: Boolean(form.is_cash_business),
         status: form.status,
         health_score: form.health_score,
       }
@@ -382,6 +385,21 @@ export default function Clients() {
                 <option value="revenue_minus_ad_spend">% of (Revenue − Ad Spend)</option>
               </select>
             </FormField>
+
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_cash_business}
+                onChange={(e) => setForm({ ...form, is_cash_business: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-white/[0.08] bg-bg-tertiary text-vc-primary focus:ring-vc-primary"
+              />
+              <span>
+                <span className="text-xs font-medium text-text-secondary">Cash-based business (no Stripe)</span>
+                <p className="text-[11px] text-text-tertiary mt-0.5">
+                  They'll log revenue manually each month instead of connecting Stripe, and won't be asked to add a Stripe key during onboarding.
+                </p>
+              </span>
+            </label>
 
             <FormField label="Health Score" required>
               <select className={selectClass} value={form.health_score} onChange={(e) => setForm({ ...form, health_score: e.target.value })}>

@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
 import { isRestrictedTier } from '../../data/packageTiers'
+import { computeManualRevenueTotals } from '../../lib/manualRevenue'
 
 // Placeholder chart data shown when real data is empty
 const PLACEHOLDER_TREND = [
@@ -256,6 +257,7 @@ export default function ClientDashboard() {
   const [savingCost, setSavingCost] = useState(false)
   const [costMessage, setCostMessage] = useState(null)
   const [packageTier, setPackageTier] = useState(null)
+  const [isCashBusiness, setIsCashBusiness] = useState(false)
 
   const clientId = profile?.client_id
   const currentMonthKey = new Date().toISOString().slice(0, 7)
@@ -269,7 +271,7 @@ export default function ClientDashboard() {
         const [{ data: adData, error: adError }, { data: invoiceData, error: invoiceError }, { data: clientRow }] = await Promise.all([
           supabase.from('ad_performance').select('date, spend, leads, clicks, impressions, conversions, cpl, ctr, roas, platform, client_id').eq('client_id', clientId).order('date', { ascending: true }),
           supabase.from('invoices').select('id, amount, due_date, paid_date, created_at, status, type, client_id').eq('client_id', clientId).order('created_at', { ascending: false }),
-          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, manual_costs_by_month, package_tier').eq('id', clientId).maybeSingle(),
+          supabase.from('clients').select('meta_ad_account_id, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_by_month, stripe_active_subscriptions, stripe_mrr, stripe_customer_count, manual_costs_by_month, package_tier, is_cash_business, manual_revenue_by_month').eq('id', clientId).maybeSingle(),
         ])
         if (adError) throw adError
         if (invoiceError) throw invoiceError
@@ -277,14 +279,31 @@ export default function ClientDashboard() {
         setInvoiceRows(invoiceData || [])
         setMetaConnected(Boolean(clientRow?.meta_ad_account_id))
         setPackageTier(clientRow?.package_tier || null)
-        setStripeRevenue({
-          total: Number(clientRow?.stripe_total_revenue || 0),
-          last90: Number(clientRow?.stripe_revenue_last_90d || 0),
-          byMonth: clientRow?.stripe_revenue_by_month || {},
-          activeSubscriptions: Number(clientRow?.stripe_active_subscriptions || 0),
-          mrr: Number(clientRow?.stripe_mrr || 0),
-          customerCount: Number(clientRow?.stripe_customer_count || 0),
-        })
+        setIsCashBusiness(Boolean(clientRow?.is_cash_business))
+        if (clientRow?.is_cash_business) {
+          // No Stripe account to sync — revenue comes from what they log
+          // manually each month instead. Subscriptions/MRR/customers don't
+          // apply, so those stay at 0 and their card row hides itself.
+          const manualByMonth = clientRow?.manual_revenue_by_month || {}
+          const totals = computeManualRevenueTotals(manualByMonth)
+          setStripeRevenue({
+            total: totals.total,
+            last90: totals.last90Days,
+            byMonth: manualByMonth,
+            activeSubscriptions: 0,
+            mrr: 0,
+            customerCount: 0,
+          })
+        } else {
+          setStripeRevenue({
+            total: Number(clientRow?.stripe_total_revenue || 0),
+            last90: Number(clientRow?.stripe_revenue_last_90d || 0),
+            byMonth: clientRow?.stripe_revenue_by_month || {},
+            activeSubscriptions: Number(clientRow?.stripe_active_subscriptions || 0),
+            mrr: Number(clientRow?.stripe_mrr || 0),
+            customerCount: Number(clientRow?.stripe_customer_count || 0),
+          })
+        }
         const costs = clientRow?.manual_costs_by_month || {}
         setManualCosts(costs)
         setCostInput(costs[currentMonthKey] !== undefined ? String(costs[currentMonthKey]) : '')
@@ -368,7 +387,7 @@ export default function ClientDashboard() {
 
   const revenuePrimary = stripeRevenue.total > 0 ? stripeRevenue.total : metrics.revenuePrimary
   const revenueSub = stripeRevenue.total > 0
-    ? `${formatCurrency(stripeRevenue.last90)} last 90 days`
+    ? `${formatCurrency(stripeRevenue.last90)} last ${isCashBusiness ? '~90' : '90'} days`
     : (metrics.collectedRevenue > 0 ? `${formatCurrency(metrics.collectedRevenue)} collected` : null)
 
   const kpiCards = [
@@ -385,7 +404,7 @@ export default function ClientDashboard() {
     { label: 'MRR', value: formatCurrency(stripeRevenue.mrr), icon: Activity, color: 'text-status-info', sub: 'Monthly recurring revenue' },
     { label: 'Customers', value: stripeRevenue.customerCount || '—', icon: UserCheck, color: 'text-status-success' },
   ]
-  const showSubscriptionCards = stripeRevenue.total > 0 || stripeRevenue.customerCount > 0 || stripeRevenue.activeSubscriptions > 0
+  const showSubscriptionCards = !isCashBusiness && (stripeRevenue.total > 0 || stripeRevenue.customerCount > 0 || stripeRevenue.activeSubscriptions > 0)
 
   const nextMonthForecast = forecastRows[0] || null
   const forecastRoas = nextMonthForecast?.spendForecast > 0

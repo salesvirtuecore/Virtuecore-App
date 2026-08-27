@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
+import { computeManualRevenueTotals } from '../../lib/manualRevenue'
 
 function formatDateTime(iso) {
   if (!iso) return 'Not checked yet'
@@ -47,9 +48,13 @@ export default function Billing() {
     revenueSharePercentage: 0,
     revenueShareBasis: 'revenue',
     adSpendTotal: 0,
+    isCashBusiness: false,
+    manualRevenueByMonth: {},
     metaConnected: false,
     lastCheckedAt: null,
   })
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const [manualRevenueInput, setManualRevenueInput] = useState('')
 
   const statusPillClass = useMemo(() => {
     return status.connected
@@ -96,8 +101,12 @@ export default function Billing() {
         adSpendTotal = (adRows || []).reduce((sum, row) => sum + Number(row.spend || 0), 0)
       }
 
+      const isCashBusiness = Boolean(data?.isCashBusiness)
+      const manualRevenueByMonth = data?.manualRevenueByMonth || {}
+      const manualTotals = computeManualRevenueTotals(manualRevenueByMonth)
+
       setStatus({
-        connected: Boolean(data?.stripeAccountId || data?.stripeKeyValid),
+        connected: Boolean(data?.stripeAccountId || data?.stripeKeyValid || isCashBusiness),
         stripeAccountId: data?.stripeAccountId || null,
         stripeKeyValid: Boolean(data?.stripeKeyValid),
         stripeKeyMasked: data?.stripeKeyMasked || null,
@@ -105,8 +114,8 @@ export default function Billing() {
         clientId: data?.clientId || null,
         companyName: data?.companyName || null,
         connectedAt: data?.connectedAt || null,
-        totalRevenue: Number(data?.totalRevenue || 0),
-        revenueLast90Days: Number(data?.revenueLast90Days || 0),
+        totalRevenue: isCashBusiness ? manualTotals.total : Number(data?.totalRevenue || 0),
+        revenueLast90Days: isCashBusiness ? manualTotals.last90Days : Number(data?.revenueLast90Days || 0),
         revenueSyncedAt: data?.revenueSyncedAt || null,
         savedCard: data?.savedCard || null,
         nextBillingDate: data?.nextBillingDate || null,
@@ -114,13 +123,43 @@ export default function Billing() {
         revenueSharePercentage: Number(data?.revenueSharePercentage || 0),
         revenueShareBasis: data?.revenueShareBasis || 'revenue',
         adSpendTotal,
+        isCashBusiness,
+        manualRevenueByMonth,
         metaConnected: Boolean(data?.metaConnected),
         lastCheckedAt: new Date().toISOString(),
       })
+      setManualRevenueInput(
+        manualRevenueByMonth[currentMonthKey] !== undefined ? String(manualRevenueByMonth[currentMonthKey]) : ''
+      )
     } catch (err) {
       setError(err.message || 'Status check failed')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function saveManualRevenue() {
+    const numericAmount = Number(manualRevenueInput)
+    if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+      setError('Enter a valid revenue amount')
+      return
+    }
+    setSavingKey(true)
+    setError('')
+    setSuccessMessage('')
+    try {
+      const response = await apiFetch('/api/stripe/save-manual-revenue', {
+        method: 'POST',
+        body: JSON.stringify({ month: currentMonthKey, amount: numericAmount }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not save your revenue')
+      setSuccessMessage(`Revenue for ${currentMonthKey} saved.`)
+      await refreshStatus()
+    } catch (err) {
+      setError(err.message || 'Could not save your revenue')
+    } finally {
+      setSavingKey(false)
     }
   }
 
@@ -239,77 +278,106 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Stripe Connect section */}
+      {/* Revenue connection — Stripe key paste, or manual entry for cash-based businesses */}
       <div className="vc-card">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1">
-            <h2 className="text-sm font-semibold text-text-primary mb-1">Stripe Revenue Connection</h2>
-            <p className="text-xs text-text-secondary mb-2">
-              Paste your Stripe secret key so we can read (read-only) the revenue we help you generate. Find it at{' '}
-              <span className="text-text-primary">dashboard.stripe.com/apikeys</span>.
+        {status.isCashBusiness ? (
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-text-primary mb-1">Monthly Revenue</h2>
+            <p className="text-xs text-text-secondary mb-3">
+              Log your revenue for this month by hand — no Stripe connection needed.
             </p>
-            <span className={statusPillClass}>
-              {status.connected ? 'Connected' : 'Not connected'}
-            </span>
-            {status.stripeKeyValid && status.stripeKeyAddedAt && (
-              <p className="text-xs text-text-secondary mt-2">
-                Key added on {formatDateTime(status.stripeKeyAddedAt)}
-              </p>
-            )}
-            {status.connected && !status.stripeKeyValid && (
-              <p className="text-xs text-text-secondary mt-2">
-                Connected via our older method — paste your Stripe secret key below to switch to the simpler, direct method.
-              </p>
-            )}
-          </div>
-          {status.connected && !editingKey && (
-            <button
-              onClick={syncRevenue}
-              disabled={syncing || loading}
-              className="text-xs px-3 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors disabled:opacity-60 flex-shrink-0"
-            >
-              {syncing ? 'Syncing...' : 'Sync now'}
-            </button>
-          )}
-        </div>
-
-        {status.stripeKeyValid && !editingKey ? (
-          <div className="flex items-center justify-between gap-3 bg-bg-tertiary rounded px-3 py-2">
-            <span className="text-sm font-mono text-text-secondary">{status.stripeKeyMasked || '••••••••'}</span>
-            <button
-              onClick={() => setEditingKey(true)}
-              className="text-xs px-3 py-1.5 border border-white/[0.08] text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
-            >
-              Replace key
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="password"
-              value={secretKeyInput}
-              onChange={(e) => setSecretKeyInput(e.target.value)}
-              placeholder="sk_live_..."
-              className="flex-1 text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
-            />
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={manualRevenueInput}
+                onChange={(e) => setManualRevenueInput(e.target.value)}
+                placeholder={`e.g. 3000 for ${currentMonthKey}`}
+                className="flex-1 text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+              />
               <button
-                onClick={saveSecretKey}
+                onClick={saveManualRevenue}
                 disabled={savingKey}
                 className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
               >
-                {savingKey ? 'Saving...' : 'Save key'}
+                {savingKey ? 'Saving...' : `Log ${currentMonthKey}`}
               </button>
-              {status.stripeKeyValid && (
-                <button
-                  onClick={() => { setEditingKey(false); setSecretKeyInput(''); setError('') }}
-                  className="text-xs px-3 py-2 text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
-                >
-                  Cancel
-                </button>
-              )}
             </div>
           </div>
+        ) : (
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-text-primary mb-1">Stripe Revenue Connection</h2>
+              <p className="text-xs text-text-secondary mb-2">
+                Paste your Stripe secret key so we can read (read-only) the revenue we help you generate. Find it at{' '}
+                <span className="text-text-primary">dashboard.stripe.com/apikeys</span>.
+              </p>
+              <span className={statusPillClass}>
+                {status.connected ? 'Connected' : 'Not connected'}
+              </span>
+              {status.stripeKeyValid && status.stripeKeyAddedAt && (
+                <p className="text-xs text-text-secondary mt-2">
+                  Key added on {formatDateTime(status.stripeKeyAddedAt)}
+                </p>
+              )}
+              {status.connected && !status.stripeKeyValid && (
+                <p className="text-xs text-text-secondary mt-2">
+                  Connected via our older method — paste your Stripe secret key below to switch to the simpler, direct method.
+                </p>
+              )}
+            </div>
+            {status.connected && !editingKey && (
+              <button
+                onClick={syncRevenue}
+                disabled={syncing || loading}
+                className="text-xs px-3 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors disabled:opacity-60 flex-shrink-0"
+              >
+                {syncing ? 'Syncing...' : 'Sync now'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {!status.isCashBusiness && (
+          status.stripeKeyValid && !editingKey ? (
+            <div className="flex items-center justify-between gap-3 bg-bg-tertiary rounded px-3 py-2">
+              <span className="text-sm font-mono text-text-secondary">{status.stripeKeyMasked || '••••••••'}</span>
+              <button
+                onClick={() => setEditingKey(true)}
+                className="text-xs px-3 py-1.5 border border-white/[0.08] text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
+              >
+                Replace key
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="password"
+                value={secretKeyInput}
+                onChange={(e) => setSecretKeyInput(e.target.value)}
+                placeholder="sk_live_..."
+                className="flex-1 text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={saveSecretKey}
+                  disabled={savingKey}
+                  className="text-xs px-3 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60 flex-shrink-0"
+                >
+                  {savingKey ? 'Saving...' : 'Save key'}
+                </button>
+                {status.stripeKeyValid && (
+                  <button
+                    onClick={() => { setEditingKey(false); setSecretKeyInput(''); setError('') }}
+                    className="text-xs px-3 py-2 text-text-secondary hover:text-text-primary rounded transition-colors flex-shrink-0"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         {status.connected && (
@@ -388,7 +456,12 @@ export default function Billing() {
       <div className="vc-card">
         <h2 className="text-sm font-medium text-text-primary mb-2">How automated billing works</h2>
         <ol className="text-sm text-text-secondary space-y-2 list-decimal list-inside">
-          <li>We read your Stripe revenue (read-only) for the last 28 days, net of refunds{usesAdSpendBasis ? ', and your ad spend for the same period' : ''}.</li>
+          <li>
+            {status.isCashBusiness
+              ? 'We use the revenue figure you log each month'
+              : `We read your Stripe revenue (read-only) for the last 28 days, net of refunds${usesAdSpendBasis ? ', and your ad spend for the same period' : ''}`}
+            .
+          </li>
           <li>
             We calculate:{' '}
             <span className="text-text-primary">

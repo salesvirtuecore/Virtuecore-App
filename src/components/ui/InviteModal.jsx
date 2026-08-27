@@ -12,6 +12,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
     monthly_retainer: '',
     revenue_share_percentage: '',
     revenue_share_basis: 'revenue',
+    is_cash_business: false,
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -32,6 +33,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
       monthly_retainer: '',
       revenue_share_percentage: '',
       revenue_share_basis: 'revenue',
+      is_cash_business: false,
     })
     setLoading(false)
     setSuccess(false)
@@ -57,6 +59,7 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
             ? Number(formData.revenue_share_percentage)
             : 0,
           revenue_share_basis: formData.revenue_share_basis,
+          is_cash_business: formData.is_cash_business,
         }),
       }
 
@@ -241,6 +244,21 @@ export default function InviteModal({ isOpen, onClose, role, onSuccess }) {
                       : 'Commission is calculated on gross revenue.'}
                   </p>
                 </div>
+
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_cash_business}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, is_cash_business: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 rounded border-white/[0.08] bg-bg-tertiary text-vc-primary focus:ring-vc-primary"
+                  />
+                  <span>
+                    <span className="text-xs font-medium text-text-secondary">Cash-based business (no Stripe)</span>
+                    <p className="text-[11px] text-text-tertiary mt-0.5">
+                      For blue-collar or cash-heavy businesses that can't connect Stripe. They'll log revenue manually each month instead, and won't be asked to add a Stripe key during onboarding.
+                    </p>
+                  </span>
+                </label>
               </>
             )}
 
