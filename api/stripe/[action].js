@@ -615,6 +615,43 @@ async function handleAgencyOverview(req, res) {
   }
 }
 
+// ── /api/stripe/sync-all-revenue (cron, CRON_SECRET) ─────────────────────────
+// stripe_total_revenue/stripe_revenue_last_90d previously only ever updated
+// when a human clicked "Sync now" (client or admin) — nothing kept them fresh
+// automatically, so a new charge could sit invisible on the dashboard for
+// days. This re-syncs every Stripe-connected, non-cash client daily.
+async function handleSyncAllRevenue(req, res) {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const stripeSecret = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecret) return res.status(500).json({ error: 'Stripe not configured' })
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  const platformStripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+
+  const { data: clients, error } = await supabase.from('clients')
+    .select('id')
+    .eq('is_cash_business', false)
+    .or('stripe_account_id.not.is.null,stripe_secret_key_encrypted.not.is.null')
+  if (error) return res.status(500).json({ error: error.message })
+
+  const results = []
+  for (const c of clients || []) {
+    try {
+      await syncRevenueForClient(c.id, { supabase, platformStripe })
+      results.push({ client_id: c.id, ok: true })
+    } catch (err) {
+      results.push({ client_id: c.id, ok: false, error: err?.message })
+    }
+  }
+  return res.status(200).json({
+    ok: true,
+    synced: results.filter((r) => r.ok).length,
+    failed: results.filter((r) => !r.ok).length,
+    results,
+  })
+}
+
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
@@ -622,6 +659,19 @@ export default async function handler(req, res) {
 
   // client-connect already has its own Bearer token auth internally
   if (action === 'client-connect') return handleClientConnect(req, res)
+
+  // sync-all-revenue: cron (CRON_SECRET) OR admin via Bearer token — same pattern as run-billing-cycle
+  if (action === 'sync-all-revenue') {
+    const authHeader = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    const cronSecret = req.headers['x-cron-secret'] || req.body?.secret || authHeader
+    if (cronSecret && cronSecret === process.env.CRON_SECRET) {
+      return handleSyncAllRevenue(req, res)
+    }
+    const auth = await authenticateUser(req, res)
+    if (!auth) return
+    if (!requireRole(res, auth.profile, 'admin')) return
+    return handleSyncAllRevenue(req, res)
+  }
 
   // remaining routes require authentication
   const auth = await authenticateUser(req, res)
