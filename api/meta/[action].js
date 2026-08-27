@@ -150,12 +150,24 @@ async function syncInsightsForClient(supabase, token, client) {
   url.searchParams.set('level', 'account')
   url.searchParams.set('time_range', JSON.stringify({ since: ninetyDaysAgo.toISOString().split('T')[0], until: today.toISOString().split('T')[0] }))
   url.searchParams.set('time_increment', '1')
+  url.searchParams.set('limit', '100')
   url.searchParams.set('access_token', token)
-  const metaRes = await fetch(url.toString())
-  const metaData = await metaRes.json()
-  if (!metaRes.ok) throw new Error(metaData?.error?.message || 'Meta API error')
 
-  const rows = (metaData.data || []).map((row) => {
+  // Meta paginates time_increment=1 results oldest-first (~25/page by default).
+  // Without following paging.next, an account with >1 page of delivery days in
+  // the window silently loses everything after page 1 — which is exactly why
+  // the most recent days were never showing up no matter how often this ran.
+  const allData = []
+  let nextUrl = url.toString()
+  while (nextUrl) {
+    const metaRes = await fetch(nextUrl)
+    const metaData = await metaRes.json()
+    if (!metaRes.ok) throw new Error(metaData?.error?.message || 'Meta API error')
+    allData.push(...(metaData.data || []))
+    nextUrl = metaData.paging?.next || null
+  }
+
+  const rows = allData.map((row) => {
     const actions = Array.isArray(row.actions) ? row.actions : []
     const leadAction = actions.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
     const spend = parseFloat(row.spend ?? 0)
