@@ -51,7 +51,7 @@ export default function Revenue() {
   useEffect(() => {
     async function load() {
       const [{ data: clientData }, { data: invoiceData }] = await Promise.all([
-        supabase.from('clients').select('id, status, company_name, monthly_retainer, revenue_share_percentage, package_tier'),
+        supabase.from('clients').select('id, status, company_name, monthly_retainer, revenue_share_percentage, package_tier, next_billing_date'),
         supabase.from('invoices').select('id, client_id, amount, status, type, due_date, paid_date, created_at, clients(company_name)'),
       ])
       if (clientData) setClients(clientData)
@@ -65,6 +65,18 @@ export default function Revenue() {
   const activeClients = clients.filter((c) => c.status === 'active')
   const totalRetainer = activeClients.reduce((s, c) => s + c.monthly_retainer, 0)
   const totalOutstanding = invoices.filter((i) => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
+
+  const paidInvoices = invoices.filter((i) => i.status === 'paid' && i.paid_date)
+  const billingByClient = clients.reduce((acc, c) => {
+    const clientPaid = paidInvoices.filter((i) => i.client_id === c.id)
+    const lastPayment = clientPaid.reduce((latest, i) => (!latest || i.paid_date > latest.paid_date ? i : latest), null)
+    acc[c.id] = {
+      lastPaymentDate: lastPayment?.paid_date ?? null,
+      lastPaymentAmount: lastPayment?.amount ?? null,
+      totalPaid: clientPaid.reduce((s, i) => s + i.amount, 0),
+    }
+    return acc
+  }, {})
 
   function validateInvoice() {
     const e = {}
@@ -148,13 +160,14 @@ export default function Revenue() {
         <table className="vc-table">
           <thead>
             <tr>
-              <th>Client</th><th>Package</th><th>Retainer</th><th>Rev Share %</th><th>Est. Commission</th><th>Total MRR</th>
+              <th>Client</th><th>Package</th><th>Retainer</th><th>Rev Share %</th><th>Est. Commission</th><th>Total MRR</th><th>Last Payment</th><th>Next Billing Date</th><th>Total Paid to Date</th>
             </tr>
           </thead>
           <tbody>
             {clients.filter((c) => c.status !== 'churned').map((c) => {
               const commission = 0
               const total = c.monthly_retainer + commission
+              const billing = billingByClient[c.id] ?? {}
               return (
                 <tr key={c.id}>
                   <td className="font-medium text-text-primary">{c.company_name}</td>
@@ -163,6 +176,11 @@ export default function Revenue() {
                   <td className="text-text-secondary">{c.revenue_share_percentage > 0 ? `${c.revenue_share_percentage}%` : '—'}</td>
                   <td className="mono">{commission > 0 ? `£${commission.toLocaleString()}` : '—'}</td>
                   <td className="mono font-semibold">£{total.toLocaleString()}</td>
+                  <td className="text-text-secondary">
+                    {billing.lastPaymentDate ? `£${billing.lastPaymentAmount.toLocaleString()} · ${billing.lastPaymentDate}` : '—'}
+                  </td>
+                  <td className="text-text-secondary">{c.next_billing_date ?? '—'}</td>
+                  <td className="mono">£{(billing.totalPaid ?? 0).toLocaleString()}</td>
                 </tr>
               )
             })}

@@ -90,6 +90,28 @@ async function sendBillingReceipt(client, invoice) {
   await sendBillingReceiptEmail(client, invoice)
 }
 
+const BILLING_SLACK_CHANNEL_ID = process.env.BILLING_SLACK_CHANNEL_ID || process.env.SLACK_CHANNEL_ID
+
+async function notifyUpcomingBilling(client, amount) {
+  const slackToken = process.env.SLACK_BOT_TOKEN
+  if (!slackToken) return
+  try {
+    await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${slackToken}`, 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        channel: BILLING_SLACK_CHANNEL_ID || 'D0APY47HZ25',
+        text: `Upcoming payment expected`,
+        blocks: [
+          { type: 'section', text: { type: 'mrkdwn', text: `*💳 Payment expected soon*\n*${client.company_name}*\nEstimated: £${Number(amount).toLocaleString()}\nDue: ${client.next_billing_date}` } },
+        ],
+      }),
+    })
+  } catch {
+    // Best effort — don't fail the reminder pass over a Slack hiccup
+  }
+}
+
 async function notifyAdminFailure(client, invoice, errorMessage, attemptNumber) {
   const slackToken = process.env.SLACK_BOT_TOKEN
   if (slackToken) {
@@ -384,6 +406,7 @@ export async function runBillingReminderPass(supabase) {
         amount: estimatedTotal,
         dueDate: client.next_billing_date,
       })
+      await notifyUpcomingBilling(client, estimatedTotal)
       results.push({ client_id: client.id, sent: true })
     } catch (err) {
       results.push({ client_id: client.id, sent: false, error: err.message })
