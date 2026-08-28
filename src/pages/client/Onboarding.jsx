@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle, Circle, Upload, Link as LinkIcon, AlertTriangle, ExternalLink, Video } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -18,6 +18,41 @@ function embedUrl(url) {
     return id ? `https://www.youtube.com/embed/${id}` : url
   }
   return url // Loom share links already embed directly
+}
+
+// With up to 11 steps on one page, mounting every Loom iframe at once on
+// load was causing several of them to render blank — too many heavy embeds
+// initializing simultaneously. This only mounts the iframe once its card is
+// actually scrolled near, so at most a couple load at a time.
+function LazyVideo({ src, title }) {
+  const containerRef = useRef(null)
+  const [shouldLoad, setShouldLoad] = useState(false)
+
+  useEffect(() => {
+    if (shouldLoad || !containerRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setShouldLoad(true)
+      },
+      { rootMargin: '300px' }
+    )
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [shouldLoad])
+
+  return (
+    <div ref={containerRef} className="aspect-video rounded overflow-hidden mb-3 bg-bg-tertiary">
+      {shouldLoad && (
+        <iframe
+          src={src}
+          title={title}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      )}
+    </div>
+  )
 }
 
 export default function Onboarding() {
@@ -140,15 +175,7 @@ export default function Onboarding() {
               )}
 
               {step.video_url ? (
-                <div className="aspect-video rounded overflow-hidden mb-3 bg-bg-tertiary">
-                  <iframe
-                    src={embedUrl(step.video_url)}
-                    title={step.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+                <LazyVideo src={embedUrl(step.video_url)} title={step.title} />
               ) : step.missingVideo && (
                 <div className="ml-7 mb-3 flex items-center gap-2 text-xs text-text-secondary bg-bg-tertiary border border-white/[0.06] rounded px-3 py-2">
                   <Video size={13} className="flex-shrink-0" />
