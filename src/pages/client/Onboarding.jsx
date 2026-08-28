@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, Circle, Upload, Link as LinkIcon } from 'lucide-react'
+import { CheckCircle, Circle, Upload, Link as LinkIcon, AlertTriangle, ExternalLink, Video } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { supabase } from '../../lib/supabase'
@@ -132,7 +132,14 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              {step.video_url && (
+              {step.warning && (
+                <div className="ml-7 mb-3 flex items-start gap-2 text-xs text-amber-800 bg-status-warning/10 border border-status-warning/20 rounded px-3 py-2">
+                  <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+                  <span>{step.warning}</span>
+                </div>
+              )}
+
+              {step.video_url ? (
                 <div className="aspect-video rounded overflow-hidden mb-3 bg-bg-tertiary">
                   <iframe
                     src={embedUrl(step.video_url)}
@@ -141,6 +148,39 @@ export default function Onboarding() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
+                </div>
+              ) : step.missingVideo && (
+                <div className="ml-7 mb-3 flex items-center gap-2 text-xs text-text-secondary bg-bg-tertiary border border-white/[0.06] rounded px-3 py-2">
+                  <Video size={13} className="flex-shrink-0" />
+                  <span>Video walkthrough coming soon — follow the steps below in the meantime.</span>
+                </div>
+              )}
+
+              {step.summary && (
+                <p className="text-xs text-text-secondary mb-3 ml-7 leading-relaxed">{step.summary}</p>
+              )}
+
+              {step.steps?.length > 0 && (
+                <ol className="ml-7 mb-3 space-y-1.5 list-decimal list-inside">
+                  {step.steps.map((line, i) => (
+                    <li key={i} className="text-xs text-text-primary leading-relaxed">{line}</li>
+                  ))}
+                </ol>
+              )}
+
+              {step.links?.length > 0 && (
+                <div className="ml-7 mb-3 flex flex-wrap gap-2">
+                  {step.links.map((link) => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors"
+                    >
+                      {link.label} <ExternalLink size={11} />
+                    </a>
+                  ))}
                 </div>
               )}
 
