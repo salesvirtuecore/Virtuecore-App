@@ -19,6 +19,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Clients = lazy(() => import('./pages/admin/Clients'))
 const ClientView = lazy(() => import('./pages/admin/ClientView'))
+const ClientToolPage = lazy(() => import('./pages/admin/ClientToolPage'))
 const Pipeline = lazy(() => import('./pages/admin/Pipeline'))
 const VAManagement = lazy(() => import('./pages/admin/VAManagement'))
 const Revenue = lazy(() => import('./pages/admin/Revenue'))
@@ -119,6 +120,10 @@ function AppRoutes() {
           <Route index element={<AdminDashboard />} />
           <Route path="clients" element={<Clients />} />
           <Route path="clients/:id" element={<ClientView />} />
+          <Route path="clients/:id/ad-performance" element={<ClientToolPage Tool={AdPerformance} />} />
+          <Route path="clients/:id/scorecard" element={<ClientToolPage Tool={GrowthScorecard} />} />
+          <Route path="clients/:id/pulse" element={<ClientToolPage Tool={WeeklyPulse} />} />
+          <Route path="clients/:id/roi" element={<ClientToolPage Tool={ROICalculator} />} />
           <Route path="pipeline" element={<Pipeline />} />
           <Route path="vas" element={<VAManagement />} />
           <Route path="revenue" element={<Revenue />} />

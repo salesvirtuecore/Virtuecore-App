@@ -58,8 +58,9 @@ function StatCard({ label, value, sub }) {
   )
 }
 
-export default function AdPerformance() {
+export default function AdPerformance({ clientId } = {}) {
   const { profile } = useAuth()
+  const effectiveClientId = clientId ?? profile?.client_id
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedTest, setExpandedTest] = useState(null)
@@ -67,26 +68,26 @@ export default function AdPerformance() {
   const [rangeDays, setRangeDays] = useState(7)
 
   useEffect(() => {
-    if (!supabase || !profile?.client_id) return
+    if (!supabase || !effectiveClientId) return
     supabase
       .from('clients')
       .select('stripe_total_revenue, stripe_revenue_synced_at')
-      .eq('id', profile.client_id)
+      .eq('id', effectiveClientId)
       .maybeSingle()
       .then(({ data: row }) => {
         if (row) setRevenue({ total: Number(row.stripe_total_revenue || 0), syncedAt: row.stripe_revenue_synced_at })
       })
-  }, [profile?.client_id])
+  }, [effectiveClientId])
 
   useEffect(() => {
-    if (!supabase || !profile?.client_id) { setLoading(false); return }
+    if (!supabase || !effectiveClientId) { setLoading(false); return }
     setLoading(true)
     const now = new Date()
     const rangeStart = new Date(now); rangeStart.setDate(now.getDate() - rangeDays)
     supabase
       .from('ad_performance')
       .select('client_id, date, spend, leads, impressions, clicks, roas, cpl, ctr')
-      .eq('client_id', profile.client_id)
+      .eq('client_id', effectiveClientId)
       .gte('date', rangeStart.toISOString().split('T')[0])
       .order('date', { ascending: false })
       .then(({ data: rows }) => {
@@ -105,7 +106,7 @@ export default function AdPerformance() {
         })
         setLoading(false)
       })
-  }, [profile?.client_id, rangeDays])
+  }, [effectiveClientId, rangeDays])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

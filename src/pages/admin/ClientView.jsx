@@ -725,6 +725,27 @@ export default function ClientView() {
         </div>
       </div>
 
+      {/* Client tools */}
+      <div className="flex items-center gap-1 border-b border-white/[0.06] -mx-6 px-6 overflow-x-auto">
+        <span className="flex-shrink-0 text-sm px-3 py-2 border-b-2 border-vc-primary text-text-primary font-medium">
+          Overview
+        </span>
+        {[
+          { to: 'ad-performance', label: 'Ad Performance' },
+          { to: 'scorecard', label: 'Growth Scorecard' },
+          { to: 'pulse', label: 'Weekly Pulse' },
+          { to: 'roi', label: 'ROI Calculator' },
+        ].map(({ to, label }) => (
+          <button
+            key={to}
+            onClick={() => navigate(`/admin/clients/${id}/${to}`)}
+            className="flex-shrink-0 text-sm px-3 py-2 border-b-2 border-transparent text-text-secondary hover:text-text-primary transition-colors"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Admin-only note */}
       <div className="bg-status-warning/10 border border-status-warning/20 px-4 py-3 text-sm text-amber-800">
         <span className="font-medium">Admin view:</span> You are viewing this client's portal. Internal notes and full data visible.

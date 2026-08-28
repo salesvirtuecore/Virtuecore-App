@@ -18,8 +18,9 @@ function DiffBadge({ value, inverted = false }) {
   )
 }
 
-export default function ROICalculator() {
+export default function ROICalculator({ clientId } = {}) {
   const { profile } = useAuth()
+  const effectiveClientId = clientId ?? profile?.client_id
   const [base, setBase] = useState(null)
   const [loading, setLoading] = useState(true)
   const [proposedSpend, setProposedSpend] = useState(null)
@@ -27,12 +28,12 @@ export default function ROICalculator() {
   const [closeRate, setCloseRate] = useState(20)
 
   useEffect(() => {
-    if (!supabase || !profile?.client_id) { setLoading(false); return }
+    if (!supabase || !effectiveClientId) { setLoading(false); return }
     const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30)
     supabase
       .from('ad_performance')
       .select('spend,leads,cpl,roas')
-      .eq('client_id', profile.client_id)
+      .eq('client_id', effectiveClientId)
       .gte('date', monthAgo.toISOString().split('T')[0])
       .then(({ data: rows }) => {
         if (!rows?.length) { setLoading(false); return }
@@ -44,7 +45,7 @@ export default function ROICalculator() {
         setProposedSpend(Math.round(spend * 1.3 / 100) * 100)
         setLoading(false)
       })
-  }, [profile?.client_id])
+  }, [effectiveClientId])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

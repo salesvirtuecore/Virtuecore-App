@@ -44,19 +44,20 @@ function MetricCard({ metric }) {
   )
 }
 
-export default function GrowthScorecard() {
+export default function GrowthScorecard({ clientId } = {}) {
   const { profile } = useAuth()
+  const effectiveClientId = clientId ?? profile?.client_id
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeChart, setActiveChart] = useState('leads')
 
   useEffect(() => {
-    if (!supabase || !profile?.client_id) { setLoading(false); return }
+    if (!supabase || !effectiveClientId) { setLoading(false); return }
     setLoading(true)
     supabase
       .from('ad_performance')
       .select('date,spend,leads,cpl,roas')
-      .eq('client_id', profile.client_id)
+      .eq('client_id', effectiveClientId)
       .order('date', { ascending: true })
       .then(({ data: rows }) => {
         if (!rows?.length) { setLoading(false); return }
@@ -94,7 +95,7 @@ export default function GrowthScorecard() {
         })
         setLoading(false)
       })
-  }, [profile?.client_id])
+  }, [effectiveClientId])
 
   if (loading) return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden animate-pulse">

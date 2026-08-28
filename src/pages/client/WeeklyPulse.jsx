@@ -116,16 +116,17 @@ function PulseCard({ pulse, isLatest, expanded, onToggle }) {
   )
 }
 
-export default function WeeklyPulse() {
+export default function WeeklyPulse({ clientId } = {}) {
   const { profile } = useAuth()
+  const effectiveClientId = clientId ?? profile?.client_id
   const [pulses, setPulses] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set([0]))
 
   useEffect(() => {
-    if (!supabase || !profile?.client_id) { setLoading(false); return }
+    if (!supabase || !effectiveClientId) { setLoading(false); return }
     setLoading(true)
-    apiFetch(`/api/admin/weekly-pulse?client_id=${profile.client_id}`)
+    apiFetch(`/api/admin/weekly-pulse?client_id=${effectiveClientId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.this_week) {
@@ -144,7 +145,7 @@ export default function WeeklyPulse() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [profile?.client_id])
+  }, [effectiveClientId])
 
   const isNewWeek = isMonday(new Date())
 
