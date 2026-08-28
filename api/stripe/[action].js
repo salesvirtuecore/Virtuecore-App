@@ -635,15 +635,21 @@ async function handleSyncAllRevenue(req, res) {
     .or('stripe_account_id.not.is.null,stripe_secret_key_encrypted.not.is.null')
   if (error) return res.status(500).json({ error: error.message })
 
-  const results = []
-  for (const c of clients || []) {
-    try {
-      await syncRevenueForClient(c.id, { supabase, platformStripe })
-      results.push({ client_id: c.id, ok: true })
-    } catch (err) {
-      results.push({ client_id: c.id, ok: false, error: err?.message })
-    }
-  }
+  // Syncing clients one at a time here was the actual bug: each client sync
+  // pages through Stripe's ENTIRE charge history, and looping sequentially
+  // pushed the total well past Vercel's serverless timeout once there were a
+  // handful of clients — so only however many fit before the function got
+  // killed actually got synced, silently, with no error surfaced anywhere.
+  // Running them concurrently keeps wall-clock time close to the single
+  // slowest client instead of the sum of all of them.
+  const settled = await Promise.allSettled(
+    (clients || []).map((c) => syncRevenueForClient(c.id, { supabase, platformStripe }))
+  )
+  const results = settled.map((r, i) => (
+    r.status === 'fulfilled'
+      ? { client_id: clients[i].id, ok: true }
+      : { client_id: clients[i].id, ok: false, error: r.reason?.message }
+  ))
   return res.status(200).json({
     ok: true,
     synced: results.filter((r) => r.ok).length,
