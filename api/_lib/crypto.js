@@ -31,6 +31,7 @@ export function decryptSecret(packed) {
 export function maskSecret(plaintext) {
   if (!plaintext) return null
   const tail = plaintext.slice(-4)
-  const prefix = plaintext.startsWith('sk_live_') ? 'sk_live_' : plaintext.startsWith('sk_test_') ? 'sk_test_' : ''
+  const match = plaintext.match(/^(sk|rk)_(live|test)_/)
+  const prefix = match ? match[0] : ''
   return `${prefix}••••${tail}`
 }

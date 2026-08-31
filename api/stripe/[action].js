@@ -176,8 +176,8 @@ async function handleSaveSecretKey(req, res, authProfile) {
   if (!targetClientId) return res.status(400).json({ error: 'client_id required' })
   if (!requireClientOwnership(res, authProfile, targetClientId)) return
 
-  if (!secret_key || typeof secret_key !== 'string' || !/^sk_(live|test)_/.test(secret_key)) {
-    return res.status(400).json({ error: "That doesn't look like a valid Stripe secret key — it should start with sk_live_ or sk_test_" })
+  if (!secret_key || typeof secret_key !== 'string' || !/^(sk|rk)_(live|test)_/.test(secret_key)) {
+    return res.status(400).json({ error: "That doesn't look like a valid Stripe API key — it should start with sk_live_ or sk_test_" })
   }
 
   try {
