@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle, Circle, Upload, Link as LinkIcon, AlertTriangle, ExternalLink, Video } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -65,6 +65,9 @@ export default function Onboarding() {
   const [externalLink, setExternalLink] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [activeStepId, setActiveStepId] = useState(ONBOARDING_STEPS[0].id)
+
+  const isFirstLoad = useRef(true)
 
   async function loadProgress() {
     setLoading(true)
@@ -75,6 +78,11 @@ export default function Onboarding() {
       const byStep = {}
       for (const row of data.progress || []) byStep[row.step_id] = row
       setProgress(byStep)
+      if (isFirstLoad.current) {
+        isFirstLoad.current = false
+        const firstIncomplete = ONBOARDING_STEPS.find((s) => !byStep[s.id]?.completed)
+        if (firstIncomplete) setActiveStepId(firstIncomplete.id)
+      }
     } catch (err) {
       showToast(err.message || 'Failed to load onboarding progress', 'error')
     } finally {
@@ -135,10 +143,18 @@ export default function Onboarding() {
   }
 
   const completedCount = ONBOARDING_STEPS.filter((s) => progress[s.id]?.completed).length
+  const activeStep = useMemo(
+    () => ONBOARDING_STEPS.find((s) => s.id === activeStepId) ?? ONBOARDING_STEPS[0],
+    [activeStepId]
+  )
+  const activeIndex = ONBOARDING_STEPS.findIndex((s) => s.id === activeStep.id)
 
   if (loading) {
     return <div className="p-6 text-sm text-text-secondary">Loading...</div>
   }
+
+  const done = Boolean(progress[activeStep.id]?.completed)
+  const isSubmitStep = activeStep.id === 'submit'
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
@@ -149,131 +165,173 @@ export default function Onboarding() {
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
         {ONBOARDING_STEPS.map((step) => {
-          const done = Boolean(progress[step.id]?.completed)
-          const isSubmitStep = step.id === 'submit'
+          const stepDone = Boolean(progress[step.id]?.completed)
+          const isActive = step.id === activeStep.id
           return (
-            <div key={step.id} className={`vc-card ${done ? 'border-status-success/30' : ''}`}>
-              <div className="flex items-start gap-3 mb-3">
-                {done ? (
-                  <CheckCircle size={20} className="text-status-success flex-shrink-0 mt-0.5" />
-                ) : (
-                  <Circle size={20} className="text-text-tertiary flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-text-primary">Step {step.order}: {step.title}</h3>
-                  <p className="text-xs text-text-secondary mt-1 leading-relaxed">{step.description}</p>
-                </div>
-              </div>
-
-              {step.warning && (
-                <div className="ml-7 mb-3 flex items-start gap-2 text-xs text-amber-800 bg-status-warning/10 border border-status-warning/20 rounded px-3 py-2">
-                  <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
-                  <span>{step.warning}</span>
-                </div>
-              )}
-
-              {step.video_url ? (
-                <LazyVideo src={embedUrl(step.video_url)} title={step.title} />
-              ) : step.missingVideo && (
-                <div className="ml-7 mb-3 flex items-center gap-2 text-xs text-text-secondary bg-bg-tertiary border border-white/[0.06] rounded px-3 py-2">
-                  <Video size={13} className="flex-shrink-0" />
-                  <span>Video walkthrough coming soon — follow the steps below in the meantime.</span>
-                </div>
-              )}
-
-              {step.summary && (
-                <p className="text-xs text-text-secondary mb-3 ml-7 leading-relaxed">{step.summary}</p>
-              )}
-
-              {step.steps?.length > 0 && (
-                <ol className="ml-7 mb-3 space-y-1.5 list-decimal list-inside">
-                  {step.steps.map((line, i) => (
-                    <li key={i} className="text-xs text-text-primary leading-relaxed">{line}</li>
-                  ))}
-                </ol>
-              )}
-
-              {step.links?.length > 0 && (
-                <div className="ml-7 mb-3 flex flex-wrap gap-2">
-                  {step.links.map((link) => (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors"
-                    >
-                      {link.label} <ExternalLink size={11} />
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              {isSubmitStep ? (
-                <form onSubmit={submitCredentials} className="space-y-3 ml-7">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDocType('file')}
-                      className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'file' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
-                    >
-                      <Upload size={12} /> Upload a file
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDocType('google_doc_link')}
-                      className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'google_doc_link' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
-                    >
-                      <LinkIcon size={12} /> Paste a Google Doc link
-                    </button>
-                  </div>
-                  {docType === 'file' ? (
-                    <input
-                      type="file"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                      className="text-xs text-text-secondary w-full"
-                    />
-                  ) : (
-                    <input
-                      type="url"
-                      value={externalLink}
-                      onChange={(e) => setExternalLink(e.target.value)}
-                      placeholder="https://docs.google.com/document/..."
-                      className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
-                    />
-                  )}
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Anything we should know? (optional)"
-                    rows={2}
-                    className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="text-xs px-4 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
-                  >
-                    {submitting ? 'Submitting...' : 'Submit credentials'}
-                  </button>
-                </form>
+            <button
+              key={step.id}
+              onClick={() => setActiveStepId(step.id)}
+              className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-colors max-w-[13rem] ${
+                isActive
+                  ? 'bg-vc-primary/10 border-vc-primary text-text-primary'
+                  : stepDone
+                  ? 'border-status-success/30 text-text-secondary hover:border-status-success/50'
+                  : 'border-white/[0.08] text-text-secondary hover:border-white/[0.16]'
+              }`}
+            >
+              {stepDone ? (
+                <CheckCircle size={14} className="text-status-success flex-shrink-0" />
               ) : (
-                !done && (
-                  <div className="ml-7">
-                    <button
-                      onClick={() => toggleStep(step.id, true)}
-                      className="text-xs px-4 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors"
-                    >
-                      Mark as done
-                    </button>
-                  </div>
-                )
+                <span
+                  className={`flex-shrink-0 w-4 h-4 rounded-full text-[10px] leading-4 text-center ${
+                    isActive ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-tertiary'
+                  }`}
+                >
+                  {step.order}
+                </span>
               )}
-            </div>
+              <span className="truncate font-medium">{step.title}</span>
+            </button>
           )
         })}
+      </div>
+
+      <div className={`vc-card ${done ? 'border-status-success/30' : ''}`}>
+        <div className="flex items-start gap-3 mb-3">
+          {done ? (
+            <CheckCircle size={20} className="text-status-success flex-shrink-0 mt-0.5" />
+          ) : (
+            <Circle size={20} className="text-text-tertiary flex-shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-text-primary">Step {activeStep.order}: {activeStep.title}</h3>
+            <p className="text-xs text-text-secondary mt-1 leading-relaxed">{activeStep.description}</p>
+          </div>
+        </div>
+
+        {activeStep.warning && (
+          <div className="ml-7 mb-3 flex items-start gap-2 text-xs text-amber-800 bg-status-warning/10 border border-status-warning/20 rounded px-3 py-2">
+            <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>{activeStep.warning}</span>
+          </div>
+        )}
+
+        {activeStep.video_url ? (
+          <LazyVideo src={embedUrl(activeStep.video_url)} title={activeStep.title} />
+        ) : activeStep.missingVideo && (
+          <div className="ml-7 mb-3 flex items-center gap-2 text-xs text-text-secondary bg-bg-tertiary border border-white/[0.06] rounded px-3 py-2">
+            <Video size={13} className="flex-shrink-0" />
+            <span>Video walkthrough coming soon — follow the steps below in the meantime.</span>
+          </div>
+        )}
+
+        {activeStep.summary && (
+          <p className="text-xs text-text-secondary mb-3 ml-7 leading-relaxed">{activeStep.summary}</p>
+        )}
+
+        {activeStep.steps?.length > 0 && (
+          <ol className="ml-7 mb-3 space-y-1.5 list-decimal list-inside">
+            {activeStep.steps.map((line, i) => (
+              <li key={i} className="text-xs text-text-primary leading-relaxed">{line}</li>
+            ))}
+          </ol>
+        )}
+
+        {activeStep.links?.length > 0 && (
+          <div className="ml-7 mb-3 flex flex-wrap gap-2">
+            {activeStep.links.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors"
+              >
+                {link.label} <ExternalLink size={11} />
+              </a>
+            ))}
+          </div>
+        )}
+
+        {isSubmitStep ? (
+          <form onSubmit={submitCredentials} className="space-y-3 ml-7">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDocType('file')}
+                className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'file' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
+              >
+                <Upload size={12} /> Upload a file
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocType('google_doc_link')}
+                className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'google_doc_link' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
+              >
+                <LinkIcon size={12} /> Paste a Google Doc link
+              </button>
+            </div>
+            {docType === 'file' ? (
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="text-xs text-text-secondary w-full"
+              />
+            ) : (
+              <input
+                type="url"
+                value={externalLink}
+                onChange={(e) => setExternalLink(e.target.value)}
+                placeholder="https://docs.google.com/document/..."
+                className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+              />
+            )}
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything we should know? (optional)"
+              rows={2}
+              className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+            />
+            <button
+              type="submit"
+              disabled={submitting}
+              className="text-xs px-4 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
+            >
+              {submitting ? 'Submitting...' : 'Submit credentials'}
+            </button>
+          </form>
+        ) : (
+          !done && (
+            <div className="ml-7">
+              <button
+                onClick={() => toggleStep(activeStep.id, true)}
+                className="text-xs px-4 py-2 border border-vc-primary text-vc-primary hover:bg-vc-primary/10 rounded transition-colors"
+              >
+                Mark as done
+              </button>
+            </div>
+          )
+        )}
+
+        <div className="ml-7 mt-4 pt-3 border-t border-white/[0.06] flex justify-between">
+          <button
+            onClick={() => setActiveStepId(ONBOARDING_STEPS[activeIndex - 1].id)}
+            disabled={activeIndex === 0}
+            className="text-xs px-3 py-1.5 text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            ← Previous
+          </button>
+          <button
+            onClick={() => setActiveStepId(ONBOARDING_STEPS[activeIndex + 1].id)}
+            disabled={activeIndex === ONBOARDING_STEPS.length - 1}
+            className="text-xs px-3 py-1.5 text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
   )
