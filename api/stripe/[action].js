@@ -369,27 +369,28 @@ async function computeStripeOverview(chargesClient, chargesOptions, sinceUnix) {
 // persists it to their row (used both by the standalone sync-revenue action
 // and immediately after a key is (re)saved, so a freshly pasted key is never
 // left showing stale/zero data until someone happens to click "Sync now").
+// A pasted secret key always wins if one has been saved — it's the client's
+// own real Stripe account and the whole point of replacing OAuth. Legacy
+// Connect accounts (stripeAccount header on the platform Stripe object) are
+// only used as a fallback for clients who never re-keyed.
+async function resolveClientChargesClient(supabase, client, platformStripe) {
+  if (client.stripe_secret_key_encrypted) {
+    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
+    return { chargesClient: new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() }), chargesOptions: undefined }
+  }
+  if (client.stripe_account_id) {
+    return { chargesClient: platformStripe, chargesOptions: { stripeAccount: client.stripe_account_id } }
+  }
+  throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
+}
+
 async function syncRevenueForClient(clientId, { supabase, platformStripe }) {
   const { data: client } = await supabase.from('clients')
     .select('id, stripe_account_id, stripe_secret_key_encrypted, onboarding_started_at, created_at')
     .eq('id', clientId).maybeSingle()
   if (!client) throw Object.assign(new Error('Client not found'), { status: 404 })
 
-  // A pasted secret key always wins if one has been saved — it's the client's
-  // own real Stripe account and the whole point of replacing OAuth. Legacy
-  // Connect accounts (stripeAccount header on the platform Stripe object) are
-  // only used as a fallback for clients who never re-keyed.
-  let chargesClient = platformStripe
-  let chargesOptions
-
-  if (client.stripe_secret_key_encrypted) {
-    const decryptedKey = decryptSecret(client.stripe_secret_key_encrypted)
-    chargesClient = new Stripe(decryptedKey, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
-  } else if (client.stripe_account_id) {
-    chargesOptions = { stripeAccount: client.stripe_account_id }
-  } else {
-    throw Object.assign(new Error('Stripe not connected — please add your Stripe secret key first'), { status: 400 })
-  }
+  const { chargesClient, chargesOptions } = await resolveClientChargesClient(supabase, client, platformStripe)
 
   // Pull the client's ENTIRE Stripe history, not just "since joining
   // VirtueCore" — most clients were already paying customers for months
@@ -450,6 +451,64 @@ async function handleSyncRevenue(req, res, authProfile) {
     })
   } catch (err) {
     return res.status(err?.status || 500).json({ error: err?.message || 'Sync failed' })
+  }
+}
+
+// ── /api/stripe/revenue-for-range (GET) ──────────────────────────────────────
+// Real ROAS needs Stripe revenue scoped to the SAME window as ad spend (the
+// 7/30/60d toggle on the Ad Performance page) — stripe_total_revenue is
+// lifetime and stripe_revenue_last_90d is fixed at 90 days, neither of which
+// lines up with an arbitrary range, and ad_performance.roas has always been
+// hardcoded to 0 by the Meta sync (Meta's own purchase_roas isn't wired up),
+// which is why ROAS always showed "—". This computes revenue live for the
+// exact range requested rather than persisting anything.
+async function handleRevenueForRange(req, res, authProfile) {
+  const stripeSecret = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecret) return res.status(500).json({ error: 'Stripe not configured' })
+
+  let clientId
+  if (authProfile.role === 'admin') {
+    clientId = req.query.client_id
+    if (!clientId) return res.status(400).json({ error: 'client_id required' })
+  } else if (authProfile.role === 'client') {
+    clientId = authProfile.client_id
+    if (!clientId) return res.status(400).json({ error: 'No client linked to your account' })
+  } else {
+    return res.status(403).json({ error: 'Forbidden' })
+  }
+
+  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365)
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  const platformStripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10', httpClient: Stripe.createFetchHttpClient() })
+
+  try {
+    const { data: client } = await supabase.from('clients')
+      .select('id, stripe_account_id, stripe_secret_key_encrypted, is_cash_business, manual_revenue_by_month')
+      .eq('id', clientId).maybeSingle()
+    if (!client) return res.status(404).json({ error: 'Client not found' })
+
+    // Cash businesses have no Stripe history to page through — approximate
+    // their range revenue from whichever manually-logged months overlap it.
+    if (client.is_cash_business) {
+      const byMonth = client.manual_revenue_by_month || {}
+      const monthsToCover = Math.ceil(days / 30)
+      const now = new Date()
+      let total = 0
+      for (let i = 0; i < monthsToCover; i++) {
+        const key = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)).toISOString().slice(0, 7)
+        total += Number(byMonth[key] || 0)
+      }
+      return res.status(200).json({ ok: true, total_revenue: total, days, approximate: true })
+    }
+
+    const { chargesClient, chargesOptions } = await resolveClientChargesClient(supabase, client, platformStripe)
+    const sinceUnix = Math.floor(Date.now() / 1000) - days * 86400
+    const overview = await computeStripeOverview(chargesClient, chargesOptions, sinceUnix)
+    return res.status(200).json({ ok: true, total_revenue: overview.totalRevenue, days, approximate: false })
+  } catch (err) {
+    return res.status(err?.status || 500).json({ error: err?.message || 'Failed to compute revenue for range' })
   }
 }
 
@@ -685,6 +744,7 @@ export default async function handler(req, res) {
 
   if (action === 'save-secret-key') return handleSaveSecretKey(req, res, auth.profile)
   if (action === 'sync-revenue') return handleSyncRevenue(req, res, auth.profile)
+  if (action === 'revenue-for-range') return handleRevenueForRange(req, res, auth.profile)
   if (action === 'save-manual-cost') return handleSaveManualCost(req, res, auth.profile)
   if (action === 'save-manual-revenue') return handleSaveManualRevenue(req, res, auth.profile)
   if (action === 'setup-payment-method') return handleSetupPaymentMethod(req, res, auth.profile)

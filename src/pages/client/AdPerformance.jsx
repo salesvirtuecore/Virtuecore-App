@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Zap, Activity, Target, ChevronDown, ChevronUp
 import Badge from '../../components/ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { apiFetch } from '../../lib/api'
 import { format, parseISO } from 'date-fns'
 
 const PLATFORM_COLOR = { Meta: '#1877F2', Google: '#34A853', TikTok: '#000000' }
@@ -66,6 +67,7 @@ export default function AdPerformance({ clientId } = {}) {
   const [expandedTest, setExpandedTest] = useState(null)
   const [revenue, setRevenue] = useState(null)
   const [rangeDays, setRangeDays] = useState(7)
+  const [rangeRevenue, setRangeRevenue] = useState(null)
 
   useEffect(() => {
     if (!supabase || !effectiveClientId) return
@@ -78,6 +80,18 @@ export default function AdPerformance({ clientId } = {}) {
         if (row) setRevenue({ total: Number(row.stripe_total_revenue || 0), syncedAt: row.stripe_revenue_synced_at })
       })
   }, [effectiveClientId])
+
+  // Revenue scoped to the same 7/30/60d window as ad spend, computed live —
+  // stripe_total_revenue is lifetime and doesn't line up with any range, so
+  // ROAS needs its own range-matched figure rather than reusing that.
+  useEffect(() => {
+    if (!effectiveClientId) return
+    setRangeRevenue(null)
+    apiFetch(`/api/stripe/revenue-for-range?client_id=${effectiveClientId}&days=${rangeDays}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => { if (json?.ok) setRangeRevenue(json.total_revenue) })
+      .catch(() => {})
+  }, [effectiveClientId, rangeDays])
 
   useEffect(() => {
     if (!supabase || !effectiveClientId) { setLoading(false); return }
@@ -156,6 +170,10 @@ export default function AdPerformance({ clientId } = {}) {
 
   const s = data.week_summary
   const maxLeads = Math.max(...(data.daily_feed?.map((d) => d.leads) || [1]), 1)
+  // Real ROAS: Stripe revenue for this exact range ÷ ad spend for the same
+  // range. ad_performance.roas (s.roas) is always 0 — Meta's own purchase_roas
+  // action isn't wired into the sync — so it can never be used here.
+  const roas = rangeRevenue != null && s.spend > 0 ? rangeRevenue / s.spend : null
 
   return (
     <div className="p-4 md:p-6 space-y-5 w-full overflow-x-hidden">
@@ -183,7 +201,7 @@ export default function AdPerformance({ clientId } = {}) {
         <StatCard label="Ad Spend" value={`£${s.spend.toLocaleString()}`} sub={`last ${rangeDays}d`} />
         <StatCard label="Leads" value={s.leads} sub={`last ${rangeDays}d`} />
         <StatCard label="Cost Per Lead" value={s.cpl > 0 ? `£${s.cpl}` : '—'} sub="avg CPL" />
-        <StatCard label="ROAS" value={s.roas > 0 ? `${Number(s.roas).toFixed(1)}x` : '—'} sub="return on spend" />
+        <StatCard label="ROAS" value={roas != null ? `${roas.toFixed(1)}x` : '—'} sub={`revenue ÷ spend, last ${rangeDays}d`} />
       </div>
 
       {/* What's winning */}
