@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle, Circle, Upload, Link as LinkIcon, AlertTriangle, ExternalLink, Video } from 'lucide-react'
+import { CheckCircle, Circle, Upload, Link as LinkIcon, AlertTriangle, ExternalLink, Video, KeyRound, Eye, EyeOff, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { supabase } from '../../lib/supabase'
 import { apiFetch } from '../../lib/api'
 import { uploadClientDocument } from '../../lib/clientUtils'
 import { ONBOARDING_STEPS } from '../../data/onboardingSteps'
+import { LOGIN_APPS } from '../../data/loginApps'
 
 function embedUrl(url) {
   if (!url) return null
@@ -66,8 +67,33 @@ export default function Onboarding() {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [activeStepId, setActiveStepId] = useState(ONBOARDING_STEPS[0].id)
+  const [useStructuredLogins, setUseStructuredLogins] = useState(false)
 
   const isFirstLoad = useRef(true)
+  const groupIdRef = useRef(0)
+
+  function newLoginGroup() {
+    groupIdRef.current += 1
+    return { id: groupIdRef.current, email: '', password: '', apps: [], showPassword: false }
+  }
+  const [loginGroups, setLoginGroups] = useState(() => [newLoginGroup()])
+
+  function updateLoginGroup(id, patch) {
+    setLoginGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  }
+  function addLoginGroup() {
+    setLoginGroups((prev) => [...prev, newLoginGroup()])
+  }
+  function removeLoginGroup(id) {
+    setLoginGroups((prev) => (prev.length > 1 ? prev.filter((g) => g.id !== id) : prev))
+  }
+  function toggleAppInGroup(id, app) {
+    setLoginGroups((prev) => prev.map((g) => {
+      if (g.id !== id) return g
+      const has = g.apps.includes(app)
+      return { ...g, apps: has ? g.apps.filter((a) => a !== app) : [...g.apps, app] }
+    }))
+  }
 
   async function loadProgress() {
     setLoading(true)
@@ -133,6 +159,38 @@ export default function Onboarding() {
       showToast('Credentials submitted — thank you!')
       setFile(null)
       setExternalLink('')
+      setNotes('')
+      loadProgress()
+    } catch (err) {
+      showToast(err.message || 'Submit failed', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function submitLoginCredentials() {
+    for (const g of loginGroups) {
+      if (!g.email.trim() || !g.password) return showToast('Fill in an email and password for every login', 'error')
+      if (g.apps.length === 0) return showToast('Select at least one app for every login', 'error')
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await apiFetch('/api/onboarding/submit-login-credentials', {
+        method: 'POST',
+        body: JSON.stringify({
+          groups: loginGroups.map((g) => ({
+            email: g.email.trim(),
+            password: g.password,
+            apps: g.apps,
+            notes: notes.trim() || null,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Submit failed')
+      showToast('Logins submitted — thank you!')
+      setLoginGroups([newLoginGroup()])
       setNotes('')
       loadProgress()
     } catch (err) {
@@ -209,6 +267,22 @@ export default function Onboarding() {
             <h3 className="text-sm font-semibold text-text-primary">Step {activeStep.order}: {activeStep.title}</h3>
             <p className="text-xs text-text-secondary mt-1 leading-relaxed">{activeStep.description}</p>
           </div>
+          {isSubmitStep && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={useStructuredLogins}
+              onClick={() => setUseStructuredLogins((v) => !v)}
+              className="flex items-center gap-2 text-xs text-text-secondary flex-shrink-0 whitespace-nowrap"
+              title="Switch between uploading a document and entering logins directly"
+            >
+              <KeyRound size={13} className={useStructuredLogins ? 'text-vc-primary' : 'text-text-tertiary'} />
+              <span className="hidden sm:inline">{useStructuredLogins ? 'Enter logins directly' : 'Upload a document'}</span>
+              <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useStructuredLogins ? 'bg-vc-primary' : 'bg-bg-tertiary border border-white/[0.12]'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useStructuredLogins ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </span>
+            </button>
+          )}
         </div>
 
         {activeStep.warning && (
@@ -256,53 +330,146 @@ export default function Onboarding() {
         )}
 
         {isSubmitStep ? (
-          <form onSubmit={submitCredentials} className="space-y-3 ml-7">
-            <div className="flex gap-2">
+          useStructuredLogins ? (
+            <div className="space-y-3 ml-7">
+              {loginGroups.map((group, idx) => (
+                <div key={group.id} className="border border-white/[0.08] rounded-lg p-3 space-y-2 bg-bg-tertiary/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-text-secondary">Login {idx + 1}</span>
+                    {loginGroups.length > 1 && (
+                      <button type="button" onClick={() => removeLoginGroup(group.id)} className="text-text-tertiary hover:text-status-danger">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <input
+                      type="email"
+                      value={group.email}
+                      onChange={(e) => updateLoginGroup(group.id, { email: e.target.value })}
+                      placeholder="Login email"
+                      className="text-sm bg-bg-secondary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+                    />
+                    <div className="relative">
+                      <input
+                        type={group.showPassword ? 'text' : 'password'}
+                        value={group.password}
+                        onChange={(e) => updateLoginGroup(group.id, { password: e.target.value })}
+                        placeholder="Password"
+                        className="w-full text-sm bg-bg-secondary border border-white/[0.08] rounded px-3 py-2 pr-9 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateLoginGroup(group.id, { showPassword: !group.showPassword })}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary"
+                      >
+                        {group.showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {group.apps.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.apps.map((app) => (
+                        <span key={app} className="inline-flex items-center gap-1 text-xs bg-vc-primary/10 text-vc-primary rounded-full pl-2.5 pr-1.5 py-1">
+                          {app}
+                          <button type="button" onClick={() => toggleAppInGroup(group.id, app)}>
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <select
+                    value=""
+                    onChange={(e) => e.target.value && toggleAppInGroup(group.id, e.target.value)}
+                    className="text-xs bg-bg-secondary border border-white/[0.08] rounded px-2 py-1.5 text-text-secondary focus:outline-none focus:border-vc-primary"
+                  >
+                    <option value="">+ Add an app this login is for...</option>
+                    {LOGIN_APPS.filter((app) => !group.apps.includes(app)).map((app) => (
+                      <option key={app} value={app}>{app}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-text-tertiary">Add every app that uses this same email + password, so you don't have to type it out again.</p>
+                </div>
+              ))}
+
               <button
                 type="button"
-                onClick={() => setDocType('file')}
-                className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'file' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
+                onClick={addLoginGroup}
+                className="text-xs px-3 py-1.5 border border-dashed border-white/[0.16] text-text-secondary hover:border-vc-primary hover:text-vc-primary rounded transition-colors"
               >
-                <Upload size={12} /> Upload a file
+                + Add another login (different email/password)
               </button>
-              <button
-                type="button"
-                onClick={() => setDocType('google_doc_link')}
-                className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'google_doc_link' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
-              >
-                <LinkIcon size={12} /> Paste a Google Doc link
-              </button>
-            </div>
-            {docType === 'file' ? (
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="text-xs text-text-secondary w-full"
-              />
-            ) : (
-              <input
-                type="url"
-                value={externalLink}
-                onChange={(e) => setExternalLink(e.target.value)}
-                placeholder="https://docs.google.com/document/..."
+
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything we should know? (optional)"
+                rows={2}
                 className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
               />
-            )}
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Anything we should know? (optional)"
-              rows={2}
-              className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
-            />
-            <button
-              type="submit"
-              disabled={submitting}
-              className="text-xs px-4 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
-            >
-              {submitting ? 'Submitting...' : 'Submit credentials'}
-            </button>
-          </form>
+
+              <button
+                type="button"
+                onClick={submitLoginCredentials}
+                disabled={submitting}
+                className="text-xs px-4 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
+              >
+                {submitting ? 'Submitting...' : 'Submit logins'}
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submitCredentials} className="space-y-3 ml-7">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDocType('file')}
+                  className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'file' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
+                >
+                  <Upload size={12} /> Upload a file
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocType('google_doc_link')}
+                  className={`text-xs px-3 py-1.5 rounded flex items-center gap-1.5 ${docType === 'google_doc_link' ? 'bg-vc-primary text-white' : 'bg-bg-tertiary text-text-secondary'}`}
+                >
+                  <LinkIcon size={12} /> Paste a Google Doc link
+                </button>
+              </div>
+              {docType === 'file' ? (
+                <input
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="text-xs text-text-secondary w-full"
+                />
+              ) : (
+                <input
+                  type="url"
+                  value={externalLink}
+                  onChange={(e) => setExternalLink(e.target.value)}
+                  placeholder="https://docs.google.com/document/..."
+                  className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+                />
+              )}
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything we should know? (optional)"
+                rows={2}
+                className="w-full text-sm bg-bg-tertiary border border-white/[0.08] rounded px-3 py-2 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-vc-primary"
+              />
+              <button
+                type="submit"
+                disabled={submitting}
+                className="text-xs px-4 py-2 bg-vc-primary text-white hover:bg-vc-accent rounded transition-colors disabled:opacity-60"
+              >
+                {submitting ? 'Submitting...' : 'Submit credentials'}
+              </button>
+            </form>
+          )
         ) : (
           !done && (
             <div className="ml-7">

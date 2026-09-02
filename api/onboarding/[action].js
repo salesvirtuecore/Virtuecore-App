@@ -1,7 +1,9 @@
+import crypto from 'crypto'
 import { authenticateUser, requireRole, requireClientOwnership, checkRateLimit } from '../_lib/auth.js'
 import { ONBOARDING_STEPS } from '../../src/data/onboardingSteps.js'
 import { sendWelcomeOnboardingEmail } from '../_lib/email.js'
 import { checkAndSendOnboardingComplete } from '../_lib/onboarding.js'
+import { encryptSecret, decryptSecret } from '../_lib/crypto.js'
 
 const STEP_IDS = new Set(ONBOARDING_STEPS.map((s) => s.id))
 
@@ -96,6 +98,58 @@ async function handleSubmitCredentials(req, res, profile, supabase) {
   res.status(200).json({ ok: true })
 }
 
+// ── submit-login-credentials (POST) — structured logins grouped by shared email/password ──
+async function handleSubmitLoginCredentials(req, res, profile, supabase) {
+  if (!requireRole(res, profile, 'client')) return
+  if (!profile.client_id) return res.status(400).json({ error: 'No client linked to your account' })
+  const { groups } = req.body ?? {}
+  if (!Array.isArray(groups) || groups.length === 0) {
+    return res.status(400).json({ error: 'At least one login is required' })
+  }
+
+  const rows = []
+  for (const group of groups) {
+    const email = String(group?.email || '').trim()
+    const password = String(group?.password || '')
+    const apps = Array.isArray(group?.apps) ? group.apps.map((a) => String(a).trim()).filter(Boolean) : []
+    const notes = String(group?.notes || '').trim() || null
+    if (!email || !password) return res.status(400).json({ error: 'Every login needs an email and password' })
+    if (apps.length === 0) return res.status(400).json({ error: 'Every login needs at least one app selected' })
+
+    const groupId = crypto.randomUUID()
+    const loginPasswordEncrypted = encryptSecret(password)
+    for (const app of apps) {
+      rows.push({
+        client_id: profile.client_id,
+        group_id: groupId,
+        app_name: app,
+        login_email: email,
+        login_password_encrypted: loginPasswordEncrypted,
+        notes,
+        submitted_by: profile.id,
+      })
+    }
+  }
+
+  const { error } = await supabase.from('client_login_credentials').insert(rows)
+  if (error) return res.status(500).json({ error: error.message })
+
+  await supabase.from('client_onboarding_progress').upsert({
+    client_id: profile.client_id,
+    step_id: 'submit',
+    completed: true,
+    completed_at: new Date().toISOString(),
+  }, { onConflict: 'client_id,step_id' })
+
+  try {
+    await checkAndSendOnboardingComplete(supabase, profile.client_id)
+  } catch {
+    // Non-critical — don't fail credential submission over an email hiccup.
+  }
+
+  res.status(200).json({ ok: true })
+}
+
 // ── submit-contract (POST) ──────────────────────────────────────────────────
 async function handleSubmitContract(req, res, profile, supabase) {
   if (!requireRole(res, profile, 'client')) return
@@ -121,6 +175,36 @@ async function handleAdminListCredentials(req, res, profile, supabase) {
     .order('created_at', { ascending: false })
   if (error) return res.status(500).json({ error: error.message })
   res.status(200).json({ credentials: data || [] })
+}
+
+// ── admin-list-login-credentials (GET) — passwords stay encrypted here, reveal is per-row ──
+async function handleAdminListLoginCredentials(req, res, profile, supabase) {
+  if (!requireRole(res, profile, 'admin')) return
+  const { data, error } = await supabase.from('client_login_credentials')
+    .select('id, client_id, group_id, app_name, login_email, notes, created_at, clients(company_name)')
+    .order('group_id', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) return res.status(500).json({ error: error.message })
+  res.status(200).json({ logins: data || [] })
+}
+
+// ── admin-reveal-login-password (POST) — decrypts one password on demand ────
+async function handleAdminRevealLoginPassword(req, res, profile, supabase) {
+  if (!requireRole(res, profile, 'admin')) return
+  const { id } = req.body ?? {}
+  if (!id) return res.status(400).json({ error: 'id required' })
+
+  const { data, error } = await supabase.from('client_login_credentials')
+    .select('login_password_encrypted')
+    .eq('id', id)
+    .single()
+  if (error || !data) return res.status(404).json({ error: 'Not found' })
+
+  try {
+    res.status(200).json({ password: decryptSecret(data.login_password_encrypted) })
+  } catch {
+    res.status(500).json({ error: 'Could not decrypt password' })
+  }
 }
 
 // ── admin-list-contracts (GET) ──────────────────────────────────────────────
@@ -158,8 +242,11 @@ export default async function handler(req, res) {
   if (action === 'get-progress') return handleGetProgress(req, res, profile, supabase)
   if (action === 'mark-step') return handleMarkStep(req, res, profile, supabase)
   if (action === 'submit-credentials') return handleSubmitCredentials(req, res, profile, supabase)
+  if (action === 'submit-login-credentials') return handleSubmitLoginCredentials(req, res, profile, supabase)
   if (action === 'submit-contract') return handleSubmitContract(req, res, profile, supabase)
   if (action === 'admin-list-credentials') return handleAdminListCredentials(req, res, profile, supabase)
+  if (action === 'admin-list-login-credentials') return handleAdminListLoginCredentials(req, res, profile, supabase)
+  if (action === 'admin-reveal-login-password') return handleAdminRevealLoginPassword(req, res, profile, supabase)
   if (action === 'admin-list-contracts') return handleAdminListContracts(req, res, profile, supabase)
   if (action === 'update-contract-status') return handleUpdateContractStatus(req, res, profile, supabase)
   res.status(404).json({ error: 'Unknown action' })
