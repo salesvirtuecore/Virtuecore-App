@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Calendar, MessageSquare, Receipt,
   Video, CreditCard, BarChart2, Plug, LogOut, TrendingUp,
-  Award, Zap, Calculator, Menu, X, HelpCircle, PlayCircle, ClipboardCheck
+  Award, Zap, Calculator, Menu, X, HelpCircle, PlayCircle, ClipboardCheck, Users
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { apiFetch } from '../../lib/api'
@@ -22,10 +22,16 @@ import OnboardingGate from '../OnboardingGate'
 // clients rather than shown empty.
 const ADS_ONLY_ROUTES = new Set(['/client/ad-performance', '/client/integrations'])
 
+// Leads/CRM only gets provisioned (Google Sheet + client_leads rows) for
+// package tiers that aren't Website Only / Automations — same eligibility
+// gate, kept as its own set since it isn't semantically an "ads" route.
+const CRM_ONLY_ROUTES = new Set(['/client/leads'])
+
 const NAV = [
   { to: '/client',                label: 'Dashboard',       icon: LayoutDashboard, end: true },
   { to: '/client/onboarding',     label: 'Getting Started', icon: PlayCircle },
   { to: '/client/ad-performance', label: 'Ads Performance', icon: TrendingUp },
+  { to: '/client/leads',          label: 'Leads',           icon: Users },
   { to: '/client/deliverables',   label: 'Deliverables',    icon: FileText },
   { to: '/client/contracts',      label: 'Contracts',       icon: ClipboardCheck },
   { to: '/client/calendar',       label: 'Content Calendar',icon: Calendar },
@@ -41,7 +47,7 @@ const NAV = [
 ]
 
 function SidebarContent({ profile, onLogout, onNavClick, restricted }) {
-  const items = restricted ? NAV.filter((item) => !ADS_ONLY_ROUTES.has(item.to)) : NAV
+  const items = restricted ? NAV.filter((item) => !ADS_ONLY_ROUTES.has(item.to) && !CRM_ONLY_ROUTES.has(item.to)) : NAV
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}

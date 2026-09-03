@@ -5,6 +5,7 @@ import { runBillingCyclePass, processClientBillingCycle, runBillingReminderPass 
 import { runOnboardingReminderPass } from '../_lib/onboarding.js'
 import { ACADEMY_MODULES } from '../../src/data/academyModules.js'
 import { sendInviteEmail, sendMessageReplyEmail, sendStaffMessageAlertEmail } from '../_lib/email.js'
+import { isRestrictedTier } from '../../src/data/packageTiers.js'
 
 // ── invite-user ──────────────────────────────────────────────────────────────
 async function handleInviteUser(req, res) {
@@ -12,13 +13,14 @@ async function handleInviteUser(req, res) {
   const supabase = makeSupabase()
   const { email, full_name, role, company_name, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business } = req.body
   if (!email || !role) return res.status(400).json({ error: 'Email and role are required' })
+  let clientId = null
   try {
     if (role === 'client') {
       // Set billing cycle anchor 28 days from invite (gives them time to onboard)
       const today = new Date()
       const anchorDate = new Date(today)
       anchorDate.setDate(anchorDate.getDate() + 28)
-      const { error: clientError } = await supabase.from('clients').insert({
+      const { data: clientRow, error: clientError } = await supabase.from('clients').insert({
         company_name: company_name || full_name, contact_name: full_name, contact_email: email,
         package_tier: package_tier || 'Starter', monthly_retainer: monthly_retainer || 0,
         revenue_share_percentage: revenue_share_percentage || 0,
@@ -30,8 +32,9 @@ async function handleInviteUser(req, res) {
         next_billing_date: anchorDate.toISOString().split('T')[0],
         auto_charge_enabled: true,
         billing_model: 'revenue_share',
-      })
+      }).select('id').single()
       if (clientError) throw clientError
+      clientId = clientRow.id
     }
     const isVA = role === 'va'
     const appUrl = getAppUrl()
@@ -58,6 +61,26 @@ async function handleInviteUser(req, res) {
         }).catch(() => {})
       }
     }
+
+    // Provision a Google Sheets CRM for eligible package tiers (fire-and-forget,
+    // non-blocking — mirrors the Slack notify above so a provisioning hiccup
+    // never blocks the invite email from sending).
+    if (role === 'client' && clientId && !isRestrictedTier(package_tier)) {
+      const provisionWebhook = process.env.N8N_PROVISION_CRM_WEBHOOK_URL
+      if (provisionWebhook) {
+        fetch(provisionWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: clientId,
+            company_name: company_name || full_name,
+            contact_email: email,
+            package_tier: package_tier || 'Starter',
+          }),
+        }).catch(() => {})
+      }
+    }
+
     return res.status(200).json({ success: true })
   } catch (err) {
     return res.status(500).json({ error: err.message })

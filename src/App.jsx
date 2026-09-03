@@ -31,6 +31,7 @@ const MetaMatching = lazy(() => import('./pages/admin/MetaMatching'))
 // Client
 const ClientDashboard = lazy(() => import('./pages/client/Dashboard'))
 const Deliverables = lazy(() => import('./pages/client/Deliverables'))
+const Leads = lazy(() => import('./pages/client/Leads'))
 const ContentCalendar = lazy(() => import('./pages/client/ContentCalendar'))
 const Messages = lazy(() => import('./pages/client/Messages'))
 const Invoices = lazy(() => import('./pages/client/Invoices'))
@@ -124,6 +125,8 @@ function AppRoutes() {
           <Route path="clients/:id/scorecard" element={<ClientToolPage Tool={GrowthScorecard} />} />
           <Route path="clients/:id/pulse" element={<ClientToolPage Tool={WeeklyPulse} />} />
           <Route path="clients/:id/roi" element={<ClientToolPage Tool={ROICalculator} />} />
+          <Route path="clients/:id/leads" element={<ClientToolPage Tool={Leads} />} />
+          <Route path="client-leads" element={<Leads />} />
           <Route path="pipeline" element={<Pipeline />} />
           <Route path="vas" element={<VAManagement />} />
           <Route path="revenue" element={<Revenue />} />
@@ -139,6 +142,7 @@ function AppRoutes() {
           <Route path="onboarding" element={<Onboarding />} />
           <Route path="contracts" element={<Contracts />} />
           <Route path="deliverables" element={<Deliverables />} />
+          <Route path="leads" element={<Leads />} />
           <Route path="calendar" element={<ContentCalendar />} />
           <Route path="messages" element={<Messages />} />
           <Route path="invoices" element={<Invoices />} />
