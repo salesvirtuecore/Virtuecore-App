@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
 // ── App base URL (used for Stripe redirect URLs, email links, etc.) ─────────
 // Normalizes VITE_APP_URL so a misconfigured env var (missing scheme, trailing
@@ -48,6 +49,21 @@ setInterval(() => {
     if (entry.start < cutoff) rateLimitMap.delete(ip)
   }
 }, 300_000)
+
+// ── Internal API key (server-to-server callers like n8n) ────────────────────
+// Returns true if request carries a valid x-internal-key header. Does NOT
+// send a response — caller decides whether to fall back to user auth.
+export function hasValidInternalKey(req) {
+  const provided = req.headers['x-internal-key']
+  const expected = process.env.INTERNAL_API_KEY
+  if (!expected || !provided || typeof provided !== 'string') return false
+  if (provided.length !== expected.length) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
 
 // ── Authenticate user from Bearer token ──────────────────────────────────────
 // Returns { user, profile } or sends 401 and returns null

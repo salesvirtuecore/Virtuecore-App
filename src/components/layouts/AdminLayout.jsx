@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, GitBranch, UserCheck, DollarSign,
   LogOut, Webhook, Globe, Menu, X, ChevronLeft, ChevronRight,
-  Zap, BookOpen, FolderLock, Contact
+  Zap, BookOpen, FolderLock, Contact, CalendarClock
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../ui/NotificationBell'
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin',          label: 'Overview',      icon: LayoutDashboard, end: true },
   { to: '/admin/clients',  label: 'Clients',       icon: Users },
   { to: '/admin/client-leads', label: 'Client Leads', icon: Contact },
+  { to: '/admin/bookings', label: 'Bookings',      icon: CalendarClock },
   { to: '/admin/pipeline', label: 'Pipeline',      icon: GitBranch },
   { to: '/admin/vas',      label: 'VA Management', icon: UserCheck },
   { to: '/admin/revenue',  label: 'Revenue',       icon: DollarSign },

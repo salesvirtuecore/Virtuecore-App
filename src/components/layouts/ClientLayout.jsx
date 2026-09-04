@@ -41,7 +41,7 @@ const NAV = [
   { to: '/client/messages',       label: 'Messages',        icon: MessageSquare },
   { to: '/client/invoices',       label: 'Invoices',        icon: Receipt },
   { to: '/client/billing',        label: 'Billing',         icon: CreditCard },
-  { to: '/client/meetings',       label: 'Meetings',        icon: Video },
+  { to: '/client/meetings',       label: 'Bookings',        icon: Video },
   { to: '/client/analytics',      label: 'Web Analytics',   icon: BarChart2 },
   { to: '/client/integrations',   label: 'Ad Account',      icon: Plug },
 ]

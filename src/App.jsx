@@ -126,7 +126,9 @@ function AppRoutes() {
           <Route path="clients/:id/pulse" element={<ClientToolPage Tool={WeeklyPulse} />} />
           <Route path="clients/:id/roi" element={<ClientToolPage Tool={ROICalculator} />} />
           <Route path="clients/:id/leads" element={<ClientToolPage Tool={Leads} />} />
+          <Route path="clients/:id/bookings" element={<ClientToolPage Tool={Meetings} />} />
           <Route path="client-leads" element={<Leads />} />
+          <Route path="bookings" element={<Meetings />} />
           <Route path="pipeline" element={<Pipeline />} />
           <Route path="vas" element={<VAManagement />} />
           <Route path="revenue" element={<Revenue />} />

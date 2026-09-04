@@ -5,6 +5,7 @@ const TABS = [
   { to: '', label: 'Overview' },
   { to: '/ad-performance', label: 'Ad Performance' },
   { to: '/leads', label: 'Leads' },
+  { to: '/bookings', label: 'Bookings' },
   { to: '/scorecard', label: 'Growth Scorecard' },
   { to: '/pulse', label: 'Weekly Pulse' },
   { to: '/roi', label: 'ROI Calculator' },

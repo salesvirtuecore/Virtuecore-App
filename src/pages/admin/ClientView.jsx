@@ -96,7 +96,7 @@ export default function ClientView() {
           { data: adRows, error: adError },
           { data: npsRows },
         ] = await Promise.all([
-          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business, manual_revenue_by_month, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled').eq('id', id).maybeSingle(),
+          supabase.from('clients').select('id, company_name, contact_name, contact_email, package_tier, monthly_retainer, revenue_share_percentage, revenue_share_basis, is_cash_business, manual_revenue_by_month, status, health_score, meta_ad_account_id, stripe_account_id, stripe_secret_key_valid, stripe_total_revenue, stripe_revenue_last_90d, stripe_revenue_synced_at, stripe_customer_id, default_payment_method_id, next_billing_date, auto_charge_enabled, calendly_connected_at').eq('id', id).maybeSingle(),
           supabase.from('deliverables').select('id, client_id, title, type, file_url, status, feedback, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('invoices').select('id, client_id, amount, type, due_date, paid_date, status, created_at').eq('client_id', id).order('created_at', { ascending: false }),
           supabase.from('messages').select('*, sender:profiles!sender_id(full_name, role)').eq('client_id', id).order('created_at', { ascending: true }),
@@ -703,6 +703,9 @@ export default function ClientView() {
             </Badge>
             <Badge variant={client.status === 'active' ? 'green' : 'blue'}>
               {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+            </Badge>
+            <Badge variant={client.calendly_connected_at ? 'green' : 'default'} dot>
+              {client.calendly_connected_at ? 'Calendly Connected' : 'Calendly Not Connected'}
             </Badge>
             <div className="flex items-center gap-2">
               <input

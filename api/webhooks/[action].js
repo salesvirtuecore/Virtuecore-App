@@ -4,7 +4,6 @@ export const config = {
 }
 
 import Stripe from 'stripe'
-import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 async function getRawBody(req) {
@@ -123,67 +122,10 @@ async function handleStripe(req, res, rawBody) {
   }
 }
 
-// ── /api/webhooks/calendly (POST) ───────────────────────────────────────────
-function verifyCalendlySignature(rawBody, signingKey, signatureHeader) {
-  if (!signatureHeader) return false
-  const parts = Object.fromEntries(signatureHeader.split(',').map((p) => p.split('=')))
-  const t = parts['t']; const v1 = parts['v1']
-  if (!t || !v1) return false
-  const toSign = `${t}.${rawBody.toString('utf8')}`
-  const expected = crypto.createHmac('sha256', signingKey).update(toSign).digest('hex')
-  return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))
-}
-
-async function handleCalendly(req, res, rawBody) {
-  const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!supabaseUrl || !serviceRoleKey) return res.status(500).json({ error: 'Server not configured' })
-  if (signingKey) {
-    const sigHeader = req.headers['calendly-webhook-signature']
-    if (!verifyCalendlySignature(rawBody, signingKey, sigHeader)) {
-      return res.status(400).json({ error: 'Invalid webhook signature' })
-    }
-  }
-  let payload
-  try { payload = JSON.parse(rawBody.toString('utf8')) } catch { return res.status(400).json({ error: 'Invalid JSON body' }) }
-  const event = payload?.event
-  const eventData = payload?.payload
-  if (!event || !eventData) return res.status(400).json({ error: 'Missing event or payload' })
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
-  const inviteeEmail = eventData?.email || eventData?.invitee?.email || null
-  const inviteeName = eventData?.name || eventData?.invitee?.name || null
-  const startTime = eventData?.event?.start_time || eventData?.scheduled_event?.start_time || null
-  const endTime = eventData?.event?.end_time || eventData?.scheduled_event?.end_time || null
-  const joinUrl = eventData?.event?.location?.join_url || null
-  const eventTypeName = eventData?.event_type?.name || eventData?.scheduled_event?.name || null
-  const eventUri = eventData?.event?.uri || eventData?.scheduled_event?.uri || ''
-  const inviteeUri = eventData?.uri || ''
-  const eventUuid = eventUri.split('/').pop() || null
-  const inviteeUuid = inviteeUri.split('/').pop() || null
-  if (!startTime) return res.status(400).json({ error: 'Missing start_time in payload' })
-  let clientId = null
-  if (inviteeEmail) {
-    const { data: profile } = await supabase.from('profiles').select('client_id').ilike('email', inviteeEmail).maybeSingle()
-    if (profile?.client_id) {
-      clientId = profile.client_id
-    } else {
-      const { data: client } = await supabase.from('clients').select('id').ilike('contact_email', inviteeEmail).maybeSingle()
-      clientId = client?.id || null
-    }
-  }
-  try {
-    if (event === 'invitee.created') {
-      await supabase.from('meetings').upsert({ client_id: clientId, calendly_event_uuid: eventUuid, calendly_invitee_uuid: inviteeUuid, event_type_name: eventTypeName || 'Meeting', invitee_name: inviteeName, invitee_email: inviteeEmail, start_time: startTime, end_time: endTime, join_url: joinUrl, status: 'active' }, { onConflict: 'calendly_event_uuid' })
-    }
-    if (event === 'invitee.canceled') {
-      await supabase.from('meetings').update({ status: 'canceled' }).eq('calendly_event_uuid', eventUuid)
-    }
-    return res.status(200).json({ ok: true })
-  } catch (err) {
-    return res.status(500).json({ error: err.message })
-  }
-}
+// Calendly webhooks now route per-client to /api/webhooks/calendly/[clientId]
+// (see that file) — each client's own Calendly account posts there directly,
+// so client_id comes from the route instead of being guessed from an email
+// match. This single shared /api/webhooks/calendly path is retired.
 
 // ── Router ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -192,6 +134,5 @@ export default async function handler(req, res) {
   try { rawBody = await getRawBody(req) } catch { return res.status(400).json({ error: 'Failed to read request body' }) }
   const action = req.query.action
   if (action === 'stripe') return handleStripe(req, res, rawBody)
-  if (action === 'calendly') return handleCalendly(req, res, rawBody)
   res.status(404).json({ error: 'Unknown webhook source' })
 }

@@ -1,4 +1,4 @@
-import { authenticateUser, checkRateLimit } from '../_lib/auth.js'
+import { authenticateUser, checkRateLimit, hasValidInternalKey } from '../_lib/auth.js'
 
 const EMOJI = {
   new_lead: '🎯',
@@ -9,6 +9,7 @@ const EMOJI = {
   deliverable_approved: '✅',
   deliverable_changes: '✏️',
   client_created: '🏢',
+  booking_created: '📅',
 }
 
 const MESSAGES = {
@@ -44,13 +45,20 @@ const MESSAGES = {
     title: `${EMOJI.client_created} New Client Onboarded`,
     text: `*${d.company_name || d.full_name}*\nEmail: ${d.email} · Package: ${d.package_tier || 'Starter'}`,
   }),
+  booking_created: (d) => ({
+    title: `${EMOJI.booking_created} New Booking`,
+    text: `*${d.client_name || 'A client'}* — booked by ${d.invitee_name || 'Unknown'}\n${d.start_time ? new Date(d.start_time).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`,
+  }),
 }
 
 export default async function handler(req, res) {
   if (!checkRateLimit(req, res)) return
   if (req.method !== 'POST') return res.status(405).end()
-  const auth = await authenticateUser(req, res)
-  if (!auth) return
+  // Allow server-to-server callers (n8n) via internal key, otherwise require a user JWT
+  if (!hasValidInternalKey(req)) {
+    const auth = await authenticateUser(req, res)
+    if (!auth) return
+  }
 
   const token = process.env.SLACK_BOT_TOKEN
   const channel = process.env.SLACK_CHANNEL_ID || 'D0APY47HZ25'

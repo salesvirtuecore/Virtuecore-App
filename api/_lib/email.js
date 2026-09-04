@@ -161,6 +161,28 @@ export async function sendStaffMessageAlertEmail({ email, clientName, senderName
   return send({ to: email, subject: `New message from ${clientName || 'a client'}`, html: wrapEmailHtml('New Client Message', body) })
 }
 
+// Sent to every admin the moment a client's own customer books a call via
+// that client's connected Calendly — same alert shape as a new staff
+// message, so the team can see at a glance whether a booking was voluntary
+// or came off a follow-up call.
+export async function sendBookingNotificationEmail({ email, clientName, inviteeName, inviteeEmail, startTime, eventTypeName, clientId }) {
+  const appUrl = getAppUrl()
+  const when = startTime
+    ? new Date(startTime).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : 'an unknown time'
+  const body = `
+    <p style="font-size: 15px; color: #111827; line-height: 1.6; margin: 0 0 16px;">
+      New call booked with <strong>${clientName || 'a client'}</strong>:
+    </p>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Booked by</td><td style="padding: 6px 0; text-align: right; color: #111827; font-size: 14px;">${escapeHtml(inviteeName || 'Unknown')}${inviteeEmail ? ` (${escapeHtml(inviteeEmail)})` : ''}</td></tr>
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">When</td><td style="padding: 6px 0; text-align: right; color: #111827; font-size: 14px;">${when}</td></tr>
+      <tr><td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Event type</td><td style="padding: 6px 0; text-align: right; color: #111827; font-size: 14px;">${escapeHtml(eventTypeName || 'Meeting')}</td></tr>
+    </table>
+    ${ctaButton(`${appUrl}/admin/clients/${clientId}/bookings`, 'View Bookings')}`
+  return send({ to: email, subject: `New booking — ${clientName || 'a client'}`, html: wrapEmailHtml('New Call Booked', body) })
+}
+
 export async function sendPaymentReminderEmail({ email, fullName, amount, dueDate }) {
   const appUrl = getAppUrl()
   const body = `
